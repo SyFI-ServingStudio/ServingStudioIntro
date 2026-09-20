@@ -29,8 +29,8 @@ export function KernelBandwidthFollowUp() {
             <div className={s.agentAnswer}>
               <p>
                 For these five kernels, I can compare effective bandwidth with the
-                hardware ceiling. B200 provides 8,000 GB/s of HBM bandwidth per GPU;
-                the all-reduce uses the 900 GB/s one-way NVLink limit.
+                hardware ceiling. Each B200 provides 8,000 GB/s of HBM bandwidth;
+                the all-reduce is compared with the 900 GB/s one-way NVLink limit.
               </p>
               <figure
                 className={`${s.exampleResult} ${s.bandwidthTableWrap}`}
@@ -84,10 +84,10 @@ export function KernelBandwidthFollowUp() {
               </figure>
               <p>
                 Fused MoE reaches about 77% of the HBM ceiling on the slowest rank.
-                Attention and the projections reach about 34–48%, leaving a larger
-                bandwidth gap. The small all-reduce reaches only about 6% of NVLink
-                peak, but at this message size, launch and synchronization latency
-                can matter more than link bandwidth.
+                Attention and the projections reach about 34–48%, showing a larger
+                gap from the bandwidth ceiling. The small all-reduce reaches only
+                about 6% of NVLink peak, but at this message size, launch and
+                synchronization latency can matter more than link bandwidth.
               </p>
               <p className={s.agentConclusion}>
                 These percentages are not an optimality score or a promised speedup.
@@ -103,8 +103,8 @@ export function KernelBandwidthFollowUp() {
                   used in this prediction, not measured HBM transactions. MoE bytes
                   include active-expert weights, scales, routed inputs and finalized
                   outputs, using the corrected byte calculation. The comparison uses
-                  one call per rank, not the cross-layer totals above. All-reduce
-                  uses bus-normalized traffic.
+                  one call per rank rather than the cross-layer totals above.
+                  All-reduce uses bus-normalized traffic.
                 </p>
                 <a
                   className="text-link"

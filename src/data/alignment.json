@@ -17,7 +17,7 @@
     {
       "key": "kernel",
       "label": "Kernel timing",
-      "claim": "2.0 to 5.4%",
+      "claim": "2.0–5.4% error",
       "signed": [
         0.93, -1.39, -0.66, -0.77, -4.83, -1.84, -3.13, -3.47, -4.52, -1.05, -3.31,
         -2.98, -1.65, -3.16, -3.11
@@ -25,7 +25,7 @@
     },
     {
       "key": "e2e",
-      "label": "End to end, mean",
+      "label": "Mean end-to-end latency",
       "claim": "within 7%",
       "signed": [
         -2.54, -5.28, -2.4, -2.2, -5.22, -2.65, -5.53, -2.53, -6.87, -5.64, -5.7,
@@ -34,7 +34,7 @@
     },
     {
       "key": "tps",
-      "label": "Output tokens / s",
+      "label": "Output throughput",
       "claim": "within 8%",
       "signed": [
         3.07, 5.88, 2.76, 2.26, 5.17, 2.98, 5.84, 1.82, 0.73, 6.46, 6.05, 3.89,

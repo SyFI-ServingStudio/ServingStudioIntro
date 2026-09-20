@@ -8,7 +8,7 @@ const levels = [
   {
     name: "Worker",
     icon: Cpu,
-    title: "A worker advances its requests.",
+    title: "A worker advances its assigned requests.",
     body: "A worker tracks local request and KV state, forms batches, and queries the model’s cost tree to determine when work finishes. One worker can span one GPU or a parallel group.",
   },
   {

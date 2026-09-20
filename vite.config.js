@@ -13,6 +13,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         overview: "index.html",
+        blogOverview: "blog-overview.html",
         features: "features.html",
         architecture: "architecture.html",
       },

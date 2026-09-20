@@ -155,8 +155,8 @@ function AlignmentPlot() {
           {alignment.cases} of {alignment.cases}
         </strong>
         <span>
-          cases accepted, {alignment.judgements} judgements, {alignment.failures}{" "}
-          failures
+          cases passed all {alignment.judgements} alignment checks;{" "}
+          {alignment.failures} failures
         </span>
       </figcaption>
       <div className={s.plots}>
@@ -169,7 +169,7 @@ function AlignmentPlot() {
             <div
               className={s.plot}
               role="img"
-              aria-label={`${metric.label}: ${alignment.cases} cases, all ${metric.claim} of the framework run`}
+              aria-label={`${metric.label}: ${alignment.cases} cases; ${metric.claim} relative to the measured framework result`}
             >
               <span className={s.plotZero} />
               {metric.signed.map((value, index) => (
@@ -185,7 +185,7 @@ function AlignmentPlot() {
           <span />
           <span>
             <i>&minus;{errorAxis}%</i>
-            <i>the framework run</i>
+            <i>measured framework result</i>
             <i>+{errorAxis}%</i>
           </span>
         </div>
@@ -332,8 +332,8 @@ function RequestPanel() {
         })}
       </div>
       <p className={s.tierNote}>
-        Every curve is all {tiers.requestCdf[0].n} requests. The dot marks the
-        median; the tail to its right is the one that breaks an SLO.
+        Each curve covers all {tiers.requestCdf[0].n} requests. The dot marks the
+        median; the right-hand tail shows the slowest requests.
       </p>
     </div>
   );
@@ -407,9 +407,9 @@ function IterationPanel() {
         ))}
       </dl>
       <p className={s.tierNote}>
-        The {tiers.iterations.prefill.count} prefill iterations cost about three
-        times a decode iteration, which is what sets the latency every request
-        feels. {tiers.iterations.plotted} of{" "}
+        The {tiers.iterations.prefill.count} prefill iterations take about three
+        times as long as the median decode iteration, exposing the latency cost of
+        mixed batches. {tiers.iterations.plotted} of{" "}
         {tiers.iterations.iterations.toLocaleString("en-US")} are plotted, evenly
         sampled.
       </p>
@@ -463,8 +463,8 @@ function KernelPanel() {
         ))}
       </div>
       <p className={s.tierNote}>
-        Every position in the model, ranked by its share of{" "}
-        {(tiers.kernels.totalMs / 1000).toFixed(0)} GPU seconds. The other{" "}
+        The chart ranks model positions by their share of{" "}
+        {(tiers.kernels.totalMs / 1000).toFixed(0)} GPU seconds. The remaining{" "}
         {kernelRestCount} account for {kernelRestShare.toFixed(1)}%.
       </p>
     </div>
@@ -588,7 +588,7 @@ function OptimalityFigure() {
           </div>
         ))}
         <div className={s.bucketsTotal}>
-          <dt>Total held by the GPU</dt>
+          <dt>Total GPU time</dt>
           <dd>
             <b>{optimality.totalGpuSeconds.toFixed(2)}</b> GPU&#8209;s
           </dd>
@@ -607,8 +607,8 @@ function OptimalityFigure() {
    No magnitudes appear here; this one is a diagram, not a measurement. */
 const agentStages = [
   ["Agent", "Plans the experiment and decides what to compare"],
-  ["Simulator", "Runs every configuration"],
-  ["Analyzer", "Attributes the time and finds the limit"],
+  ["Simulator", "Runs the selected configurations"],
+  ["Analyzer", "Attributes GPU time and identifies the bottleneck"],
 ];
 
 function AgentFigure() {
@@ -652,7 +652,7 @@ function AgentFigure() {
         </ol>
         <div data-flow-result className={`${s.flowEnd} ${s.flowEndFinish}`}>
           <span>Back to you</span>
-          <p>Charts, tables and the reasoning, in front of you.</p>
+          <p>Charts, tables, and a clear explanation of the tradeoff.</p>
         </div>
         <i className={s.flowReturn} aria-hidden="true" />
       </div>
@@ -667,15 +667,14 @@ const rows = [
     id: "support",
     name: "Flexible configuration.",
     claim: "From dense models to modern MoEs.",
-    body: `One simulator covers a dense model on a single H200 and a routed expert model spread over ${maxGpus} GPUs. Precision, parallelism and the serving strategy move with it, down to NVFP4 and a split between attention and FFN.`,
-    note: "Everything listed here has been built and run, but not every combination across the groups is tested.",
+    body: `The simulator supports configurations from a dense model on one H200 to a routed MoE model across ${maxGpus} GPUs. The catalog includes BF16, FP8, NVFP4, several parallelism strategies, and split attention–FFN serving.`,
     figure: <CoverageDirectory />,
   },
   {
     id: "speed",
     name: "Fast simulation.",
-    claim: "Explore days of workload in minutes.",
-    body: "The simulator is Rust, and speed was a goal, not a byproduct. A slow simulator stays stuck in the warmup phase and misses the steady state entirely.",
+    claim: "Simulate long workloads in minutes.",
+    body: "The Rust simulator advances modeled time without waiting for real hardware, so long workloads can reach steady state quickly. This makes broader configuration sweeps practical before deployment.",
     note: "Llama 3 8B and Qwen3-235B. Simulator wall time on one host; it varies with the machine.",
     figure: <SpeedChart />,
   },
@@ -683,7 +682,7 @@ const rows = [
     id: "accuracy",
     name: "Accurate predictions.",
     claim: "Calibrated against real serving frameworks.",
-    body: "Kernel timings are profiled on real GPUs and every layer above only composes them. Alignment then measures a spread of cases on the real framework and calibrates the simulator against every one of them.",
+    body: "Kernel timings are profiled on real GPUs, and each higher layer composes those measured costs into a system prediction. The alignment suite then compares predictions with measurements from real serving frameworks across a range of cases.",
     note: `${alignment.setup}.`,
     figure: <AlignmentPlot />,
   },
@@ -691,25 +690,24 @@ const rows = [
     id: "observability",
     name: "Full observability.",
     claim: "Inspect every detail in the run.",
-    body: "The run, each request, each scheduler step and each kernel are all logged for analysis, not sampled and not traded off against speed. Instrumenting a real deployment to that depth would cost you the performance you were trying to measure.",
-    note: `${tiers.setup}. ${tiers.workload}. The same campaign the alignment figures above come from.`,
+    body: "The simulator logs the run, each request, every scheduler step, and every kernel for analysis. You can move from end-to-end behavior to the operation that explains it without adding instrumentation overhead to a live deployment.",
+    note: `${tiers.setup}. ${tiers.workload}. This is the same campaign used for the alignment figures above.`,
     modifier: s.rowWide,
     figure: <DrilldownFigure />,
   },
   {
     id: "optimization",
     name: "Optimization insights.",
-    claim: "Break down the gap to optimal.",
-    body: "Every simulated GPU second is attributed to a named cause and compared with the work the model configuration actually requires. A busy GPU is not the same as a useful one, and the breakdown tells you where to optimize.",
+    claim: "Break down the gap to a model-derived lower bound.",
+    body: "Every simulated GPU second is assigned to a named category and compared with a theoretical lower bound derived from the model’s computation and data movement. The breakdown separates required work from modeled gaps in batching, kernel efficiency, fusion, communication, load balance, and idle time.",
     note: `Simulated workload: ${optimality.setup}. ${optimality.workload}.`,
     figure: <OptimalityFigure />,
   },
   {
     id: "agent",
     name: "Zero-code exploration.",
-    claim: "Describe the goal, get a solution.",
-    body: "Tell the Agent what you want to find out. It sets up the experiment, reads the analysis and comes back with the tradeoff and the evidence.",
-    note: "The same experiments are available from the command line and the API.",
+    claim: "Describe the goal. Review the evidence.",
+    body: "Tell the Agent what you want to find out. It plans and runs the experiment, analyzes the results, and returns the tradeoff with supporting evidence—all on one browser page.",
     modifier: s.rowFlow,
     figure: <AgentFigure />,
   },
@@ -722,7 +720,7 @@ export function Advantages({ standalone = false }) {
       <div className="wrap">
         {standalone && (
           <div className="section-intro" data-reveal>
-            <h2>ServingStudio key features.</h2>
+            <h2>ServingStudio’s key features.</h2>
           </div>
         )}
         {!standalone && (
@@ -749,7 +747,7 @@ export function Advantages({ standalone = false }) {
                   <span>{row.name}</span> {row.claim}
                 </RowHeading>
                 <p>{row.body}</p>
-                <span className={s.note}>{row.note}</span>
+                {row.note && <span className={s.note}>{row.note}</span>}
               </div>
               <div className={s.figure}>{row.figure}</div>
             </article>

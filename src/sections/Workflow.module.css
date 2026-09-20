@@ -16,7 +16,7 @@
 .intro > p {
   margin-top: 24px;
   color: var(--muted);
-  font-size: var(--fs-xl);
+  font-size: var(--fs-lg);
   line-height: 1.65;
 }
 

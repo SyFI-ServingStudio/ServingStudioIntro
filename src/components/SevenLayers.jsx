@@ -10,7 +10,7 @@ const layers = [
     icon: Activity,
     summary: "Drive the experiment.",
     detail:
-      "Replays the arrival trace, advances one global clock, drives the deployment and streams request and cost logs to parquet.",
+      "Replays the arrival trace, advances one global clock, drives the deployment, and streams request and cost logs to Parquet.",
     examples: [
       [
         "Trace frontend",
@@ -86,7 +86,7 @@ const layers = [
     icon: Layers,
     summary: "Compose a model module.",
     detail:
-      "Groups operations into attention, MLP or another module-level synchronization section. Configuration resolution derives per-rank shapes; composition expresses sums and overlap.",
+      "Groups operations into attention, MLP, or another module-level synchronization section. It derives per-rank shapes from the configuration and composes sequential and overlapping costs.",
     examples: [
       [
         "Tensor-parallel attention",
@@ -122,13 +122,13 @@ const layers = [
     name: "Kernel / Profiling",
     group: "Measured foundation",
     icon: Cpu,
-    summary: "Ground cost in hardware.",
+    summary: "Measure kernel costs on hardware.",
     detail:
       "Python profiles real kernels on real GPUs. Rust builds an interpolating timing cache from those samples and evaluates it for each kernel shape.",
     examples: [
       [
         "Single GEMM",
-        "Use matrix dimensions, precision and GPU configuration to query a cached kernel cost.",
+        "Use matrix dimensions, precision, and GPU configuration to query a cached kernel cost.",
       ],
       [
         "RMSNorm",

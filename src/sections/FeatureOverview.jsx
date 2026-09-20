@@ -16,7 +16,7 @@ const features = [
     icon: Blocks,
     title: "Flexible configuration",
     description:
-      "Explore dense and MoE models across precisions, GPU layouts and serving strategies.",
+      "Explore dense and MoE models across precisions, GPU layouts, and serving strategies.",
   },
   {
     id: "speed",
@@ -30,28 +30,28 @@ const features = [
     icon: ScanLine,
     title: "Accurate predictions",
     description:
-      "Ground predictions in real GPU measurements, calibrated against vLLM and SGLang.",
+      "Predictions draw on real GPU measurements and are calibrated against vLLM and SGLang.",
   },
   {
     id: "observability",
     icon: Search,
     title: "Full observability",
     description:
-      "Follow performance from the whole run down to individual requests, steps and kernels.",
+      "Follow performance from the whole run down to individual requests, steps, and kernels.",
   },
   {
     id: "optimization",
     icon: ChartNoAxesCombined,
     title: "Optimization insights",
     description:
-      "Break down the gap to optimal performance and identify where GPU time can be saved.",
+      "Compare simulated GPU time with model-required work to identify where time could be saved.",
   },
   {
     id: "agent",
     icon: MessagesSquare,
     title: "Zero-code exploration",
     description:
-      "Give the Agent a goal. Get experiments, analysis and tradeoffs backed by evidence.",
+      "Give the Agent a goal and receive experiments, analysis, tradeoffs, and supporting evidence.",
   },
 ];
 
@@ -65,7 +65,7 @@ export function FeatureOverview() {
     >
       <div className="wrap">
         <header className={s.header} data-reveal>
-          <h2 id="features-overview-title">ServingStudio key features.</h2>
+          <h2 id="features-overview-title">ServingStudio’s key features.</h2>
           <p>From a serving question to the evidence behind the answer.</p>
           <a className={`button button-primary ${s.cta}`} href={featuresUrl}>
             Explore all features <ArrowRight size={18} aria-hidden="true" />

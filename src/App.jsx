@@ -50,8 +50,8 @@ export default function App() {
         {page === "overview" ? (
           <>
             <Hero />
-            <ProductIntroduction />
             <UseCases />
+            <ProductIntroduction />
             <Workflow />
             <RealUseCases />
             <FeatureOverview />

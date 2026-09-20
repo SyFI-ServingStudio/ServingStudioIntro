@@ -8,12 +8,12 @@ export function Features() {
         eyebrow="Features"
         title={
           <>
-            Fast to explore.
+            Powerful simulation.
             <br />
-            Clear about the evidence.
+            Zero manual coding.
           </>
         }
-        description="Test more configurations in less time, understand what limits performance, and use the Agent to investigate without writing simulation code."
+        description="Sweep dense and MoE deployments in minutes, check the predictions against real serving frameworks, and trace any result down to the kernel and its lower bound—all in the browser, with the Agent."
         image="hero-datacenter-a.webp"
         href="#advantages"
         linkLabel="Explore the features"

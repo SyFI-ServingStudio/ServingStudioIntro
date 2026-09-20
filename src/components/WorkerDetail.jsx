@@ -19,13 +19,13 @@ export function WorkerDetail() {
         <Node
           span
           name="Shell"
-          note="Sets the cadence. Each iteration forms a batch, builds its input, then completes it."
+          note="Sets the execution cadence by forming a batch, building its input, and completing the iteration."
         />
         <div className={s.admissionLink} aria-hidden="true" />
         <div data-tree-children className={s.peers} style={{ "--n": 3 }}>
           <Node
             name="Admission"
-            note="Chooses which pending request starts next, and owns its lifecycle from there."
+            note="Chooses which pending request starts next and manages its lifecycle."
           />
           <Node
             name="KV"

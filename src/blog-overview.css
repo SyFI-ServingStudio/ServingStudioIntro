@@ -1,0 +1,188 @@
+/* Geist is the face the rest of the site is set in, and the only one shipped in
+   public/fonts. This page used to ask for an InterVariable.woff2 that is not in
+   the repo, so the cover silently rendered in whichever system-ui the exporting
+   machine happened to have. */
+@font-face {
+  font-family: Geist;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/geist-regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: Geist;
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url("/fonts/geist-medium.woff2") format("woff2");
+}
+
+:root {
+  /* One hue per component, so the reader can tell at a glance which side of the
+     exchange a wire came from. Both are steps already used by the site: the
+     accent from tokens.css, and the warm step the Workflow stages use. */
+  --sim: #99baff;
+  --agent: #d7bc84;
+
+  color: #f4f6fb;
+  background: #08090b;
+  font-family: Geist, system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 960px;
+  height: 100%;
+  margin: 0;
+}
+
+.overview-figure {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  min-height: 100%;
+  place-items: center;
+  overflow: hidden;
+}
+
+.overview-figure__background,
+.overview-figure__shade {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+}
+
+.overview-figure__background {
+  object-fit: cover;
+  object-position: center 57%;
+}
+
+.overview-figure__shade {
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgb(5 7 10 / 35%), rgb(5 7 10 / 58%)),
+    radial-gradient(circle at 50% 42%, transparent 0%, rgb(5 7 10 / 24%) 70%);
+}
+
+.overview-figure__brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 94px;
+  font-size: 52px;
+  font-weight: 550;
+  letter-spacing: -0.055em;
+  text-shadow: 0 3px 26px rgb(0 0 0 / 58%);
+
+  /* Only the horizontal nudge is optical, centring the symbol-plus-wordmark
+     lockup rather than its bounding box. The vertical -65px this used to carry
+     lifted the lockup out of the centred column and left the same 65px of dead
+     frame under the figure; the space above the headline is a margin now, so
+     the whole block centres on its own. */
+  transform: translateX(-24px);
+}
+
+.overview-figure__brand img {
+  width: 76px;
+  height: 66px;
+  object-fit: contain;
+}
+
+.overview-figure__copy {
+  width: min(1420px, calc(100% - 128px));
+  text-align: center;
+}
+
+.overview-figure h1 {
+  margin: 0;
+  font-size: clamp(58px, 4.55vw, 76px);
+  font-weight: 520;
+  letter-spacing: -0.06em;
+  line-height: 1.03;
+  text-wrap: balance;
+  text-shadow: 0 3px 34px rgb(0 0 0 / 55%);
+}
+
+/* Scoped to a direct child so the standfirst below the headline keeps its own
+   size and the two component paragraphs are free to set theirs. */
+.overview-figure__copy > p {
+  max-width: 940px;
+  margin: 26px auto 0;
+  color: #d7dbe4;
+  font-size: clamp(21px, 1.55vw, 26px);
+  line-height: 1.55;
+  text-wrap: balance;
+  text-shadow: 0 2px 20px #08090b;
+}
+
+/* The middle column is the widest of the three: the exchange between the two
+   halves is the subject here, and it used to be an empty gap with two bare
+   arrow glyphs floating in it. */
+.overview-figure__loop {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 72px;
+  align-items: center;
+  width: min(1160px, 100%);
+  margin: 52px auto 0;
+  transform: translateY(28px);
+}
+
+.overview-figure__part[data-part="simulator"] {
+  --part: var(--sim);
+}
+
+.overview-figure__part[data-part="agent"] {
+  --part: var(--agent);
+}
+
+.overview-figure__part {
+  display: grid;
+  min-height: 172px;
+  align-content: center;
+  padding: 28px 32px;
+  border: 1px solid color-mix(in srgb, var(--part) 42%, transparent);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--part) 9%, transparent), transparent 58%),
+    rgb(8 12 18 / 82%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 8%),
+    0 24px 60px rgb(0 0 0 / 28%);
+  text-align: center;
+}
+
+.overview-figure__part h2 {
+  margin: 0;
+  color: var(--part);
+  font-size: 54px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  text-shadow: 0 3px 26px rgb(0 0 0 / 65%);
+}
+
+.overview-figure__part p {
+  max-width: none;
+  margin: 20px auto 0;
+  color: #b9c0cb;
+  font-size: 23px;
+  line-height: 1.5;
+  text-shadow: 0 2px 18px rgb(0 0 0 / 85%);
+}
+
+.overview-figure__part p span {
+  padding: 0 8px;
+  color: var(--part);
+}

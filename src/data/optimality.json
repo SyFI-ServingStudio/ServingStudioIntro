@@ -1,7 +1,7 @@
 {
   "source": "VibeSim analyzer optimality report, logs/20260907_0_llama3_h200_throughput/rate128",
   "setup": "Llama 3 8B BF16, 1 \u00d7 NVIDIA H200",
-  "workload": "512 requests, 1024 in and 256 out, arriving at 128 per second",
+  "workload": "512 requests, each with 1,024 input and 256 output tokens, arriving at 128 requests per second",
   "gpuUtilizationPct": 99.88,
   "totalGpuSeconds": 20.643573247528074,
   "necessaryGpuSeconds": 9.594106893653333,

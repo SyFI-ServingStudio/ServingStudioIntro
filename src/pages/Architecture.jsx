@@ -16,22 +16,22 @@ const stages = [
   {
     icon: CircuitBoard,
     title: "A real kernel, on a real GPU",
-    body: "Run with concrete arguments, timed, and recorded on the target hardware.",
+    body: "Run a real kernel with concrete inputs, time it, and record the result on the target GPU.",
   },
   {
     icon: Database,
     title: "One row in the database",
-    body: "Stores kernel measurements for reuse across experiments.",
+    body: "The row stores the measured timing for reuse across experiments.",
   },
   {
     icon: ChartSpline,
     title: "An interpolating cache",
-    body: "Interpolates measured samples for fast cost queries.",
+    body: "The cache interpolates measured samples for fast cost queries.",
   },
   {
     icon: Gauge,
     title: "The cost at this shape",
-    body: "Evaluated for each input shape as the simulation runs.",
+    body: "The simulator evaluates the cache for each input shape as the run progresses.",
   },
 ];
 
@@ -42,12 +42,12 @@ export function Architecture() {
         eyebrow="Architecture"
         title={
           <>
-            Grounded in kernel measurements.
+            How kernel measurements
             <br />
-            Focused on system performance.
+            become serving predictions.
           </>
         }
-        description="Seven simulation layers turn measured kernel costs into system predictions. Independent analysis explains the results, and the Agent uses that evidence to guide implementation."
+        description="A kernel is measured once on the target GPU. Higher layers compose that measurement into a model, then into the workers and pools that serve requests. The top layer predicts a whole serving run."
         image="hero-datacenter-c.webp"
         href="#measurement"
         linkLabel="Explore the architecture"
@@ -58,7 +58,9 @@ export function Architecture() {
         aria-labelledby="measurement-title"
       >
         <div className={s.heading} data-reveal>
-          <h2 id="measurement-title">Every number starts as a measurement.</h2>
+          <h2 id="measurement-title">
+            Every prediction starts with a measurement.
+          </h2>
           <p>
             Kernel timings come from measurements on real hardware. During
             simulation, cached costs are evaluated for the current shapes and
@@ -121,9 +123,9 @@ export function Architecture() {
         aria-labelledby="launcher-title"
       >
         <div className={s.heading} data-reveal>
-          <h2 id="launcher-title">Parameter sweep with ease.</h2>
+          <h2 id="launcher-title">Sweep parameters systematically.</h2>
           <p>
-            Define a serving setup in YAML, then vary request rates, GPU allocation
+            Define a serving setup in YAML, then vary request rates, GPU allocation,
             and kernel backends. The launcher expands the combinations and applies
             your constraints.
           </p>

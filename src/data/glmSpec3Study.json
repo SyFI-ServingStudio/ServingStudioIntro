@@ -1,0 +1,241 @@
+{
+  "status": "complete",
+  "experiment": {
+    "model": "GLM-5.2 NVFP4",
+    "gpu": "4 x B200",
+    "parallelism": "TP4 + EP4 (DP1)",
+    "speculativeDepth": 3,
+    "maxModelLength": 262144,
+    "timingArtifact": "ServingStudioSim/logs/20260920_6_glm52_spec3_moe_floor_fix/result",
+    "concurrencyArtifact": "ServingStudioSim/logs/20260920_1_glm52_spec3_concurrency"
+  },
+  "timing": {
+    "totalMs": 14.031325340270996,
+    "operations": [
+      {
+        "name": "unified.body.sparse_cycle_index_share.moe.routed_experts.fused_moe",
+        "kind": "nvfp4_fused_moe",
+        "timeMs": 2.551587625042798,
+        "share": 18.184936655410187
+      },
+      {
+        "name": "unified.body.sparse_cycle_full_index.moe.routed_experts.fused_moe",
+        "kind": "nvfp4_fused_moe",
+        "timeMs": 0.850529208347599,
+        "share": 6.061645551803395
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.attention.fused_qkv_a_proj",
+        "kind": "single_gemm",
+        "timeMs": 0.749734862278613,
+        "share": 5.343293267720162
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.attention.o_proj",
+        "kind": "single_gemm",
+        "timeMs": 0.645067507010853,
+        "share": 4.597338393683021
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.moe.tp_allreduce",
+        "kind": "all_reduce_fusion",
+        "timeMs": 0.535240956278373,
+        "share": 3.814614395278756
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.attention.sparse_mla.decode",
+        "kind": "dsa_sparse_mla_attention",
+        "timeMs": 0.52632132057343,
+        "share": 3.7510449498512224
+      },
+      {
+        "name": "unified.body.sparse_cycle_full_index.attention.indexer.decode_topk",
+        "kind": "dsa_persistent_topk_decode",
+        "timeMs": 0.460462059283597,
+        "share": 3.2816718885566365
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.moe.shared_expert.gate_up_proj",
+        "kind": "single_gemm",
+        "timeMs": 0.410991103304782,
+        "share": 2.92909681258124
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.attention.q_b_proj",
+        "kind": "single_gemm",
+        "timeMs": 0.392775274898404,
+        "share": 2.799274233711252
+      },
+      {
+        "name": "unified.body.sparse_cycle_full_index.attention.indexer.decode_logits",
+        "kind": "dsa_paged_mqa_logits_decode",
+        "timeMs": 0.355493709875737,
+        "share": 2.5335718562197544
+      }
+    ],
+    "locationCoverage": 0.5329648800481563
+  },
+  "optimality": {
+    "hardwareOptimalShare": 0.2539283864703331,
+    "batchLocked": true,
+    "buckets": [
+      {
+        "key": "hardware_optimal",
+        "label": "Hardware limit",
+        "share": 0.2539283864703331
+      },
+      {
+        "key": "communication",
+        "label": "Communication",
+        "share": 0.09234520837047475
+      },
+      {
+        "key": "hardware_gap",
+        "label": "Kernel efficiency gap",
+        "share": 0.6065160211901527
+      },
+      {
+        "key": "other",
+        "label": "Rank imbalance",
+        "share": 0.04721038396903948
+      }
+    ],
+    "kernelCoverage": 0.5154928560438843,
+    "kernels": [
+      {
+        "name": "unified.body.sparse_cycle_index_share.moe.routed_experts.fused_moe",
+        "kind": "nvfp4_fused_moe",
+        "timeShare": 0.15794975328163294,
+        "hardwareFloor": 0.5093214106681159,
+        "hardwareGap": 0.49067858933188413,
+        "communication": 0.0
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.attention.fused_qkv_a_proj",
+        "kind": "single_gemm",
+        "timeShare": 0.056080515859292634,
+        "hardwareFloor": 0.2909275491280555,
+        "hardwareGap": 0.7090724508719445,
+        "communication": 0.0
+      },
+      {
+        "name": "unified.body.sparse_cycle_full_index.moe.routed_experts.fused_moe",
+        "kind": "nvfp4_fused_moe",
+        "timeShare": 0.05264991776054432,
+        "hardwareFloor": 0.5093214106681159,
+        "hardwareGap": 0.49067858933188413,
+        "communication": 0.0
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.attention.o_proj",
+        "kind": "single_gemm",
+        "timeShare": 0.04825134907998057,
+        "hardwareFloor": 0.527528634054432,
+        "hardwareGap": 0.47247136594556804,
+        "communication": 0.0
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.moe.tp_allreduce",
+        "kind": "all_reduce_fusion",
+        "timeShare": 0.04003627208408729,
+        "hardwareFloor": 0.0,
+        "hardwareGap": 0.0,
+        "communication": 1.0
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.attention.sparse_mla.decode",
+        "kind": "dsa_sparse_mla_attention",
+        "timeShare": 0.03936907919126928,
+        "hardwareFloor": 0.06225538357564056,
+        "hardwareGap": 0.9377446164243595,
+        "communication": 0.0
+      },
+      {
+        "name": "unified.body.sparse_cycle_full_index.attention.indexer.decode_topk",
+        "kind": "dsa_persistent_topk_decode",
+        "timeShare": 0.034442775863155875,
+        "hardwareFloor": 0.010407828091292327,
+        "hardwareGap": 0.9895921719087076,
+        "communication": 0.0
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.moe.shared_expert.gate_up_proj",
+        "kind": "single_gemm",
+        "timeShare": 0.030742325382685443,
+        "hardwareFloor": 0.2075999207116769,
+        "hardwareGap": 0.7924000792883231,
+        "communication": 0.0
+      },
+      {
+        "name": "unified.body.sparse_cycle_index_share.attention.q_b_proj",
+        "kind": "single_gemm",
+        "timeShare": 0.029379772958846834,
+        "hardwareFloor": 0.289167852983591,
+        "hardwareGap": 0.710832147016409,
+        "communication": 0.0
+      },
+      {
+        "name": "unified.body.sparse_cycle_full_index.attention.indexer.decode_logits",
+        "kind": "dsa_paged_mqa_logits_decode",
+        "timeShare": 0.026591094582389046,
+        "hardwareFloor": 0.4515700110935637,
+        "hardwareGap": 0.5484299889064363,
+        "communication": 0.0
+      }
+    ]
+  },
+  "concurrency": {
+    "bestConcurrency": 24,
+    "rows": [
+      {
+        "concurrency": 1,
+        "outputThroughput": 201.93531356352193,
+        "perRequestDecode": 205.20073843917507,
+        "tpotMeanMs": 4.873276809851329
+      },
+      {
+        "concurrency": 2,
+        "outputThroughput": 346.629689048488,
+        "perRequestDecode": 175.8431950139616,
+        "tpotMeanMs": 5.686884840329488
+      },
+      {
+        "concurrency": 4,
+        "outputThroughput": 585.5822616896681,
+        "perRequestDecode": 148.45534049859475,
+        "tpotMeanMs": 6.736032510797183
+      },
+      {
+        "concurrency": 8,
+        "outputThroughput": 921.3526204204509,
+        "perRequestDecode": 116.8785672121935,
+        "tpotMeanMs": 8.555888593196869
+      },
+      {
+        "concurrency": 12,
+        "outputThroughput": 1246.826777401011,
+        "perRequestDecode": 105.91401128245468,
+        "tpotMeanMs": 9.441621442635855
+      },
+      {
+        "concurrency": 16,
+        "outputThroughput": 1487.6344472482533,
+        "perRequestDecode": 95.01475033046536,
+        "tpotMeanMs": 10.52468165755272
+      },
+      {
+        "concurrency": 24,
+        "outputThroughput": 1919.2723071550265,
+        "perRequestDecode": 82.70563854859542,
+        "tpotMeanMs": 12.091074049472809
+      },
+      {
+        "concurrency": 32,
+        "outputThroughput": 2242.6388602930483,
+        "perRequestDecode": 73.30789573411137,
+        "tpotMeanMs": 13.641095409790674
+      }
+    ],
+    "method": "At each operating point, the Simulator ran 96 identical requests, each with 32,768 input and 16,384 output tokens, keeping the concurrency limit saturated. The run used three draft tokens and the measured conditional acceptance rates: 90.62%, 68.89%, and 48.63%. Per-request decode speed is 1,000 divided by mean TPOT; total output throughput is the rate of completed decode tokens. All 96 requests finished at every point."
+  }
+}

@@ -89,7 +89,7 @@ export function useSiteNavigation(mainRef) {
   useEffect(() => {
     document.title =
       page === "overview"
-        ? "ServingStudio | Explore LLM serving performance"
+        ? "ServingStudio | Simulate and improve LLM serving"
         : `${page === "features" ? "Features" : "Architecture"} | ServingStudio`;
   }, [page]);
   return page;

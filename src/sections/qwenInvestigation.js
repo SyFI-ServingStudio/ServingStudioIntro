@@ -3,17 +3,17 @@ import { Activity, ScanSearch, Code2, BadgeCheck } from "lucide-react";
 export const qwenRounds = [
   {
     request:
-      "Build Qwen3-235B support in Mini-SGLang, and use ServingStudio Sim to guide the implementation.",
+      "Build Qwen3-235B support in Mini-SGLang. Use ServingStudio Sim to guide the implementation.",
     steps: [
       {
         icon: Code2,
         title: "Start with a working MoE implementation",
-        body: "Mini-SGLang did not support MoE models, so I first added expert routing, expert-parallel execution and FP8 expert kernels. I connected them to the model loader, attention, KV cache and serving runtime. This gave us a working implementation that we could measure and compare with ServingStudio Sim.",
+        body: "Mini-SGLang did not support MoE models, so I added expert routing, expert-parallel execution, and FP8 expert kernels. I connected them to the model loader, attention, KV cache, and serving runtime. This produced a working implementation that we could measure against ServingStudio Sim.",
       },
       {
         icon: Activity,
-        title: "Make kernel experiments practical",
-        body: "I also built a reduced model with one real transformer layer, plus the embedding and output head. It used the production checkpoint and execution path, so kernel inputs retained their real shapes. This let me test changes quickly; serving throughput and full-model latency would still need to be measured on all 94 layers.",
+        title: "Create a practical kernel testbed",
+        body: "I also built a reduced model with one real transformer layer, plus the embedding and output head. It used the production checkpoint and execution path, so the kernels retained their production input shapes. This let me test changes quickly while reserving serving throughput and full-model latency measurements for all 94 layers.",
       },
     ],
     finding:
@@ -26,7 +26,7 @@ export const qwenRounds = [
       {
         icon: ScanSearch,
         title: "Attention and MoE communication stand out",
-        body: "I profiled the one-layer model with a 16K-token prefill. Attention took 6.237 ms, compared with 1.227 ms in the prediction, and MoE dispatch and combine were also slower. These were differences in the actual execution paths, so I checked which backends and communication operations each implementation used.",
+        body: "I profiled the one-layer model with a 16K-token prefill. Attention took 6.237 ms, compared with 1.227 ms in the prediction. MoE dispatch and combine were also slower. These gaps pointed to differences in the execution paths, so I checked the backends and communication operations used by each implementation.",
         chart: "kernels",
       },
       {
@@ -37,7 +37,7 @@ export const qwenRounds = [
       {
         icon: ScanSearch,
         title: "Avoid sending hidden states that every rank already has",
-        body: "I initially reduced MoE traffic by sending each token once per destination rank. A closer look showed that attention tensor parallelism had already replicated the hidden states across all four ranks. The extra dispatch was unnecessary. I replaced it with FlashInfer's native expert filtering: each rank computes its local experts, followed by an all-reduce. Kernel launches fell from 150 to 55 per rank in the one-layer trial. I updated the simulator to represent this new path as well.",
+        body: "I initially reduced MoE traffic by sending each token once per destination rank. A closer look showed that tensor parallelism for attention had already replicated the hidden states across all four ranks, making the extra dispatch unnecessary. I replaced it with FlashInfer's native expert filtering: each rank runs only its local experts, followed by an all-reduce. Kernel launches fell from 150 to 55 per rank in the one-layer trial. I also updated the simulator to represent the new path.",
         chart: "after",
       },
     ],
@@ -51,18 +51,18 @@ export const qwenRounds = [
       {
         icon: Activity,
         title: "Quantization costs nearly as much as some GEMMs",
-        body: "I compared kernel times using the model's measured expert assignments. MoE gate/up quantization accounted for 12.65% of prefill time, while its GEMM accounted for 15.08%. Across the four inputs below, quantization took 19.8% of prefill time. That suggested a useful target: let the preceding kernels produce FP8 inputs directly, instead of reading and converting each intermediate tensor in a separate kernel.",
+        body: "I compared kernel times using the model's measured expert assignments. MoE gate/up quantization accounted for 12.65% of prefill time, compared with 15.08% for its GEMM. Across the four input-quantization operations below, quantization consumed 19.8% of prefill time. This made fusion the next target: the preceding kernels could produce FP8 inputs directly instead of leaving each intermediate tensor for a separate conversion kernel.",
         chart: "quantization",
       },
       {
         icon: Code2,
-        title: "Fuse quantization with the operations that produce its inputs",
-        body: "I fused expert-row expansion with gate/up quantization, and SiLU-and-multiply with down-projection quantization. The GEMMs also had to accept these prequantized inputs. Removing the old conversion exposed a shared-buffer aliasing bug that produced NaNs; a separate FP8 input buffer fixed it. I then fused residual addition and RMSNorm with QKV input quantization.",
+        title: "Fuse quantization into the producing kernels",
+        body: "I fused expert-row expansion with gate/up quantization and SiLU-and-multiply with down-projection quantization. The GEMMs also had to accept the prequantized inputs. Removing the old conversion exposed a shared-buffer aliasing bug that produced NaNs; allocating a separate FP8 input buffer fixed it. I then fused residual addition and RMSNorm with QKV input quantization.",
       },
       {
         icon: BadgeCheck,
         title: "Keep the changes that help in the full execution path",
-        body: "Some promising kernels did not help when tested with their real producers and consumers, so I rejected those versions. The three fusions reduced recorded full-model TTFT from 724.38 to 616.99 ms, but the baseline later failed during decode; that comparison only supports a prefill result. I then moved attention-output quantization into the FA3 epilogue. A paired test with five requests per variant reduced median TTFT from 600.17 to 596.74 ms. A final profile confirmed that the separate input-quantization kernels had disappeared from the steady layers.",
+        body: "Some kernels that looked promising in isolation did not help in the full execution path, so I discarded them. Three fusions reduced recorded full-model TTFT from 724.38 to 616.99 ms. Because the baseline later failed during decode, this comparison supports only a prefill improvement. I then moved attention-output quantization into the FA3 epilogue. In a paired test with five requests per variant, median TTFT fell from 600.17 to 596.74 ms. A final profile confirmed that the separate input-quantization kernels had disappeared from the steady layers.",
       },
     ],
     finding:

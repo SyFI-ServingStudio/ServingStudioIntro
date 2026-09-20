@@ -10,40 +10,40 @@ import s from "./Workflow.module.css";
 
 const stages = [
   {
-    title: "Understand the workload",
+    title: "Set the target and baseline",
     icon: Activity,
     description:
-      "Define the model, request mix, hardware and performance objective. Establish a baseline from the existing system.",
+      "Define the model, request mix, hardware, and performance target, then measure the current deployment to establish a baseline.",
   },
   {
     title: "Explore in simulation",
     icon: FlaskConical,
     description:
-      "Compare serving configurations and inspect operation costs to identify a promising improvement.",
+      "Sweep serving configurations and inspect predicted kernel costs to select one change worth testing.",
   },
   {
-    title: "Build with the Agent",
+    title: "Implement one change",
     icon: Code2,
     description:
-      "Implement the selected change in a serving framework, from a kernel optimization to a new model implementation.",
+      "Apply the selected change to a real serving system, whether it is a kernel optimization or support for a new model. Pass correctness checks before measuring performance.",
   },
   {
     title: "Profile the change",
     icon: ChartNoAxesCombined,
     description:
-      "Capture a GPU trace of the modified implementation. Inspect kernel timings, communication and idle gaps to see where execution time goes.",
+      "Capture a GPU trace of the modified implementation. Break down execution time across kernels, communication, and idle gaps.",
   },
   {
-    title: "Align back with simulation",
+    title: "Compare measurement with prediction",
     icon: GitCompareArrows,
     description:
-      "Compare predictions with the real implementation. Investigate differences in kernel timings, batching, communication and host overhead.",
+      "Line up the measured breakdown against the Simulator's prediction, then trace each gap to the performance model, implementation, or measurement setup.",
   },
   {
-    title: "Validate on real hardware",
+    title: "Validate end-to-end performance",
     icon: BadgeCheck,
     description:
-      "Check correctness and measure serving performance. Use the findings to confirm the improvement or guide another iteration.",
+      "Measure throughput and latency on the full serving workload and compare with the baseline. Keep, reject, or refine the change, then use the evidence to guide the next simulation pass.",
   },
 ];
 
@@ -57,13 +57,13 @@ export function Workflow() {
       <div className={`wrap ${s.layout}`}>
         <div className={s.intro} data-reveal>
           <h2 id="workflow-title">
-            From real measurements
-            <br />
-            to real improvements.
+            Close the loop between simulation and serving.
           </h2>
           <p>
-            Explore in simulation, implement in a real system, and measure the
-            result.
+            Each pass starts with a measured baseline, tests one simulation-guided
+            change in a real serving system, and returns the result to the
+            Simulator. The Agent uses that evidence to keep, reject, or refine the
+            change and decide what to test next.
           </p>
         </div>
         <ol className={s.stages}>

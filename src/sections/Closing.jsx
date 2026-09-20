@@ -22,7 +22,7 @@ export function Closing() {
       </section>
       <footer className={`wrap ${s.footer}`}>
         <Brand className={s.footerBrand} />
-        <span>Simulate, understand and optimize LLM serving.</span>
+        <span>Simulate, understand, and optimize LLM serving.</span>
         <a
           href="https://github.com/SyFI-ServingStudio/ServingStudioIntro"
           target="_blank"

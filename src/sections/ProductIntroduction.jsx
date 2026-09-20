@@ -5,36 +5,37 @@ import s from "./ProductIntroduction.module.css";
 const productParts = [
   {
     name: "Simulator",
-    role: "What it can model.",
+    role: "Predicts serving performance.",
     items: [
-      ["Models", "Dense and mixture-of-experts, in BF16, FP8 and NVFP4"],
-      ["Hardware", "H200 and B200, with TP, EP, DP and PP"],
       [
-        "Serving",
-        "Unified, prefill–decode, attention–FFN and speculative decoding",
+        "Models",
+        "Dense and mixture-of-experts architectures in BF16, FP8, and NVFP4",
       ],
-      ["Results", "Throughput, TTFT and TPOT, down to time per operation"],
+      ["Deployments", "H200 and B200 GPUs with TP, EP, DP, and PP"],
       [
-        "Accuracy",
-        "Kernel timings measured on real GPUs, calibrated against vLLM and SGLang",
+        "Execution",
+        "Unified serving, prefill–decode or attention–FFN disaggregation, and speculative decoding",
       ],
+      ["Results", "Throughput, TTFT, TPOT, and per-kernel timing"],
+      ["Calibration", "Checked against measurements from vLLM and SGLang runs"],
     ],
-    note: "Everything listed here has been built and run, but not every combination across the rows is tested.",
   },
   {
     name: "Agent",
-    role: "What it does with it.",
+    role: "Runs the optimization loop.",
     items: [
-      ["Designs", "Turns a serving question into an experiment and runs it"],
-      ["Searches", "Sweeps configurations and compares what comes back"],
-      ["Explains", "Reads the analysis and states the tradeoff behind the answer"],
-      ["Builds", "Implements the chosen change in vLLM or SGLang"],
+      ["Designs", "Turns a serving question into an executable experiment"],
+      ["Searches", "Sweeps configurations and compares their tradeoffs"],
+      [
+        "Explains",
+        "Traces performance back to specific kernels and system behavior",
+      ],
+      ["Builds", "Implements the selected change in vLLM or SGLang"],
       [
         "Validates",
-        "Benchmarks it on real hardware and attributes what is still missing",
+        "Benchmarks the change on real hardware and explains any remaining gap",
       ],
     ],
-    note: "The same experiments are available from the command line and the API.",
   },
 ];
 
@@ -47,11 +48,13 @@ export function ProductIntroduction() {
     >
       <div className="wrap">
         <div className="section-intro" data-reveal>
-          <h2 id="product-title">A simulator to predict. An Agent to act.</h2>
+          <h2 id="product-title">The Simulator predicts. The Agent acts.</h2>
           <p>
-            ServingStudio combines simulation grounded in real GPU measurements
-            with an Agent that explores configurations, explains performance,
-            and builds and validates improvements in real serving frameworks.
+            Grounded in measured GPU kernel timings, the Simulator predicts
+            performance across models, hardware, and serving configurations. The
+            Agent runs the optimization loop: it designs the experiment, sweeps
+            configurations, explains the result, implements the change in vLLM or
+            SGLang, and validates it on real hardware.
           </p>
         </div>
         <div className={s.productParts}>
@@ -67,7 +70,6 @@ export function ProductIntroduction() {
                   </div>
                 ))}
               </dl>
-              <p className={s.productPartNote}>{part.note}</p>
             </article>
           ))}
         </div>

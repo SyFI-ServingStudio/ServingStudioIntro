@@ -18,13 +18,13 @@ Performance depends on how models, kernels, hardware, and serving policies inter
 
 ✅ Reusing profiling data makes configuration exploration faster and cheaper.
 
-⚠️ Extending a simulator to new models and interpreting its results still require considerable human efforts.
+⚠️ Extending a simulator to new models and interpreting its results still require considerable human effort.
 
 🤖 **Agents**
 
 ✅ Agents can automate profiling and implement changes in serving frameworks.
 
-⚠️ Without full-stack performance modeling, they have limited guidance for choosing which changes to test, while hardware experiments remain slow and costly.
+⚠️ Agents without system-level performance models lack end-to-end predictions for prioritizing candidate changes, while hardware experiments remain slow and costly.
 
 ServingStudio connects the two: simulation guides the Agent’s experiments, while the Agent extends the Simulator, interprets results, and implements promising changes.
 
@@ -40,7 +40,7 @@ ServingStudio connects the two: simulation guides the Agent’s experiments, whi
 
 🔍 **Full observability:** You can inspect the entire run, individual requests, scheduler iterations, and kernel execution.
 
-💡 **Optimization insights:** The analysis breaks down simulated execution time into necessary model computation and overhead from inefficient kernels, redundant operations, load imbalance, inefficient batching, communication, and idle time.
+💡 **Optimization insights:** The analysis compares simulated GPU time with a theoretical lower bound derived from the model’s computation and data movement. It breaks down the gap to identify optimization opportunities in kernels, fusion, batching, load balance, and communication, as well as redundant work and idle time.
 
 (3/9)
 
@@ -68,15 +68,15 @@ Let the Agent work autonomously while you monitor progress. Contribute workload 
 
 ServingStudio provides an end-to-end workflow for optimizing LLM serving.
 
-1. 📐 **Understand the workload:** Define the model, request mix, hardware, parallelism, and performance goal, then measure a baseline.
+1. 📐 **Understand the workload:** Define the model, request mix, hardware, parallelism, and performance goal, then measure a baseline in a framework that already supports the model.
 
-2. 🔬 **Explore in simulation:** Extend the Simulator as needed and align baseline predictions with real measurements. Model and evaluate candidate changes to select a promising improvement.
+2. 🔬 **Explore in simulation:** Extend the Simulator as needed and align predictions with measurements from the baseline framework. Model and evaluate candidate changes to select a promising improvement.
 
 3. 🛠️ **Build with the Agent:** Implement the selected change in a real serving framework with the Agent.
 
 4. ⏱️ **Profile the change:** Capture a GPU trace to inspect kernel timings, communication, and idle gaps.
 
-5. 🔍 **Align with simulation:** Compare the Simulator’s predicted performance with measurements from the modified framework. Investigate discrepancies in kernel timings, batching, communication, and host overhead.
+5. 🔍 **Align with simulation:** Compare the Simulator’s predicted performance with measurements from the modified framework. Investigate any discrepancies in kernel timings, batching, communication, and host overhead.
 
 6. ✅ **Validate on real hardware:** Check correctness and benchmark against the baseline to determine whether the change improves performance or needs another iteration.
 
@@ -90,7 +90,7 @@ SGLang’s prefill MoE kernels ran slower than the Simulator predicted. Autotuni
 
 ⚙️ **vLLM GLM-5.2 MTP: 10.8% higher output throughput**
 
-During alignment with five MTP draft tokens, we found that vLLM restricted CUDA graph sizes to multiples of six: one token plus five draft tokens per verification step. This excluded 2,048-token prefill batches from graph replay. Raising both the scheduler budget and graph limit to 2,052 restored replay. The updated configuration achieved 10.8% higher output throughput than the original configuration.
+During alignment with multi-token prediction (MTP) and five draft tokens, we found that vLLM restricted CUDA graph sizes to multiples of six: one token plus five draft tokens per request in each verification step. This excluded 2,048-token prefill batches from graph replay. Raising both the scheduler budget and graph limit to 2,052 restored replay. The updated configuration achieved 10.8% higher output throughput than the original configuration.
 
 🏗️ **Mini-SGLang Qwen3-235B: 25.6% higher output throughput than vLLM**
 
@@ -112,7 +112,7 @@ We used the Agent to build an FP8 implementation of Qwen3-235B in Mini-SGLang. G
 
 🔭 We plan to:
 
-- **Support newer models**, including GLM-5.3 Flash, DeepSeek-V4, and Kimi K3.
+- **Support newer models**, including GLM-5.3 Flash, DeepSeek V4.1 Flash, and Kimi K3.
 - **Model distributed prefix caches**, including cache offloading across GPU memory, host memory, and remote storage.
 - **Enable remote hardware profiling** and release a public kernel-performance database.
 

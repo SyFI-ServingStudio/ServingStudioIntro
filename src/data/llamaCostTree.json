@@ -1,5 +1,5 @@
 {
-  "model": "Llama3-8B",
+  "model": "Llama 3 8B",
   "totalMs": 22.9415225982666,
   "reconstructedMs": 22.941524071153253,
   "workload": "1,024-token prefill",
@@ -20,7 +20,7 @@
       "depth": 0,
       "ms": 22.941524071153253,
       "rank": null,
-      "name": "Llama3-8B \u00b7 one iteration"
+      "name": "Llama 3 8B \u00b7 one iteration"
     },
     {
       "id": 1,

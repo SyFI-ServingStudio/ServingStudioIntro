@@ -151,9 +151,9 @@ function ModelCostTree({ data }) {
         <p className={s.source}>{data.source}</p>
         <p className={s.sidenote} role="note">
           <span aria-hidden="true">* </span>
-          The recorded model tree, from embedding through the decoder layers to the
-          LM head. Operations shown as single leaves include their underlying kernel
-          costs.
+          This is the recorded model tree, from embedding through the decoder layers
+          to the LM head. Operations shown as single leaves include their underlying
+          kernel costs.
           {data.model === "Qwen3-235B" &&
             " Each multi-rank Max shows its slowest child once."}{" "}
           Timings are per invocation; the original tree determines the iteration

@@ -27,7 +27,7 @@ const examples = [
     note: "One parameter, three arrival rates.",
   },
   {
-    title: "Split 8 GPUs",
+    title: "Allocate 8 GPUs",
     icon: Split,
     detail: "Vary the prefill/decode ratio.",
     before: [

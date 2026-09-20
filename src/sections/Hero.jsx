@@ -60,19 +60,18 @@ export function Hero() {
       <div className={s.heroShade} />
       <div className={`${s.heroCopy} wrap`}>
         <h1 id="page-title">
-          Know how fast LLM serving can go.
+          Simulate your LLM serving system.
           <br />
-          Then make it go that fast.
+          Optimize it end to end with an agent.
         </h1>
         <p>
-          ServingStudio brings simulation, performance analysis, and Agent-driven
-          experimentation into one workspace. Predict serving performance from
-          real GPU measurements, explore configurations, and work with
-          ServingStudio Agent to build and validate improvements in real frameworks.
+          Compare configurations using performance models grounded in real GPU
+          measurements, then implement and validate the strongest candidates in
+          real serving frameworks.
         </p>
         <div className={s.heroActions}>
           <a className={`button button-primary`} href="#use-cases">
-            See the Agent run a study <ArrowRight size={16} />
+            See the Agent at work <ArrowRight size={16} />
           </a>
           <a
             className={s.heroSecondary}
