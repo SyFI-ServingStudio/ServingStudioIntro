@@ -60,14 +60,13 @@ export function Hero() {
       <div className={s.heroShade} />
       <div className={`${s.heroCopy} wrap`}>
         <h1 id="page-title">
-          Simulate your LLM serving system.
-          <br />
-          Optimize it end to end with an agent.
+          Bridge Simulation and Agents for{" "}
+          <span className={s.noBreak}>Speed-of-Light</span> Serving
         </h1>
         <p>
           Compare configurations using performance models grounded in real GPU
-          measurements, then implement and validate the strongest candidates in
-          real serving frameworks.
+          measurements, then let an agent build and validate the strongest
+          candidates in real serving frameworks.
         </p>
         <div className={s.heroActions}>
           <a className={`button button-primary`} href="#use-cases">
