@@ -53,8 +53,8 @@ body {
   overflow: hidden;
 }
 
-.overview-figure__background,
-.overview-figure__shade {
+.overview-figure-background,
+.overview-figure-shade {
   position: absolute;
   inset: 0;
   z-index: -2;
@@ -62,19 +62,19 @@ body {
   height: 100%;
 }
 
-.overview-figure__background {
+.overview-figure-background {
   object-fit: cover;
   object-position: center 57%;
 }
 
-.overview-figure__shade {
+.overview-figure-shade {
   z-index: -1;
   background:
     linear-gradient(180deg, rgb(5 7 10 / 35%), rgb(5 7 10 / 58%)),
     radial-gradient(circle at 50% 42%, transparent 0%, rgb(5 7 10 / 24%) 70%);
 }
 
-.overview-figure__brand {
+.overview-figure-brand {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -93,13 +93,13 @@ body {
   transform: translateX(-24px);
 }
 
-.overview-figure__brand img {
+.overview-figure-brand img {
   width: 76px;
   height: 66px;
   object-fit: contain;
 }
 
-.overview-figure__copy {
+.overview-figure-copy {
   width: min(1420px, calc(100% - 128px));
   text-align: center;
 }
@@ -116,7 +116,7 @@ body {
 
 /* Scoped to a direct child so the standfirst below the headline keeps its own
    size and the two component paragraphs are free to set theirs. */
-.overview-figure__copy > p {
+.overview-figure-copy > p {
   max-width: 940px;
   margin: 26px auto 0;
   color: #d7dbe4;
@@ -129,7 +129,7 @@ body {
 /* The middle column is the widest of the three: the exchange between the two
    halves is the subject here, and it used to be an empty gap with two bare
    arrow glyphs floating in it. */
-.overview-figure__loop {
+.overview-figure-loop {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 72px;
@@ -139,15 +139,15 @@ body {
   transform: translateY(28px);
 }
 
-.overview-figure__part[data-part="simulator"] {
+.overview-figure-part[data-part="simulator"] {
   --part: var(--sim);
 }
 
-.overview-figure__part[data-part="agent"] {
+.overview-figure-part[data-part="agent"] {
   --part: var(--agent);
 }
 
-.overview-figure__part {
+.overview-figure-part {
   display: grid;
   min-height: 172px;
   align-content: center;
@@ -163,7 +163,7 @@ body {
   text-align: center;
 }
 
-.overview-figure__part h2 {
+.overview-figure-part h2 {
   margin: 0;
   color: var(--part);
   font-size: 54px;
@@ -173,7 +173,7 @@ body {
   text-shadow: 0 3px 26px rgb(0 0 0 / 65%);
 }
 
-.overview-figure__part p {
+.overview-figure-part p {
   max-width: none;
   margin: 20px auto 0;
   color: #b9c0cb;
@@ -182,7 +182,7 @@ body {
   text-shadow: 0 2px 18px rgb(0 0 0 / 85%);
 }
 
-.overview-figure__part p span {
+.overview-figure-part p span {
   padding: 0 8px;
   color: var(--part);
 }
