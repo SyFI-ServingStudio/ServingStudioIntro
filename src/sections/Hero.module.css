@@ -48,6 +48,12 @@
   letter-spacing: -0.06em;
   line-height: 1.02;
   text-shadow: 0 3px 34px var(--c-alpha-500);
+  text-wrap: balance;
+}
+
+/* Keeps a hyphenated term on one line; browsers otherwise break at the hyphens. */
+.noBreak {
+  white-space: nowrap;
 }
 
 .heroCopy > p {

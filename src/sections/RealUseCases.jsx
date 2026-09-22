@@ -7,28 +7,6 @@ import qwenAfter from "../../public/case-studies/qwen-after-alignment.json";
 
 const cases = [
   {
-    id: "sglang-autotune",
-    stack: "SGLang · GLM-5.2",
-    title: "Autotune MoE kernels for prefill graphs.",
-    summary:
-      "ServingStudio Sim exposed slower-than-expected MoE kernels during SGLang prefill. Autotuning was enabled, but it did not cover the CUDA graph path used by prefill. Tuning that path increased input throughput by 5.6%.",
-    metric: "+5.6%",
-    metricLabel: "higher input throughput than the unpatched baseline",
-    setup: "NVFP4 · 4 × B200 · TP4",
-    comparison: {
-      label: "Median workload duration",
-      unit: "s",
-      before: "44.873",
-      after: "42.503",
-      beforeLabel: "Baseline",
-      afterLabel: "Patched",
-    },
-    link: {
-      label: "Read the SGLang PR #38560",
-      href: "https://github.com/sgl-project/sglang/pull/38560",
-    },
-  },
-  {
     id: "spec5-graphs",
     stack: "vLLM · GLM-5.2 MTP",
     title: "Restore CUDA graph replay for speculative decoding.",
@@ -66,6 +44,28 @@ const cases = [
       after: "101.406",
       beforeLabel: "vLLM",
       afterLabel: "Mini-SGLang",
+    },
+  },
+  {
+    id: "sglang-autotune",
+    stack: "SGLang · GLM-5.2",
+    title: "Autotune MoE kernels for prefill graphs.",
+    summary:
+      "ServingStudio Sim exposed slower-than-expected MoE kernels during SGLang prefill. Autotuning was enabled, but it did not cover the CUDA graph path used by prefill. Tuning that path increased input throughput by 5.6%.",
+    metric: "+5.6%",
+    metricLabel: "higher input throughput than the unpatched baseline",
+    setup: "NVFP4 · 4 × B200 · TP4",
+    comparison: {
+      label: "Median workload duration",
+      unit: "s",
+      before: "44.873",
+      after: "42.503",
+      beforeLabel: "Baseline",
+      afterLabel: "Patched",
+    },
+    link: {
+      label: "Read the SGLang PR #38560",
+      href: "https://github.com/sgl-project/sglang/pull/38560",
     },
   },
 ];
@@ -221,10 +221,10 @@ export function RealUseCases() {
           From simulation to faster serving systems.
         </h2>
         <p>
-          By comparing simulated and measured performance, we found opportunities
-          to improve SGLang and vLLM and to optimize MoE models as we implemented
-          them in Mini-SGLang. These case studies show what we changed and how much
-          faster each system ran.
+          By comparing simulated and measured performance, we found opportunities to
+          improve frontier serving systems (SGLang, vLLM), as well as both integrate
+          and optimize new MoEs into Mini-SGLang. These case studies show what we
+          changed and how much faster each system ran.
         </p>
       </div>
       <div className={s.grid}>
