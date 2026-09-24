@@ -218,7 +218,7 @@
   flex-wrap: wrap;
   gap: 8px 22px;
   color: var(--muted);
-  font-size: var(--fs-fine);
+  font-size: var(--fs-sm);
   line-height: 1.6;
 }
 
@@ -294,10 +294,6 @@
   color: var(--muted);
   font-size: var(--fs-lg);
   line-height: 1.6;
-}
-
-.articleHeader .meta {
-  font-size: 14px;
 }
 
 .articleLayout {
