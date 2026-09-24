@@ -8,7 +8,15 @@
 @font-face {
   font-family: Geist;
   src: url("/fonts/geist-medium.woff2") format("woff2");
-  font-weight: 500 700;
+  font-weight: 500 600;
+  font-display: swap;
+}
+
+/* Geist 1.400 Bold, from the same geist@1.4.2 release as the two faces above. */
+@font-face {
+  font-family: Geist;
+  src: url("/fonts/geist-bold.woff2") format("woff2");
+  font-weight: 700;
   font-display: swap;
 }
 
