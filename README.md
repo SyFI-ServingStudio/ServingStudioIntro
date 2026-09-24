@@ -58,7 +58,8 @@ PNG or other source figures alongside compressed web versions when needed.
 Markdown supports tables, lists, code blocks, and links. The metadata supplies
 the displayed title; an initial `#` heading in the Markdown is omitted when
 rendering. Second-level headings populate the article's table of contents.
-Raw HTML is displayed as text.
+Raw HTML is displayed as text, except `<u>…</u>`, which underlines text
+within a paragraph.
 
 `npm run build` validates the metadata and local asset references, then generates
 each article at `dist/blog/<slug>/index.html` with its assets. These URLs work on

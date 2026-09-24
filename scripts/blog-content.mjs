@@ -109,11 +109,35 @@ export function readBlogPosts(root, base) {
           }
         };
       }
+      // Raw HTML stays text, except a paired <u>…</u> inside one paragraph,
+      // which becomes an underline.
+      function underlineTags() {
+        const visit = (node) => {
+          const children = node.children;
+          if (!children) return;
+          for (let i = 0; i < children.length; i++) {
+            if (children[i].type !== "html" || children[i].value !== "<u>")
+              continue;
+            const end = children.findIndex(
+              (child, j) =>
+                j > i && child.type === "html" && child.value === "</u>",
+            );
+            if (end < 0) continue;
+            children.splice(i, end - i + 1, {
+              type: "underline",
+              data: { hName: "u" },
+              children: children.slice(i + 1, end),
+            });
+          }
+          children.forEach(visit);
+        };
+        return visit;
+      }
       const html = renderToStaticMarkup(
         createElement(
           Markdown,
           {
-            remarkPlugins: [remarkGfm, articleHeadings],
+            remarkPlugins: [remarkGfm, articleHeadings, underlineTags],
             components: {
               img({ node, ...props }) {
                 return createElement("img", {

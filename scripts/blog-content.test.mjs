@@ -97,6 +97,21 @@ test("renders GFM and unique section anchors without executing raw HTML", (t) =>
   assert.doesNotMatch(post.html, /<h1|<script|href="javascript:/);
 });
 
+test("renders paired <u> tags as underline and leaves other HTML as text", (t) => {
+  const f = fixture(t);
+  f.post(
+    "experiment",
+    {},
+    "**We present <u>ServingStudio</u>, a workbench.** <b>raw</b>",
+  );
+  const [post] = readBlogPosts(f.root, "/");
+  assert.match(
+    post.html,
+    /<strong>We present <u>ServingStudio<\/u>, a workbench.<\/strong>/,
+  );
+  assert.match(post.html, /&lt;b&gt;raw&lt;\/b&gt;/);
+});
+
 test("rejects malformed author metadata and impossible dates", (t) => {
   const f = fixture(t);
   f.post("experiment", { authors: [] });
