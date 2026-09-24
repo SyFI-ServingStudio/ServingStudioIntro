@@ -66,6 +66,12 @@ each article at `dist/blog/<slug>/index.html` with its assets. These URLs work o
 GitHub Pages without a server-side router. The introduction article is available
 at `/ServingStudioIntro/blog/introducing-servingstudio/`.
 
+The build also writes `sitemap.xml` with the main pages and every published
+post (with its date as `lastmod`). Submit
+`https://syfi-servingstudio.github.io/ServingStudioIntro/sitemap.xml` in Google
+Search Console; new posts are added automatically. To list another page, add it
+to the `sitemap` plugin's `pages` in `vite.config.js`.
+
 Run `npm test`, `npm run lint:css`, and `npm run build` before publishing.
 The previous introduction draft now lives at
 `content/blog/introducing-servingstudio/index.md`; historical drafts remain local.
