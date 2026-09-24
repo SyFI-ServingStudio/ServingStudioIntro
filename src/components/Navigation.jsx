@@ -12,6 +12,7 @@ export function Navigation({ page = "overview" }) {
             ["overview", "Overview", base],
             ["features", "Features", `${base}features.html`],
             ["architecture", "Architecture", `${base}architecture.html`],
+            ["blog", "Blog", `${base}blog.html`],
           ].map(([id, name, href]) => (
             <a key={id} href={href} aria-current={page === id ? "page" : undefined}>
               {name}

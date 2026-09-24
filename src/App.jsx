@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { lazy, Suspense, useLayoutEffect, useRef } from "react";
 import { useSiteNavigation } from "./hooks/useSiteNavigation";
 import { Navigation } from "./components/Navigation";
 import { Hero } from "./sections/Hero";
@@ -10,6 +10,8 @@ import { Closing } from "./sections/Closing";
 import { Architecture } from "./pages/Architecture";
 import { RealUseCases } from "./sections/RealUseCases";
 import { FeatureOverview } from "./sections/FeatureOverview";
+
+const Blog = lazy(() => import("./pages/Blog"));
 
 export default function App() {
   const mainRef = useRef(null);
@@ -45,7 +47,7 @@ export default function App() {
       <a href="#main" className="skip-link">
         Skip to content
       </a>
-      <Navigation page={page} />
+      <Navigation page={page.startsWith("blog") ? "blog" : page} />
       <main ref={mainRef} id="main" tabIndex={-1}>
         {page === "overview" ? (
           <>
@@ -58,11 +60,24 @@ export default function App() {
           </>
         ) : page === "features" ? (
           <Features />
+        ) : page.startsWith("blog") ? (
+          <Suspense
+            fallback={
+              <p className="wrap blog-loading" role="status">
+                Loading blog…
+              </p>
+            }
+          >
+            <Blog
+              key={page}
+              slug={page.startsWith("blog/") ? page.slice(5) : undefined}
+            />
+          </Suspense>
         ) : (
           <Architecture />
         )}
       </main>
-      <Closing />
+      <Closing compact={page.startsWith("blog")} />
     </div>
   );
 }

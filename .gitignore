@@ -15,11 +15,11 @@ dist/
 design-briefs/
 agent-trace/
 
-# Markdown is not committed. goal.md, progress.md and notes.md are the working
-# journals for this worktree and are kept on disk, not in the repository.
-# README.md is the exception: it documents how to build the site.
+# Keep working journals and historical drafts local. The site README and
+# article Markdown under content/blog are published source files.
 *.md
 !/README.md
+!/content/blog/**/*.md
 
 # Scratch from picking the hero background: a comparison page and the image
 # prompts. Moved out of public/, because everything under public/ is copied
@@ -28,3 +28,7 @@ agent-trace/
 
 # Local experiment exports and source material used to review case studies.
 /review/
+
+# Blog drafts, Twitter thread and source PDFs. Published posts live in
+# content/blog.
+/blog/

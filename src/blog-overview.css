@@ -78,9 +78,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 15px;
+  gap: 18px;
   margin-bottom: 94px;
-  font-size: 52px;
+  font-size: 62px;
   font-weight: 550;
   letter-spacing: -0.055em;
   text-shadow: 0 3px 26px rgb(0 0 0 / 58%);
@@ -94,19 +94,19 @@ body {
 }
 
 .overview-figure-brand img {
-  width: 76px;
-  height: 66px;
+  width: 90px;
+  height: 78px;
   object-fit: contain;
 }
 
 .overview-figure-copy {
-  width: min(1420px, calc(100% - 128px));
+  width: min(1544px, calc(100% - 96px));
   text-align: center;
 }
 
 .overview-figure h1 {
   margin: 0;
-  font-size: clamp(58px, 4.55vw, 76px);
+  font-size: clamp(58px, 5.4vw, 90px);
   font-weight: 520;
   letter-spacing: -0.06em;
   line-height: 1.03;
@@ -117,10 +117,10 @@ body {
 /* Scoped to a direct child so the standfirst below the headline keeps its own
    size and the two component paragraphs are free to set theirs. */
 .overview-figure-copy > p {
-  max-width: 940px;
+  max-width: 1120px;
   margin: 26px auto 0;
   color: #d7dbe4;
-  font-size: clamp(21px, 1.55vw, 26px);
+  font-size: clamp(21px, 1.85vw, 31px);
   line-height: 1.55;
   text-wrap: balance;
   text-shadow: 0 2px 20px #08090b;
@@ -134,9 +134,9 @@ body {
   grid-template-columns: repeat(2, 1fr);
   gap: 72px;
   align-items: center;
-  width: min(1160px, 100%);
+  width: min(1400px, 100%);
   margin: 52px auto 0;
-  transform: translateY(28px);
+  transform: translateY(4px);
 }
 
 .overview-figure-part[data-part="simulator"] {
@@ -149,7 +149,7 @@ body {
 
 .overview-figure-part {
   display: grid;
-  min-height: 172px;
+  min-height: 206px;
   align-content: center;
   padding: 28px 32px;
   border: 1px solid color-mix(in srgb, var(--part) 42%, transparent);
@@ -166,7 +166,7 @@ body {
 .overview-figure-part h2 {
   margin: 0;
   color: var(--part);
-  font-size: 54px;
+  font-size: 64px;
   font-weight: 500;
   letter-spacing: -0.025em;
   line-height: 1;
@@ -177,7 +177,7 @@ body {
   max-width: none;
   margin: 20px auto 0;
   color: #b9c0cb;
-  font-size: 23px;
+  font-size: 28px;
   line-height: 1.5;
   text-shadow: 0 2px 18px rgb(0 0 0 / 85%);
 }

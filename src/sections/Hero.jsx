@@ -17,7 +17,7 @@ const resources = [
     href: "https://github.com/SyFI-ServingStudio/ServingStudio",
   },
   { label: "Paper", icon: FileText },
-  { label: "Blog", icon: BookOpen },
+  { label: "Blog", icon: BookOpen, href: `${import.meta.env.BASE_URL}blog.html` },
   { label: "X / Twitter", icon: Twitter },
 ];
 
@@ -88,7 +88,12 @@ export function Hero() {
                   className={s.resource}
                   aria-label={label}
                   {...(href
-                    ? { href, target: "_blank", rel: "noreferrer" }
+                    ? {
+                        href,
+                        ...(href.startsWith("https:")
+                          ? { target: "_blank", rel: "noreferrer" }
+                          : {}),
+                      }
                     : {
                         type: "button",
                         onClick: () => setNotice(label),

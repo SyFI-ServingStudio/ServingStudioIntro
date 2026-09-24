@@ -1,16 +1,21 @@
 const base = `${import.meta.env.BASE_URL}images/`;
-const heroes = { overview: "b", features: "a", architecture: "c" };
+const heroes = { overview: "b", features: "a", architecture: "c", blog: "blog" };
 const pending = new Map();
 
 // Share the same responsive sources as the rendered hero so prefetches are reused.
 export function prepareHero(page, search = "", priority = "high") {
+  if (page?.startsWith("blog/")) return Promise.resolve();
   const preview = new URLSearchParams(search).get("hero");
   const variant =
     page === "overview" && /^datacenter-[abc]$/.test(preview)
       ? preview.slice(-1)
       : heroes[page] || "b";
   const original = page === "overview" && preview === "original";
-  const name = original ? "shoreline-v3" : `hero-datacenter-${variant}`;
+  const name = original
+    ? "shoreline-v3"
+    : page === "blog"
+      ? "hero-blog"
+      : `hero-datacenter-${variant}`;
   const key = `${name}:${window.innerWidth}:${window.devicePixelRatio}`;
   if (!pending.has(key)) {
     const image = new Image();

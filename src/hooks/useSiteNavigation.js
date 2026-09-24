@@ -8,8 +8,19 @@ const pages = new Map([
   [`${base}index.html`, "overview"],
   [`${base}features.html`, "features"],
   [`${base}architecture.html`, "architecture"],
+  [`${base}blog.html`, "blog"],
 ]);
-const currentPage = () => pages.get(window.location.pathname) || "overview";
+export function pageFromPath(pathname) {
+  if (pages.has(pathname)) return pages.get(pathname);
+  if (pathname.startsWith(`${base}blog/`)) {
+    const slug = pathname
+      .slice(`${base}blog/`.length)
+      .replace(/\/(?:index\.html)?$/, "");
+    if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return `blog/${slug}`;
+  }
+  return null;
+}
+const currentPage = () => pageFromPath(window.location.pathname) || "overview";
 
 export function useSiteNavigation(mainRef) {
   const [page, setPage] = useState(currentPage);
@@ -19,7 +30,7 @@ export function useSiteNavigation(mainRef) {
     let navigationId = 0;
     async function navigate(url, push) {
       const id = ++navigationId;
-      await prepareHero(pages.get(url.pathname), url.search);
+      await prepareHero(pageFromPath(url.pathname), url.search);
       if (id !== navigationId) return;
       transitionRef.current?.skipTransition();
       const update = () => {
@@ -61,7 +72,8 @@ export function useSiteNavigation(mainRef) {
       )
         return;
       const url = new URL(link.href, window.location.href);
-      if (url.origin !== window.location.origin || !pages.has(url.pathname)) return;
+      if (url.origin !== window.location.origin || !pageFromPath(url.pathname))
+        return;
       if (
         url.pathname === window.location.pathname &&
         url.search === window.location.search &&
@@ -87,6 +99,7 @@ export function useSiteNavigation(mainRef) {
   }, [mainRef]);
 
   useEffect(() => {
+    if (page.startsWith("blog")) return;
     document.title =
       page === "overview"
         ? "ServingStudio | Simulate and improve LLM serving"

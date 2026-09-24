@@ -1,0 +1,20 @@
+{
+  "title": "Introducing ServingStudio: An Integrated Workbench for Simulating, Analyzing, and Optimizing LLM Serving Systems",
+  "description": "Compare serving configurations using measured GPU timings, then let an agent implement and validate promising optimizations in real serving frameworks.",
+  "authors": [
+    "Kan Zhu",
+    "Michael Gu",
+    "Sheetal Sriram",
+    "Keisuke Kamahori",
+    "Vic Li",
+    "Mathew Jacob",
+    "Dedong Xie",
+    "Stephanie Wang",
+    "Arvind Krishnamurthy",
+    "Baris Kasikci"
+  ],
+  "date": "2026-09-24",
+  "tags": ["Release", "Use Cases"],
+  "cover": "assets/thumbnail.webp",
+  "coverAlt": "ServingStudio: Bridge Simulation and Agents for Speed-of-Light Serving."
+}

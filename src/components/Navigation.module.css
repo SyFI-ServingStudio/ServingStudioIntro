@@ -79,6 +79,6 @@
   }
 
   .navigation nav {
-    gap: 14px;
+    gap: clamp(8px, 2.5vw, 14px);
   }
 }

@@ -20,6 +20,7 @@
 html {
   scroll-padding-top: 100px;
   scroll-behavior: smooth;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -92,6 +93,13 @@ button:active,
 .wrap {
   width: var(--page-width);
   margin-inline: auto;
+}
+
+/* Reserve the viewport while the article module loads so the footer stays put. */
+.blog-loading {
+  min-height: calc(100svh - 84px);
+  padding-block: 64px;
+  color: var(--muted);
 }
 
 /* All sections share the same outer edges; only the photography is full bleed. */
