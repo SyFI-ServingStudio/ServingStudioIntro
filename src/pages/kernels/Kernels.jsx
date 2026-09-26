@@ -16,8 +16,8 @@ export default function Kernels() {
   if (error)
     return (
       <p className="wrap blog-loading" role="alert">
-        The kernel catalog did not load ({error.message}). Reload the page to try
-        again.
+        The kernel catalog did not load ({error.message}). The kernel data service
+        may be down; reload the page to try again.
       </p>
     );
   if (!catalog)
@@ -27,7 +27,9 @@ export default function Kernels() {
       </p>
     );
   const { kind } = readQuery(query);
-  const entry = kind && catalog.kernels.find((k) => k.kind === kind);
+  // Only documented kinds have a detail page.
+  const entry =
+    kind && catalog.kernels.find((k) => k.kind === kind && k.documented);
   return entry ? (
     <KernelDetail key={kind} catalog={catalog} entry={entry} />
   ) : (

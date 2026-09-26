@@ -23,12 +23,14 @@ const COLORS = {
     GLM: "#4fd1b0",
     DeepSeek: "#ff9a76",
   },
+  // Keyed by the dtype values profile.db records.
   precision: {
-    BF16: "#8fb8e8",
-    FP16: "#7fd0e6",
-    FP8: "#ffc454",
-    MXFP4: "#ff8a8a",
-    NVFP4: "#ff6fb8",
+    bf16: "#8fb8e8",
+    fp16: "#7fd0e6",
+    fp8_e4m3: "#ffc454",
+    fp8_e5m2: "#ffc454",
+    mxfp4: "#ff8a8a",
+    nvfp4: "#ff6fb8",
   },
   gpu: {
     B200: "#8fd14f",
@@ -40,7 +42,7 @@ export const tagColor = (type, value) => COLORS[type]?.[value];
 
 export function Tag({ type, value, title, children }) {
   const color = COLORS[type]?.[value];
-  const neutral = !color || value === "Any";
+  const neutral = !color;
   return (
     <span
       className={`${s.tag} ${s[type]} ${neutral ? s.neutral : ""}`}

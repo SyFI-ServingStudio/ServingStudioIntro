@@ -13,6 +13,10 @@ import { Tag, TagList, ToggleTag, tagColor } from "./Tag";
 import s from "./KernelCatalog.module.css";
 
 const search = () => window.location.search;
+// Kinds without a DOC have no category yet; they close the list.
+const UNDOCUMENTED = "Not yet documented";
+const categoryOf = (kernel) => kernel.category ?? UNDOCUMENTED;
+const titleOf = (kernel) => kernel.title ?? kernel.kind;
 const list = (value) => (value ? value.split(",").filter(Boolean) : []);
 
 /* Filters live in the column they filter. Within a column choices are OR'd,
@@ -37,8 +41,8 @@ function matcher(query, catalog) {
     if (!needle) return true;
     return [
       k.kind,
-      k.title,
-      k.category,
+      titleOf(k),
+      categoryOf(k),
       k.subcategory ?? "",
       ...k.used_by,
       ...groupModels(k.used_by, catalog.models).map((g) => g.family),
@@ -80,8 +84,9 @@ export function KernelCatalog({ catalog, unknownKind }) {
     catalog.kernels.filter((k) => m.matches(k, over)).length;
 
   const matched = catalog.kernels.filter((k) => m.matches(k));
-  const counts = Object.fromEntries(catalog.categories.map((c) => [c, 0]));
-  matched.forEach((k) => (counts[k.category] += 1));
+  const categories = [...catalog.categories, UNDOCUMENTED];
+  const counts = Object.fromEntries(categories.map((c) => [c, 0]));
+  matched.forEach((k) => (counts[categoryOf(k)] += 1));
   // Attention is split by the attention a layer runs (MHA / GQA, MLA, DSA,
   // Gated DeltaNet); other categories are one section.
   const sections = (category) =>
@@ -93,13 +98,11 @@ export function KernelCatalog({ catalog, unknownKind }) {
       subCounts[k.subcategory] = (subCounts[k.subcategory] ?? 0) + 1;
   });
   const shown = matched.filter(
-    (k) => (!cat || k.category === cat) && (!sub || k.subcategory === sub),
+    (k) => (!cat || categoryOf(k) === cat) && (!sub || k.subcategory === sub),
   );
   const order = (a, b) =>
-    b.detail - a.detail ||
-    b.used_by.length - a.used_by.length ||
-    a.title.localeCompare(b.title);
-  const groups = catalog.categories
+    b.used_by.length - a.used_by.length || titleOf(a).localeCompare(titleOf(b));
+  const groups = categories
     .map((category) => [
       category,
       sections(category)
@@ -107,7 +110,7 @@ export function KernelCatalog({ catalog, unknownKind }) {
           ...section,
           kernels: shown
             .filter(
-              (k) => k.category === category && k.subcategory === section.name,
+              (k) => categoryOf(k) === category && k.subcategory === section.name,
             )
             .sort(order),
         }))
@@ -126,8 +129,8 @@ export function KernelCatalog({ catalog, unknownKind }) {
       <div className={`wrap ${s.catalog}`}>
         {unknownKind && (
           <p className={s.notice} role="status">
-            There is no kernel named <code>{unknownKind}</code> in this snapshot.
-            Search the list below instead.
+            There is no documented kernel named <code>{unknownKind}</code>. Search
+            the list below instead.
           </p>
         )}
 
@@ -139,7 +142,7 @@ export function KernelCatalog({ catalog, unknownKind }) {
           >
             All <span>{matched.length}</span>
           </button>
-          {catalog.categories.map((category) => (
+          {categories.map((category) => (
             <button
               key={category}
               type="button"
@@ -264,7 +267,6 @@ export function KernelCatalog({ catalog, unknownKind }) {
                     value={p}
                     pressed={m.precisions.has(p)}
                     count={countWith({ precisions: new Set([p]) })}
-                    title={p === "Any" ? "No quantized operand" : undefined}
                     onClick={() =>
                       update({
                         precision: toggle(m.precisions, [p], !m.precisions.has(p)),
@@ -371,7 +373,7 @@ function KernelRow({ kernel, catalog, coverage }) {
   const gpus = catalog.gpus
     .map((g) => g.name)
     .filter((name) => coverage.some((c) => c.gpu === name));
-  const href = kernel.detail ? kernelHref({ kind: kernel.kind }) : null;
+  const href = kernel.documented ? kernelHref({ kind: kernel.kind }) : null;
   // The name is the link for keyboards and "open in new tab"; a click anywhere
   // else on the row follows it too, unless it ends a text selection.
   const openRow = (event) => {
@@ -398,12 +400,12 @@ function KernelRow({ kernel, catalog, coverage }) {
             {kernel.title}
           </a>
         ) : (
-          <span>{kernel.title}</span>
+          <span>{titleOf(kernel)}</span>
         )}
-        <code>{kernel.kind}</code>
+        {kernel.title && <code>{kernel.kind}</code>}
       </th>
       <td data-label="Used by">
-        {kernel.used_by.length === models.length ? (
+        {models.length > 1 && kernel.used_by.length === models.length ? (
           <Tag
             type="family"
             value="all"
@@ -427,12 +429,7 @@ function KernelRow({ kernel, catalog, coverage }) {
       <td data-label="Precision">
         <TagList label="Precision">
           {precisions.map((p) => (
-            <Tag
-              key={p}
-              type="precision"
-              value={p}
-              title={p === "Any" ? "No quantized operand" : undefined}
-            />
+            <Tag key={p} type="precision" value={p} />
           ))}
         </TagList>
       </td>

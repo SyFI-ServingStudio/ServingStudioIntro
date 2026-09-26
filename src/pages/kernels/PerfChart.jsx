@@ -1,6 +1,6 @@
 import { ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { formatArg, formatDate, formatNumber } from "./kernelData";
+import { formatDate, formatNumber, formatValue } from "./kernelData";
 import s from "./PerfChart.module.css";
 
 /* Categorical slots, stepped bright for the dark page so lines read at a
@@ -100,6 +100,7 @@ function thin(ticks, count) {
 export function PerfChart({
   series,
   xName,
+  xUnit,
   colorName,
   yLabel,
   yUnit,
@@ -444,8 +445,8 @@ export function PerfChart({
         <div className={s.zoom} role="group" aria-label="Zoom">
           {zoom && (
             <span className={s.zoomRange}>
-              {xName} {formatArg(xName, round(xMin))} to{" "}
-              {formatArg(xName, round(xMax))}
+              {xName} {formatValue(round(xMin), xUnit)} to{" "}
+              {formatValue(round(xMax), xUnit)}
             </span>
           )}
           <button
@@ -521,7 +522,7 @@ export function PerfChart({
                 y={plotH + 24}
                 textAnchor="middle"
               >
-                {formatArg(xName, tick)}
+                {formatValue(tick, xUnit)}
               </text>
             ))}
             <text className={s.axisLabel} x={plotW} y={plotH + 48} textAnchor="end">
@@ -612,7 +613,7 @@ export function PerfChart({
             }}
           >
             <p className={s.tooltipHead}>
-              {xName} = {formatArg(xName, activeX)}
+              {xName} = {formatValue(activeX, xUnit)}
             </p>
             <table>
               <tbody>

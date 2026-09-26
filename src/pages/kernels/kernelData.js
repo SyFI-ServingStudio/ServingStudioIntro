@@ -1,20 +1,30 @@
 /* Data access for the kernel library.
 
-   The prototype reads a static snapshot exported by
-   scripts/kernel-library/export.py into public/kernel-library/v1/. The planned
-   read-only API serves the same documents under the same paths, so switching
-   is a change to DATA_BASE only. */
+   Everything comes from ServingStudio Sim's read-only public API. Pages request
+   it from their own origin; the server in front of the site forwards
+   /api/public/v1 to the service (in development, Vite's proxy; see
+   vite.config.js). VITE_PUBLIC_API_BASE overrides the path. */
 
-export const DATA_BASE = `${import.meta.env.BASE_URL}kernel-library/v1`;
-export const API_DISPLAY_BASE = "https://<api-host>/api/v1";
+export const API_BASE = import.meta.env.VITE_PUBLIC_API_BASE ?? "/api/public/v1";
+// The same base as an absolute URL, for code a reader copies elsewhere.
+export const apiUrl = (path) =>
+  new URL(`${API_BASE}/${path}`, window.location.origin).href;
 
 const cache = new Map();
 function load(path) {
   if (!cache.has(path)) {
     cache.set(
       path,
-      fetch(`${DATA_BASE}/${path}`).then((response) => {
-        if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+      fetch(`${API_BASE}/${path}`).then(async (response) => {
+        if (!response.ok) {
+          const detail = await response.json().then(
+            (body) => body.detail,
+            () => null,
+          );
+          throw new Error(
+            `${API_BASE}/${path}: ${detail ?? `HTTP ${response.status}`}`,
+          );
+        }
         return response.json();
       }),
     );
@@ -22,19 +32,36 @@ function load(path) {
   return cache.get(path);
 }
 
-export const loadCatalog = () => load("catalog.json");
-export const loadKernel = (kind) => load(`kernels/${kind}.json`);
-// MOCK: which model deployment asks for each shape. A stand-in until the
-// data path is designed; a kernel without it just lists its shapes.
-export const loadShapeSources = (kind) =>
-  load("mock/shape-sources.json").then(
-    (data) => data.kinds[kind] ?? [],
-    () => [],
-  );
+export const loadCatalog = () => load("kernels");
+export const loadKernel = (kind) => load(`kernels/${kind}`);
+export const loadRows = (kind) => load(`kernels/${kind}/rows`);
+
+/* A kernel's arguments, in profile.db column order, and the role a supported
+   model gives each: "sweep" (varies with the batch), "config" (fixed by the
+   model) or null when no supported model runs the kernel yet. */
+export const argNames = (kernel) => kernel.args.map((arg) => arg.name);
+const argInfo = (kernel, name) => kernel.args.find((arg) => arg.name === name);
+export const argRole = (kernel, name) => argInfo(kernel, name)?.role ?? null;
+// What one step of a numeric argument counts: tokens, bytes, GPUs, ...
+export const argUnit = (kernel, name) => argInfo(kernel, name)?.unit ?? null;
+// "dtype", "number", "list" or "label", from the argument's declared type.
+const argType = (kernel, name) => argInfo(kernel, name)?.type;
+export const isNumeric = (kernel, name) => argType(kernel, name) === "number";
+// A list-valued argument, such as per-request (queries, context) pairs.
+export const isList = (kernel, name) => argType(kernel, name) === "list";
+// An element type (bf16, fp8_e4m3, ...): these are picked together as the precision.
+export const isDtype = (kernel, name) => argType(kernel, name) === "dtype";
+// The argument holding the compute dtype, which picks the throughput peak.
+export const precisionArg = (kernel) =>
+  kernel.args.find((arg) => arg.precision)?.name ?? null;
+
+/* The metrics a kernel records, with the label and unit Sim gives each. */
+export const metricNames = (kernel) => kernel.metrics.map((metric) => metric.name);
+export const metricDoc = (kernel, name) =>
+  kernel.metrics.find((metric) => metric.name === name);
 
 /* Rows arrive column-oriented; expand them once into objects. */
-export function expandRows(kernel) {
-  const { columns, rows, provenance } = kernel;
+export function expandRows({ columns, rows, provenance }) {
   return rows.map((row) => {
     const record = {};
     columns.forEach((column, index) => {
@@ -47,15 +74,6 @@ export function expandRows(kernel) {
 
 export const shortGpu = (name) => name.replace(/^NVIDIA /, "");
 
-export const METRIC_LABELS = {
-  time_ms: { label: "Time", unit: "ms" },
-  tflops: { label: "Throughput", unit: "TFLOPS" },
-  memory_bandwidth_gbps: { label: "Memory bandwidth", unit: "GB/s" },
-  algbw_gbps: { label: "Algorithm bandwidth", unit: "GB/s" },
-  busbw_gbps: { label: "Bus bandwidth", unit: "GB/s" },
-  energy_j: { label: "Energy", unit: "J" },
-};
-
 export function formatNumber(value, digits = 3) {
   if (value == null) return "not measured";
   if (value === 0) return "0";
@@ -66,9 +84,52 @@ export function formatNumber(value, digits = 3) {
   return Number(value.toPrecision(digits)).toString();
 }
 
-export function formatArg(name, value) {
+/* An argument value in its unit: a byte count reads as "4 MiB". */
+// Past this many characters a list value is cut short; the rows keep it whole.
+const LIST_LABEL_LIMIT = 32;
+
+/* A list argument arrives as JSON text, sometimes hundreds of entries long
+   (one per request or query row). Runs of equal entries are written once with
+   a count, "1 ×256" or "(1, 4096) ×2, (64, 8192)", so a label stays short. */
+function formatList(text) {
+  let items;
+  try {
+    items = JSON.parse(text);
+  } catch {
+    return text;
+  }
+  if (!Array.isArray(items)) return text;
+  if (!items.length) return "none";
+  const item = (v) =>
+    Array.isArray(v)
+      ? `(${v.map((x) => x.toLocaleString("en-US")).join(", ")})`
+      : typeof v === "number"
+        ? v.toLocaleString("en-US")
+        : String(v);
+  const runs = [];
+  for (const v of items) {
+    const label = item(v);
+    const last = runs.at(-1);
+    if (last && last.label === label) last.count += 1;
+    else runs.push({ label, count: 1 });
+  }
+  const parts = runs.map(({ label, count }) =>
+    count > 1 ? `${label} ×${count}` : label,
+  );
+  let out = parts[0];
+  for (const part of parts.slice(1)) {
+    if (out.length + part.length + 2 > LIST_LABEL_LIMIT) {
+      return `${out}, … (${items.length} entries)`;
+    }
+    out = `${out}, ${part}`;
+  }
+  return out;
+}
+
+export function formatValue(value, unit) {
+  if (typeof value === "string" && value.startsWith("[")) return formatList(value);
   if (typeof value !== "number") return String(value);
-  if (name.endsWith("_bytes")) return formatBytes(value);
+  if (unit === "bytes") return formatBytes(value);
   return value.toLocaleString("en-US");
 }
 

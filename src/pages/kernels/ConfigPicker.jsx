@@ -1,4 +1,4 @@
-import { formatArg, shortGpu } from "./kernelData";
+import { argRole, argUnit, formatValue, isDtype, shortGpu } from "./kernelData";
 import { useState } from "react";
 import { Tag, ToggleTag, tagColor } from "./Tag";
 import s from "./ConfigPicker.module.css";
@@ -9,8 +9,6 @@ import s from "./ConfigPicker.module.css";
    the levels below to their best-measured choice, so no pick leads to an empty
    chart. */
 
-export const isDtype = (d) =>
-  d.endsWith("dtype") || d === "weight_format" || d === "activation_format";
 const isNumber = (values, d) => typeof values[d][0] === "number";
 
 const PRECISIONS = [
@@ -40,13 +38,14 @@ const shortName = (d) => d.replace(/^num_/, "");
    are left to the note under the picker. */
 export function buildLevels(kernel, values, allDims) {
   const levels = [];
-  const role = (d) => kernel.arg_docs[d]?.role;
+  const role = (d) => argRole(kernel, d);
+  const dtype = (d) => isDtype(kernel, d);
   const filterDims = allDims.filter(
-    (d) => d === "gpu" || isDtype(d) || values[d].length > 1,
+    (d) => d === "gpu" || dtype(d) || values[d].length > 1,
   );
   if (filterDims.includes("gpu"))
     levels.push({ id: "gpu", label: "GPU", dims: ["gpu"], kind: "gpu" });
-  const dtypes = filterDims.filter(isDtype);
+  const dtypes = filterDims.filter(dtype);
   if (dtypes.length) {
     const varying = dtypes.filter((d) => values[d].length > 1);
     levels.push({
@@ -61,7 +60,7 @@ export function buildLevels(kernel, values, allDims) {
     });
   }
   filterDims
-    .filter((d) => d !== "gpu" && !isDtype(d) && !isNumber(values, d))
+    .filter((d) => d !== "gpu" && !dtype(d) && !isNumber(values, d))
     .forEach((d) => levels.push({ id: d, label: d, dims: [d], kind: "choice" }));
   const shape = filterDims.filter(
     (d) => isNumber(values, d) && role(d) !== "sweep",
@@ -78,7 +77,11 @@ export function buildLevels(kernel, values, allDims) {
     .forEach((d) =>
       levels.push({ id: d, label: d, dims: [d], kind: "choice", small: true }),
     );
-  return levels;
+  // Each level formats its values in their units.
+  return levels.map((level) => ({
+    ...level,
+    units: level.dims.map((d) => argUnit(kernel, d)),
+  }));
 }
 
 // The dimensions a level names on screen, so the note need not repeat them.
@@ -123,7 +126,8 @@ function linesUnder(rows, dims, tuple, below, compare) {
 export function ConfigPicker({
   levels,
   records,
-  sources = [],
+  deployments,
+  models,
   selection,
   compare,
   onPick,
@@ -153,7 +157,8 @@ export function ConfigPicker({
             pool={pool}
             records={records}
             selection={selection}
-            sources={sources}
+            deployments={deployments}
+            models={models}
             below={levels.slice(index + 1).flatMap((l) => l.dims)}
             compare={compare}
             pick={pick}
@@ -164,7 +169,17 @@ export function ConfigPicker({
   );
 }
 
-function Level({ level, pool, records, selection, sources, below, compare, pick }) {
+function Level({
+  level,
+  pool,
+  records,
+  selection,
+  deployments,
+  models,
+  below,
+  compare,
+  pick,
+}) {
   const tupleOf = (r) => level.dims.map((d) => r[d]);
   const unique = (rows) => {
     const seen = new Map();
@@ -187,7 +202,7 @@ function Level({ level, pool, records, selection, sources, below, compare, pick 
         level={level}
         tuples={unique(pool)}
         current={current}
-        groups={modelGroups(sources, level, unique(pool), selection)}
+        groups={modelGroups(deployments, models, level, unique(pool), selection)}
         single={single}
         compare={compare}
         pick={pick}
@@ -205,16 +220,16 @@ function Level({ level, pool, records, selection, sources, below, compare, pick 
         })
         .join(", ");
     }
-    return formatArg(level.dims[0], tuple[0]);
+    return formatValue(tuple[0], level.units[0]);
   };
   // A combination takes the colour of its most quantized operand.
   const tagValue = (tuple) =>
     level.kind === "gpu"
       ? shortGpu(tuple[0])
       : level.kind === "precision"
-        ? PRECISIONS.map(([, p]) => p).find((p) =>
-            tuple.some((v) => precisionOf(v) === p),
-          )
+        ? PRECISIONS.map(([prefix]) =>
+            tuple.find((v) => String(v).toLowerCase().startsWith(prefix)),
+          ).find(Boolean)
         : String(tuple[0]);
   const type = level.kind === "choice" ? "choice" : level.kind;
 
@@ -259,35 +274,55 @@ function Level({ level, pool, records, selection, sources, below, compare, pick 
   );
 }
 
-const FAMILY_ORDER = ["Llama", "Qwen", "GLM", "DeepSeek"];
+// A deployment reads as its parallel sizes: "tp_size 4".
+const deploymentLabel = (d) =>
+  Object.entries(d.parallel)
+    .map(([name, value]) => `${name} ${value}`)
+    .join(", ") || d.arch;
 
-/* The model deployments that ask for the shapes on offer, each with the
-   shapes it asks for and the layer that asks. A shape counts only if the
-   deployment runs on the GPU picked above and in the precision picked above,
-   so a label never names a model for a measurement it would not make. */
-function modelGroups(sources, level, tuples, selection) {
+/* The supported model deployments whose cost trees ask for the shapes on
+   offer, each with the shapes it asks for and the layer that asks. A shape
+   counts only if the deployment runs on the GPU picked above and in the
+   precision picked above, so a label never names a model for a measurement it
+   would not make. Models keep the catalog's order. */
+function modelGroups(deployments, models, level, tuples, selection) {
   const offered = new Set(tuples.map(tupleKey));
+  const order = (d) => models.findIndex((m) => m.model_config === d.model_config);
   return (
-    sources
-      .filter((g) => !selection.gpu || g.gpu === selection.gpu)
-      .map((g) => {
+    deployments
+      .filter((d) => !selection.gpu || d.gpu === selection.gpu)
+      .map((d) => {
         const items = new Map();
-        g.shapes.forEach((shape) => {
-          const agrees = Object.entries(shape.spec).every(
-            ([d, v]) =>
-              !(d in selection) ||
-              level.dims.includes(d) ||
-              String(v) === selection[d],
+        d.shapes.forEach((shape) => {
+          const agrees = Object.entries(shape.db).every(
+            ([dim, v]) =>
+              !(dim in selection) ||
+              level.dims.includes(dim) ||
+              String(v) === selection[dim],
           );
-          const tuple = level.dims.map((d) => shape.spec[d]);
+          const tuple = level.dims.map((dim) => shape.db[dim]);
           const key = tupleKey(tuple);
           if (!agrees || !offered.has(key)) return;
           const item = items.get(key) ?? { key, tuple, ops: [], paths: [] };
-          item.ops.push(...shape.ops.filter((op) => !item.ops.includes(op)));
-          item.paths.push(...shape.paths);
+          const op = shape.layer.split(".").at(-1);
+          if (!item.ops.includes(op)) item.ops.push(op);
+          item.paths.push(
+            [
+              shape.layer,
+              ...Object.entries(shape.why).map(
+                ([dim, { expression }]) => `  ${dim} = ${expression}`,
+              ),
+            ].join("\n"),
+          );
           items.set(key, item);
         });
-        return { ...g, items: [...items.values()] };
+        return {
+          model: d.model?.name ?? d.model_config,
+          family: d.model?.family,
+          order: order(d),
+          deployment: deploymentLabel(d),
+          items: [...items.values()],
+        };
       })
       .filter((g) => g.items.length)
       // Deployments of one model that ask for the same shapes read as one group.
@@ -303,9 +338,10 @@ function modelGroups(sources, level, tuples, selection) {
       }, [])
       .sort(
         (a, b) =>
-          FAMILY_ORDER.indexOf(a.family) - FAMILY_ORDER.indexOf(b.family) ||
-          a.model.localeCompare(b.model) ||
-          a.deployments[0].localeCompare(b.deployments[0]),
+          a.order - b.order ||
+          a.deployments[0].localeCompare(b.deployments[0], undefined, {
+            numeric: true,
+          }),
       )
   );
 }
@@ -325,7 +361,7 @@ function ShapeList({ level, tuples, current, groups, single, compare, pick }) {
   const [open, setOpen] = useState(pickInOthers);
   const showOthers = open || !groups.length || pickInOthers;
   const dims = (tuple) =>
-    tuple.map((v, i) => formatArg(level.dims[i], v)).join(" × ");
+    tuple.map((v, i) => formatValue(v, level.units[i])).join(" × ");
   const chip = (tuple, ops, paths, inOthers) => {
     const key = tupleKey(tuple);
     return (
@@ -336,7 +372,9 @@ function ShapeList({ level, tuples, current, groups, single, compare, pick }) {
         pressed={key === current}
         faint={single(tuple)}
         title={[
-          level.dims.map((d, i) => `${d} ${formatArg(d, tuple[i])}`).join(", "),
+          level.dims
+            .map((d, i) => `${d} ${formatValue(tuple[i], level.units[i])}`)
+            .join(", "),
           paths?.join("\n"),
           single(tuple) && `measured for one ${compare.label} only`,
         ]

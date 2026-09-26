@@ -1,16 +1,23 @@
 import { ArrowLeft, Check, Copy, Download, ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
-  API_DISPLAY_BASE,
-  DATA_BASE,
-  METRIC_LABELS,
+  apiUrl,
+  argNames,
+  argRole,
+  argUnit,
   downloadText,
   expandRows,
-  formatArg,
+  formatValue,
+  isDtype,
+  isList,
+  isNumeric,
   formatDate,
   formatNumber,
   loadKernel,
-  loadShapeSources,
+  loadRows,
+  metricDoc,
+  metricNames,
+  precisionArg,
   readQuery,
   setQuery,
   shortGpu,
@@ -18,7 +25,7 @@ import {
   toCsv,
 } from "./kernelData";
 import { kernelHref, openKernel } from "./Kernels";
-import { ConfigPicker, buildLevels, isDtype, shownDims } from "./ConfigPicker";
+import { ConfigPicker, buildLevels, shownDims } from "./ConfigPicker";
 import { PerfChart, SERIES_COLORS, seriesColor } from "./PerfChart";
 import { Tag, ToggleTag } from "./Tag";
 import s from "./KernelDetail.module.css";
@@ -35,15 +42,15 @@ export function KernelDetail({ catalog, entry }) {
   useSyncExternalStore(subscribeUrl, search);
   const query = readQuery();
   const tab = TABS.some(([id]) => id === query.tab) ? query.tab : "performance";
-  const [kernel, setKernel] = useState(null);
+  const [loaded, setLoaded] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
-    Promise.all([loadKernel(entry.kind), loadShapeSources(entry.kind)]).then(
-      ([data, sources]) => setKernel({ ...data, shape_sources: sources }),
+    Promise.all([loadKernel(entry.kind), loadRows(entry.kind)]).then(
+      ([kernel, rows]) => setLoaded({ kernel, records: expandRows(rows) }),
       setError,
     );
   }, [entry.kind]);
-  const records = useMemo(() => (kernel ? expandRows(kernel) : []), [kernel]);
+  const { kernel, records } = loaded ?? {};
   useEffect(() => {
     document.title = `${entry.title} | Kernels | ServingStudio`;
   }, [entry.title]);
@@ -97,8 +104,8 @@ export function KernelDetail({ catalog, entry }) {
       >
         {error ? (
           <p role="alert">
-            The measurements did not load ({error.message}). Reload the page to try
-            again.
+            The measurements did not load ({error.message}). The kernel data service
+            may be down; reload the page to try again.
           </p>
         ) : !kernel ? (
           <p role="status" className={s.loading}>
@@ -130,6 +137,11 @@ export function KernelDetail({ catalog, entry }) {
 
 /* ---------- Performance ---------- */
 
+const ROLE_LABELS = {
+  sweep: "Varies with the batch",
+  config: "Fixed by the model",
+};
+
 const sortValues = (values) =>
   [...values].sort((a, b) =>
     typeof a === "number" && typeof b === "number"
@@ -139,37 +151,46 @@ const sortValues = (values) =>
 
 function useExplorerState(kernel, records, query) {
   return useMemo(() => {
-    const dims = ["gpu", "backend", ...kernel.args];
+    const args = argNames(kernel);
+    const dims = ["gpu", "backend", ...args];
     const values = Object.fromEntries(
       dims.map((d) => [d, sortValues(new Set(records.map((r) => r[d])))]),
     );
-    const role = (a) => kernel.arg_docs[a]?.role;
-    const numeric = (a) => typeof records[0][a] === "number";
+    const role = (a) => argRole(kernel, a);
+    const numeric = (a) => isNumeric(kernel, a);
     // The x axis is what a run sweeps (tokens, batch, message size). A shape
     // dimension such as a GEMM's n or k is fixed by the model, so it is never
-    // one. Undocumented kernels fall back to any numeric argument.
-    // In the order the docs list them, the default axis first.
-    const sweeps = Object.keys(kernel.arg_docs).filter(
+    // one. A kernel no supported model runs has no roles yet and falls back
+    // to any numeric argument. In argument order, the default axis first.
+    const sweeps = args.filter(
       (a) => values[a] && numeric(a) && role(a) === "sweep" && values[a].length > 1,
     );
     const numericSweeps = sweeps.length
       ? sweeps
-      : kernel.args.filter((a) => numeric(a) && values[a].length > 2);
+      : args.filter((a) => numeric(a) && values[a].length > 1);
     const x = numericSweeps.includes(query.x) ? query.x : numericSweeps[0];
     // Two or more shape dimensions move together (n with k, heads with head
     // size), so lines of one of them would mix shapes. They are picked as a
     // whole in the configuration instead. A lone one, like num_gpus, compares.
-    const shapeDims = kernel.args.filter(
+    const shapeDims = args.filter(
       (a) => numeric(a) && role(a) !== "sweep" && values[a].length > 1,
     );
-    const comparable = ["backend", "gpu", ...kernel.args].filter(
+    const comparable = ["backend", "gpu", ...args].filter(
       (d) =>
         d !== x &&
         values[d].length > 1 &&
         !(shapeDims.length > 1 && shapeDims.includes(d)),
     );
     const color = comparable.includes(query.color) ? query.color : "backend";
-    const filterDims = dims.filter((d) => d !== x && d !== color);
+    // With no numeric sweep, what varies is a list argument such as the
+    // per-request (queries, context) pairs. There is no axis to plot it on,
+    // so its rows are all listed rather than pinned to one value.
+    const listDims = x
+      ? []
+      : args.filter((a) => isList(kernel, a) && values[a].length > 1);
+    const filterDims = dims.filter(
+      (d) => d !== x && d !== color && !listDims.includes(d),
+    );
 
     // Explicit choices come from the URL. Every other filter defaults to the
     // configuration with the most measured rows among the rows that match.
@@ -201,6 +222,7 @@ function useExplorerState(kernel, records, query) {
       comparable,
       x,
       color,
+      listDims,
       filterDims,
       selection,
     };
@@ -209,19 +231,31 @@ function useExplorerState(kernel, records, query) {
 
 function Explorer({ kernel, records, catalog, query }) {
   const state = useExplorerState(kernel, records, query);
-  const { values, numericSweeps, comparable, x, color, filterDims, selection } =
-    state;
-  const metrics = kernel.metrics.filter(
-    (m) => m !== "energy_j" || records.some((r) => r.energy_j != null),
+  const {
+    values,
+    numericSweeps,
+    comparable,
+    x,
+    color,
+    listDims,
+    filterDims,
+    selection,
+  } = state;
+  // A metric no row records (energy for collectives) is not offered.
+  const metrics = metricNames(kernel).filter((m) =>
+    records.some((r) => r[m] != null),
   );
   const y = metrics.includes(query.y)
     ? query.y
     : metrics.includes(kernel.default_metric)
       ? kernel.default_metric
-      : "time_ms";
-  const spanX = values[x].at(-1) / Math.max(values[x][0], 1e-9);
+      : metrics[0];
+  // A log axis needs every x above zero; a sweep that starts at 0 stays linear.
+  const xValues = x ? values[x] : [];
+  const positiveX = xValues.length > 0 && xValues[0] > 0;
+  const spanX = positiveX ? xValues.at(-1) / xValues[0] : 0;
   const scale = query.scale || (spanX > 16 ? "logx" : "linear");
-  const logX = scale.includes("logx");
+  const logX = positiveX && scale.includes("logx");
   const logY = scale.includes("logy");
   const showPeak = query.peak !== "off";
 
@@ -236,7 +270,10 @@ function Explorer({ kernel, records, catalog, query }) {
     .slice(0, SERIES_COLORS.length)
     .map((value) => ({
       key: String(value),
-      label: color === "gpu" ? shortGpu(value) : formatArg(color, value),
+      label:
+        color === "gpu"
+          ? shortGpu(value)
+          : formatValue(value, argUnit(kernel, color)),
       color: seriesColor(colorValues, present, value),
       points: matching
         .filter((r) => r[color] === value && r[y] != null && (!logY || r[y] > 0))
@@ -246,11 +283,11 @@ function Explorer({ kernel, records, catalog, query }) {
     .filter((serie) => serie.points.length);
   const dropped = present.length - Math.min(present.length, SERIES_COLORS.length);
 
-  const peak = showPeak ? peakFor(y, color, selection, catalog) : null;
+  const peak = showPeak ? peakFor(kernel, y, color, selection, catalog) : null;
   // What the lines are is the first choice; the configuration then pins
   // everything else. Only dimensions with more than one value can be compared.
   const varyingDtypes = state.dims.filter(
-    (d) => isDtype(d) && values[d].length > 1,
+    (d) => isDtype(kernel, d) && values[d].length > 1,
   );
   // In the order the configuration below reads: backend, GPU, precision,
   // shape, then sweeps.
@@ -259,9 +296,9 @@ function Explorer({ kernel, records, catalog, query }) {
       ? 0
       : d === "gpu"
         ? 1
-        : isDtype(d)
+        : isDtype(kernel, d)
           ? 2
-          : kernel.arg_docs[d]?.role === "sweep"
+          : argRole(kernel, d) === "sweep"
             ? 4
             : 3;
   const compareDims = [...comparable].sort((a, b) => rank(a) - rank(b));
@@ -270,7 +307,7 @@ function Explorer({ kernel, records, catalog, query }) {
       ? "GPU"
       : d === "backend"
         ? "Backend"
-        : isDtype(d) && varyingDtypes.length === 1
+        : isDtype(kernel, d) && varyingDtypes.length === 1
           ? "Precision"
           : d;
   // The same, as a noun in a sentence: "one GPU", "one precision".
@@ -282,8 +319,9 @@ function Explorer({ kernel, records, catalog, query }) {
     (d) => values[d].length === 1 && !shown.includes(d),
   );
 
-  const metric = METRIC_LABELS[y];
+  const metric = metricDoc(kernel, y);
   const describe = `${metric.label} of ${kernel.kind} against ${x}, one line per ${color}. ${series.length} series, ${matching.length} measured rows.`;
+  const listNames = listDims.join(" and ");
 
   return (
     <div className={s.explorer}>
@@ -308,7 +346,9 @@ function Explorer({ kernel, records, catalog, query }) {
           <div className={s.group}>
             <span className={s.groupName}>X axis</span>
             <div className={s.chips} role="group" aria-label="X axis">
-              {numericSweeps.length === 1 ? (
+              {!x ? (
+                <span className={s.fixed}>None: only {listNames} varies</span>
+              ) : numericSweeps.length === 1 ? (
                 <Tag type="choice" value={x} title="The only dimension swept">
                   {x}
                 </Tag>
@@ -332,7 +372,8 @@ function Explorer({ kernel, records, catalog, query }) {
           <ConfigPicker
             levels={levels}
             records={records}
-            sources={kernel.shape_sources}
+            deployments={kernel.used_by}
+            models={catalog.models}
             selection={selection}
             compare={
               color === "backend" ? null : { dim: color, label: compareNoun(color) }
@@ -348,7 +389,7 @@ function Explorer({ kernel, records, catalog, query }) {
                   <code>{dim}</code>{" "}
                   {dim === "gpu"
                     ? shortGpu(values[dim][0])
-                    : formatArg(dim, values[dim][0])}
+                    : formatValue(values[dim][0], argUnit(kernel, dim))}
                 </span>
               ))}
               .
@@ -368,8 +409,8 @@ function Explorer({ kernel, records, catalog, query }) {
                 aria-checked={m === y}
                 onClick={() => update({ y: m })}
               >
-                {METRIC_LABELS[m].label}
-                <span>{METRIC_LABELS[m].unit}</span>
+                {metricDoc(kernel, m).label}
+                <span>{metricDoc(kernel, m).unit}</span>
               </button>
             ))}
           </div>
@@ -378,6 +419,7 @@ function Explorer({ kernel, records, catalog, query }) {
               <input
                 type="checkbox"
                 checked={logX}
+                disabled={!positiveX}
                 onChange={(event) =>
                   update({
                     scale:
@@ -415,11 +457,17 @@ function Explorer({ kernel, records, catalog, query }) {
           </div>
         </div>
 
-        {series.length ? (
+        {!x ? (
+          <p className={s.note}>
+            These rows differ only in {listNames}, which has no numeric axis to
+            plot against. Each row is listed below.
+          </p>
+        ) : series.length ? (
           <>
             <PerfChart
               series={series}
               xName={x}
+              xUnit={argUnit(kernel, x)}
               colorName={color === "gpu" ? "GPU" : color}
               yLabel={metric.label}
               yUnit={metric.unit}
@@ -451,48 +499,36 @@ function Explorer({ kernel, records, catalog, query }) {
       </div>
 
       <div className={s.rowsColumn}>
-        <RowsTable kernel={kernel} rows={matching} x={x} color={color} />
+        <RowsTable
+          kernel={kernel}
+          rows={matching}
+          columnsBy={x ? [x] : listDims}
+          color={color}
+        />
       </div>
     </div>
   );
 }
 
-function peakFor(y, color, selection, catalog) {
+/* The spec-sheet ceiling Sim gives this metric on the picked GPU. A throughput
+   ceiling depends on the compute dtype, so it shows only with one picked. */
+function peakFor(kernel, y, color, selection, catalog) {
   if (color === "gpu") return null;
-  const gpu = catalog.gpus.find((g) => g.name === selection.gpu)?.peak;
-  if (!gpu) return null;
-  const name = shortGpu(selection.gpu);
-  if (y === "tflops") {
-    const dtype = selection.dtype ?? selection.q_dtype;
-    if (!dtype || color === "dtype" || color === "q_dtype") return null;
-    const key = {
-      bf16: "bf16_tflops",
-      fp16: "fp16_tflops",
-      fp8_e4m3: "fp8_tflops",
-    }[dtype];
-    return gpu[key]
-      ? {
-          value: gpu[key],
-          label: `${name} spec-sheet peak, ${dtype} dense: ${gpu[key].toLocaleString("en-US")} TFLOPS (not measured)`,
-          short: `Spec-sheet peak ${gpu[key].toLocaleString("en-US")}`,
-        }
-      : null;
-  }
-  if (y === "memory_bandwidth_gbps")
-    return {
-      value: gpu.mem_bandwidth_gbps,
-      label: `${name} spec-sheet HBM bandwidth: ${gpu.mem_bandwidth_gbps.toLocaleString("en-US")} GB/s (not measured)`,
-      short: `Spec-sheet HBM ${gpu.mem_bandwidth_gbps.toLocaleString("en-US")}`,
-    };
-  if (y === "busbw_gbps") {
-    const oneWay = gpu.interconnect_bandwidth_gbps / 2;
-    return {
-      value: oneWay,
-      label: `${name} ${gpu.interconnect}, one direction: ${oneWay.toLocaleString("en-US")} GB/s (spec sheet, not measured)`,
-      short: `Spec-sheet NVLink ${oneWay.toLocaleString("en-US")}`,
-    };
-  }
-  return null;
+  const peak = catalog.gpus.find((g) => g.name === selection.gpu)?.peaks[y];
+  if (!peak) return null;
+  const dtypeArg = precisionArg(kernel);
+  const dtype = peak.by_dtype ? selection[dtypeArg] : null;
+  if (peak.by_dtype && (!dtype || color === dtypeArg)) return null;
+  const value = peak.by_dtype ? peak.by_dtype[dtype] : peak.value;
+  if (value == null) return null;
+  const { label, unit } = metricDoc(kernel, y);
+  const amount = `${value.toLocaleString("en-US")} ${unit}`;
+  const note = [dtype, peak.note].filter(Boolean).join(" ");
+  return {
+    value,
+    label: `${shortGpu(selection.gpu)} spec-sheet ${label.toLowerCase()}, ${note}: ${amount} (not measured)`,
+    short: `Spec-sheet ${value.toLocaleString("en-US")}`,
+  };
 }
 
 function EmptyState({ records, filterDims, selection, onApply }) {
@@ -537,7 +573,12 @@ function EmptyState({ records, filterDims, selection, onApply }) {
   );
 }
 
-function RowsTable({ kernel, rows, x, color }) {
+function RowsTable({ kernel, rows, columnsBy, color }) {
+  // Rows sort by the x axis when there is one; list columns keep row order.
+  const x =
+    columnsBy.length === 1 && typeof rows[0]?.[columnsBy[0]] === "number"
+      ? columnsBy[0]
+      : null;
   const [all, setAll] = useState(false);
   const sorted = useMemo(
     () =>
@@ -545,13 +586,14 @@ function RowsTable({ kernel, rows, x, color }) {
         (a, b) =>
           String(a[color]).localeCompare(String(b[color]), undefined, {
             numeric: true,
-          }) || a[x] - b[x],
+          }) || (x ? a[x] - b[x] : 0),
       ),
     [rows, x, color],
   );
   const shown = all ? sorted : sorted.slice(0, 12);
-  const columns = [color, x, ...kernel.metrics];
-  const csvColumns = ["gpu", "backend", ...kernel.args, ...kernel.metrics];
+  const metrics = metricNames(kernel);
+  const columns = [color, ...columnsBy, ...metrics];
+  const csvColumns = ["gpu", "backend", ...argNames(kernel), ...metrics];
   if (!rows.length) return null;
   return (
     <div className={s.rows}>
@@ -585,10 +627,10 @@ function RowsTable({ kernel, rows, x, color }) {
                 <th
                   key={c}
                   scope="col"
-                  className={kernel.metrics.includes(c) ? s.num : undefined}
+                  className={metrics.includes(c) ? s.num : undefined}
                 >
-                  {METRIC_LABELS[c]
-                    ? `${c === "time_ms" ? "Time " : c === "energy_j" ? "Energy " : ""}${METRIC_LABELS[c].unit}`
+                  {metrics.includes(c)
+                    ? `${metricDoc(kernel, c).label} ${metricDoc(kernel, c).unit}`
                     : c === "gpu"
                       ? "GPU"
                       : c}
@@ -601,15 +643,12 @@ function RowsTable({ kernel, rows, x, color }) {
             {shown.map((r, i) => (
               <tr key={i}>
                 {columns.map((c) => (
-                  <td
-                    key={c}
-                    className={kernel.metrics.includes(c) ? s.num : s.code}
-                  >
-                    {kernel.metrics.includes(c)
+                  <td key={c} className={metrics.includes(c) ? s.num : s.code}>
+                    {metrics.includes(c)
                       ? formatNumber(r[c])
                       : c === "gpu"
                         ? shortGpu(r[c])
-                        : formatArg(c, r[c])}
+                        : formatValue(r[c], argUnit(kernel, c))}
                   </td>
                 ))}
                 <td className={s.date}>
@@ -657,23 +696,16 @@ function About({ kernel }) {
             </tr>
           </thead>
           <tbody>
-            {kernel.args.map((a) => {
-              const doc = kernel.arg_docs[a] || {};
-              return (
-                <tr key={a}>
-                  <th scope="row" className={s.code}>
-                    {a}
-                  </th>
-                  <td>
-                    {doc.role === "sweep"
-                      ? "Varies with the batch"
-                      : "Fixed by the model"}
-                  </td>
-                  <td>{doc.unit || "–"}</td>
-                  <td>{doc.meaning}</td>
-                </tr>
-              );
-            })}
+            {kernel.args.map((arg) => (
+              <tr key={arg.name}>
+                <th scope="row" className={s.code}>
+                  {arg.name}
+                </th>
+                <td>{ROLE_LABELS[arg.role] ?? "Not run by a listed model yet"}</td>
+                <td>{arg.unit || "–"}</td>
+                <td>{arg.doc}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -693,6 +725,25 @@ function About({ kernel }) {
 
 /* ---------- Implementations ---------- */
 
+/* Rows record the backend library version only for some runs, so each version
+   says how many rows it covers: "2.11.0+cu130 (204 rows), not recorded (136 rows)".
+   One version recorded on every row is just the version. */
+function libraryVersions(rows) {
+  const counts = new Map();
+  rows.forEach((r) => {
+    const version = r.provenance.backend_version ?? null;
+    counts.set(version, (counts.get(version) || 0) + 1);
+  });
+  if (!rows.length || (counts.size === 1 && counts.has(null))) return null;
+  if (counts.size === 1) return [...counts.keys()][0];
+  return [...counts]
+    .map(
+      ([version, n]) =>
+        `${version ?? "not recorded"} (${n.toLocaleString("en-US")} rows)`,
+    )
+    .join(", ");
+}
+
 function Implementations({ kernel, records }) {
   const measured = sortValues(new Set(records.map((r) => r.backend)));
   const names = [...new Set([...measured, ...Object.keys(kernel.backends)])];
@@ -703,18 +754,14 @@ function Implementations({ kernel, records }) {
         {names.map((name) => {
           const doc = kernel.backends[name];
           const rows = records.filter((r) => r.backend === name);
-          const versions = [
-            ...new Set(
-              rows.map((r) => r.provenance.backend_version).filter(Boolean),
-            ),
-          ];
+          const versions = libraryVersions(rows);
           const gpus = [...new Set(rows.map((r) => shortGpu(r.gpu)))];
           return (
             <li key={name}>
               <h3>
                 <code>{name}</code>
               </h3>
-              {doc && <p>{doc.summary}</p>}
+              {doc?.summary && <p>{doc.summary}</p>}
               <dl>
                 <div>
                   <dt>Rows</dt>
@@ -724,23 +771,23 @@ function Implementations({ kernel, records }) {
                       : "Registered, not measured in this snapshot"}
                   </dd>
                 </div>
-                {versions.length > 0 && (
+                {versions && (
                   <div>
                     <dt>Library version</dt>
-                    <dd>{versions.join(", ")}</dd>
+                    <dd>{versions}</dd>
                   </div>
                 )}
-                {doc?.link && (
+                {doc?.url && (
                   <div>
                     <dt>Upstream</dt>
                     <dd>
                       <a
-                        href={doc.link}
+                        href={doc.url}
                         target="_blank"
                         rel="noreferrer"
                         className={s.external}
                       >
-                        {linkText(doc.link)}
+                        {linkText(doc.url)}
                         <ExternalLink size={14} aria-label="opens in a new tab" />
                       </a>
                     </dd>
@@ -753,19 +800,17 @@ function Implementations({ kernel, records }) {
       </ul>
 
       <h2>Torch reference</h2>
-      {kernel.reference?.source ? (
+      {kernel.reference ? (
         <>
           <p>
-            {kernel.reference.note} Source: <code>{kernel.reference.path}</code> in
-            ServingStudio Sim, Apache 2.0.
+            The semantic reference the backends are checked against. Source:{" "}
+            <code>{kernel.reference.path}</code> in ServingStudio Sim, Apache 2.0.
           </p>
           <CodeBlock
             source={kernel.reference.source}
             name={kernel.reference.path}
           />
         </>
-      ) : kernel.reference?.note ? (
-        <p>{kernel.reference.note}</p>
       ) : (
         <p>
           This kernel has no standalone torch reference yet. The backends are
@@ -812,7 +857,8 @@ function DataAndApi({ kernel, records, catalog, query }) {
   // The request carries the configuration the chart is showing, defaults included.
   const { selection, filterDims } = useExplorerState(kernel, records, query);
   const params = new URLSearchParams(filterDims.map((d) => [d, selection[d]]));
-  const api = `${API_DISPLAY_BASE}/kernels/${kernel.kind}/rows?${params}`;
+  const rowsUrl = apiUrl(`kernels/${kernel.kind}/rows`);
+  const api = `${rowsUrl}?${params}`;
   const snippets = [
     ["curl", `curl "${api}&format=csv" -o ${kernel.kind}.csv`],
     [
@@ -825,7 +871,7 @@ function DataAndApi({ kernel, records, catalog, query }) {
           ([k, v]) => `    ${JSON.stringify(k)}: ${JSON.stringify(v)},`,
         ),
         "}",
-        `url = "${API_DISPLAY_BASE}/kernels/${kernel.kind}/rows"`,
+        `url = "${rowsUrl}"`,
         'rows = requests.get(url, params=params).json()["rows"]',
       ].join("\n"),
     ],
@@ -833,24 +879,17 @@ function DataAndApi({ kernel, records, catalog, query }) {
   ];
   return (
     <div className={s.prose}>
-      <p className={s.notice}>
-        The query API is not live yet. This prototype reads a static snapshot; the
-        requests below show the shape the API will answer. The downloads work now.
-      </p>
-
       <h2>Download</h2>
       <ul className={s.downloads}>
         <li>
-          <a href={`${DATA_BASE}/kernels/${kernel.kind}.json`} download>
+          <a href={`${rowsUrl}?format=csv`} download>
             <Download size={18} aria-hidden="true" />
-            Whole <code>{kernel.kind}</code> table, JSON
+            Whole <code>{kernel.kind}</code> table, CSV
           </a>
-          <span>
-            {kernel.rows.length.toLocaleString("en-US")} rows with provenance
-          </span>
+          <span>{records.length.toLocaleString("en-US")} rows with provenance</span>
         </li>
         <li>
-          <a href={`${DATA_BASE}/catalog.json`} download>
+          <a href={apiUrl("kernels")} download="kernels.json">
             <Download size={18} aria-hidden="true" />
             Catalog of all {catalog.kernels.length} kernels, JSON
           </a>
@@ -861,19 +900,24 @@ function DataAndApi({ kernel, records, catalog, query }) {
       </ul>
 
       <h2>Query</h2>
+      <p>
+        Every query parameter filters one column by equality: <code>gpu</code>,{" "}
+        <code>backend</code> or an argument. Add <code>format=csv</code> for CSV.
+      </p>
       {snippets.map(([label, code]) => (
         <div key={label} className={s.snippet}>
           <CodeBlock source={code} name={label} />
         </div>
       ))}
 
-      <h2>Cite this snapshot</h2>
+      <h2>Cite this data</h2>
       <p>
-        Snapshot <code>{catalog.snapshot.id}</code>, last measured{" "}
-        {formatDate(catalog.snapshot.last_measured_at)}. Each row also records the
-        profiler commit, CUDA and driver versions, and the backend library version
-        it was measured with. The data and the torch reference code are licensed
-        under Apache 2.0.
+        ServingStudio Sim commit{" "}
+        <code>{catalog.snapshot.sim_commit?.slice(0, 12) ?? "unknown"}</code>, last
+        measured {formatDate(catalog.snapshot.last_measured_at)}. Each row also
+        records the profiler commit, CUDA and driver versions, and, where the run
+        captured it, the backend library version. The data and the torch reference
+        code are licensed under Apache 2.0.
       </p>
     </div>
   );
