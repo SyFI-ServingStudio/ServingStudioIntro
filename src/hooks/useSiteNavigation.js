@@ -8,6 +8,7 @@ const pages = new Map([
   [`${base}index.html`, "overview"],
   [`${base}features.html`, "features"],
   [`${base}architecture.html`, "architecture"],
+  [`${base}kernels.html`, "kernels"],
   [`${base}blog.html`, "blog"],
 ]);
 export function pageFromPath(pathname) {
@@ -22,6 +23,22 @@ export function pageFromPath(pathname) {
 }
 const currentPage = () => pageFromPath(window.location.pathname) || "overview";
 
+// Start route-specific work before replacing the current page. The browser can
+// keep showing the current page while a lazily loaded page becomes ready.
+export function preparePage(page, search = "") {
+  const hero = prepareHero(page, search);
+  if (page === "kernels")
+    return Promise.all([
+      hero,
+      import("../pages/kernels/Kernels"),
+      import("../pages/kernels/kernelData").then(({ loadCatalog }) =>
+        loadCatalog().catch(() => {}),
+      ),
+    ]);
+  if (page?.startsWith("blog")) return Promise.all([hero, import("../pages/Blog")]);
+  return hero;
+}
+
 export function useSiteNavigation(mainRef) {
   const [page, setPage] = useState(currentPage);
   const transitionRef = useRef(null);
@@ -30,7 +47,7 @@ export function useSiteNavigation(mainRef) {
     let navigationId = 0;
     async function navigate(url, push) {
       const id = ++navigationId;
-      await prepareHero(pageFromPath(url.pathname), url.search);
+      await preparePage(pageFromPath(url.pathname), url.search);
       if (id !== navigationId) return;
       transitionRef.current?.skipTransition();
       const update = () => {
@@ -103,7 +120,7 @@ export function useSiteNavigation(mainRef) {
     document.title =
       page === "overview"
         ? "ServingStudio | Simulate and improve LLM serving"
-        : `${page === "features" ? "Features" : "Architecture"} | ServingStudio`;
+        : `${{ features: "Features", kernels: "Kernels" }[page] || "Architecture"} | ServingStudio`;
   }, [page]);
   return page;
 }

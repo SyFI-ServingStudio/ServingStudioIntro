@@ -17,7 +17,13 @@ export default defineConfig({
     // in Google Search Console. The cover template blog-overview.html is omitted.
     sitemap({
       origin: "https://syfi-servingstudio.github.io",
-      pages: ["", "features.html", "architecture.html", "blog.html"],
+      pages: [
+        "",
+        "features.html",
+        "architecture.html",
+        "kernels.html",
+        "blog.html",
+      ],
     }),
   ],
   build: {
@@ -28,6 +34,7 @@ export default defineConfig({
         blog: "blog.html",
         features: "features.html",
         architecture: "architecture.html",
+        kernels: "kernels.html",
       },
     },
   },

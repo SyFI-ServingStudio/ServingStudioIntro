@@ -1,0 +1,867 @@
+{
+ "mock": true,
+ "note": "Mock data for the shape-by-model view; derived from emit-backends over presets/*.yaml.",
+ "kinds": {
+  "flashinfer_attn_decode": [
+   {
+    "model": "Qwen3-235B-A22B",
+    "family": "Qwen",
+    "deployment": "AFD attention side, TP4",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "num_qo_heads": 16,
+       "num_kv_heads": 1,
+       "head_dim": 128,
+       "q_dtype": "bf16",
+       "kv_dtype": "bf16",
+       "o_dtype": "bf16"
+      },
+      "ops": [
+       "decode"
+      ],
+      "paths": [
+       "afd.attn.decode"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "Qwen3-235B-A22B",
+    "family": "Qwen",
+    "deployment": "AFD attention side, TP2",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "num_qo_heads": 32,
+       "num_kv_heads": 2,
+       "head_dim": 128,
+       "q_dtype": "bf16",
+       "kv_dtype": "bf16",
+       "o_dtype": "bf16"
+      },
+      "ops": [
+       "decode"
+      ],
+      "paths": [
+       "afd.attn.decode"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "Llama 3 8B",
+    "family": "Llama",
+    "deployment": "TP1",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "num_qo_heads": 32,
+       "num_kv_heads": 8,
+       "head_dim": 128,
+       "q_dtype": "bf16",
+       "kv_dtype": "bf16",
+       "o_dtype": "bf16"
+      },
+      "ops": [
+       "decode"
+      ],
+      "paths": [
+       "pd.attn_block.attn.decode",
+       "unified.attn.attn.decode"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "Qwen3-235B-A22B",
+    "family": "Qwen",
+    "deployment": "attention TP4, EP32",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "num_qo_heads": 16,
+       "num_kv_heads": 1,
+       "head_dim": 128,
+       "q_dtype": "bf16",
+       "kv_dtype": "bf16",
+       "o_dtype": "bf16"
+      },
+      "ops": [
+       "decode"
+      ],
+      "paths": [
+       "unified.attn_block.attn.decode"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "Qwen3-235B-A22B",
+    "family": "Qwen",
+    "deployment": "attention TP4, EP8",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "num_qo_heads": 16,
+       "num_kv_heads": 1,
+       "head_dim": 128,
+       "q_dtype": "bf16",
+       "kv_dtype": "bf16",
+       "o_dtype": "bf16"
+      },
+      "ops": [
+       "decode"
+      ],
+      "paths": [
+       "unified.attn_block.attn.decode"
+      ]
+     }
+    ]
+   }
+  ],
+  "single_gemm": [
+   {
+    "model": "Qwen3-235B-A22B",
+    "family": "Qwen",
+    "deployment": "AFD FFN side, EP8",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "n": 2304,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "qkv_proj"
+      ],
+      "paths": [
+       "afd.pre_attn.qkv_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 4096,
+       "k": 2048,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "o_proj"
+      ],
+      "paths": [
+       "afd.post_attn.o_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 128,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "router_gemm"
+      ],
+      "paths": [
+       "afd.post_attn.moe_router.router_gemm"
+      ]
+     },
+     {
+      "spec": {
+       "n": 151936,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "lm_head"
+      ],
+      "paths": [
+       "afd.lm_head"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "GLM-5.2 FP8",
+    "family": "GLM",
+    "deployment": "EP8",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "n": 2624,
+       "k": 6144,
+       "dtype": "fp8_e4m3"
+      },
+      "ops": [
+       "fused_qkv_a_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.attention.fused_qkv_a_proj",
+       "unified.body.sparse_initial_index_share.attention.fused_qkv_a_proj",
+       "unified.body.sparse_cycle_full_index.attention.fused_qkv_a_proj",
+       "unified.body.sparse_cycle_index_share.attention.fused_qkv_a_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 16384,
+       "k": 2048,
+       "dtype": "fp8_e4m3"
+      },
+      "ops": [
+       "q_b_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.attention.q_b_proj",
+       "unified.body.sparse_initial_index_share.attention.q_b_proj",
+       "unified.body.sparse_cycle_full_index.attention.q_b_proj",
+       "unified.body.sparse_cycle_index_share.attention.q_b_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 4096,
+       "k": 2048,
+       "dtype": "fp8_e4m3"
+      },
+      "ops": [
+       "q_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.attention.indexer.q_proj",
+       "unified.body.sparse_cycle_full_index.attention.indexer.q_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 160,
+       "k": 6144,
+       "dtype": "fp8_e4m3"
+      },
+      "ops": [
+       "wk_weights_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.attention.indexer.wk_weights_proj",
+       "unified.body.sparse_cycle_full_index.attention.indexer.wk_weights_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 6144,
+       "k": 16384,
+       "dtype": "fp8_e4m3"
+      },
+      "ops": [
+       "o_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.attention.o_proj",
+       "unified.body.sparse_initial_index_share.attention.o_proj",
+       "unified.body.sparse_cycle_full_index.attention.o_proj",
+       "unified.body.sparse_cycle_index_share.attention.o_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 24576,
+       "k": 6144,
+       "dtype": "fp8_e4m3"
+      },
+      "ops": [
+       "gate_up_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.ffn.gate_up_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 6144,
+       "k": 12288,
+       "dtype": "fp8_e4m3"
+      },
+      "ops": [
+       "down_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.ffn.down_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 256,
+       "k": 6144,
+       "dtype": "fp8_e4m3"
+      },
+      "ops": [
+       "router_gemm_bf16_proxy"
+      ],
+      "paths": [
+       "unified.body.sparse_initial_index_share.moe.router.router_gemm_bf16_proxy",
+       "unified.body.sparse_cycle_full_index.moe.router.router_gemm_bf16_proxy",
+       "unified.body.sparse_cycle_index_share.moe.router.router_gemm_bf16_proxy"
+      ]
+     },
+     {
+      "spec": {
+       "n": 4096,
+       "k": 6144,
+       "dtype": "fp8_e4m3"
+      },
+      "ops": [
+       "gate_up_proj"
+      ],
+      "paths": [
+       "unified.body.sparse_initial_index_share.moe.shared_expert.gate_up_proj",
+       "unified.body.sparse_cycle_full_index.moe.shared_expert.gate_up_proj",
+       "unified.body.sparse_cycle_index_share.moe.shared_expert.gate_up_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 6144,
+       "k": 2048,
+       "dtype": "fp8_e4m3"
+      },
+      "ops": [
+       "down_proj"
+      ],
+      "paths": [
+       "unified.body.sparse_initial_index_share.moe.shared_expert.down_proj",
+       "unified.body.sparse_cycle_full_index.moe.shared_expert.down_proj",
+       "unified.body.sparse_cycle_index_share.moe.shared_expert.down_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 154880,
+       "k": 6144,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "lm_head"
+      ],
+      "paths": [
+       "unified.main.lm_head"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "GLM-5.2 NVFP4",
+    "family": "GLM",
+    "deployment": "EP4",
+    "gpu": "NVIDIA B200",
+    "shapes": [
+     {
+      "spec": {
+       "n": 2624,
+       "k": 6144,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "fused_qkv_a_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.attention.fused_qkv_a_proj",
+       "unified.body.sparse_initial_index_share.attention.fused_qkv_a_proj",
+       "unified.body.sparse_cycle_full_index.attention.fused_qkv_a_proj",
+       "unified.body.sparse_cycle_index_share.attention.fused_qkv_a_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 4096,
+       "k": 2048,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "q_b_proj",
+       "q_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.attention.q_b_proj",
+       "unified.body.dense_full_index.attention.indexer.q_proj",
+       "unified.body.sparse_initial_index_share.attention.q_b_proj",
+       "unified.body.sparse_cycle_full_index.attention.q_b_proj",
+       "unified.body.sparse_cycle_full_index.attention.indexer.q_proj",
+       "unified.body.sparse_cycle_index_share.attention.q_b_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 160,
+       "k": 6144,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "wk_weights_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.attention.indexer.wk_weights_proj",
+       "unified.body.sparse_cycle_full_index.attention.indexer.wk_weights_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 6144,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "o_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.attention.o_proj",
+       "unified.body.sparse_initial_index_share.attention.o_proj",
+       "unified.body.sparse_cycle_full_index.attention.o_proj",
+       "unified.body.sparse_cycle_index_share.attention.o_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 6144,
+       "k": 6144,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "gate_up_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.ffn.gate_up_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 6144,
+       "k": 3072,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "down_proj"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.ffn.down_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 256,
+       "k": 6144,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "router_gemm_bf16_proxy"
+      ],
+      "paths": [
+       "unified.body.sparse_initial_index_share.moe.router.router_gemm_bf16_proxy",
+       "unified.body.sparse_cycle_full_index.moe.router.router_gemm_bf16_proxy",
+       "unified.body.sparse_cycle_index_share.moe.router.router_gemm_bf16_proxy"
+      ]
+     },
+     {
+      "spec": {
+       "n": 1024,
+       "k": 6144,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "gate_up_proj"
+      ],
+      "paths": [
+       "unified.body.sparse_initial_index_share.moe.shared_expert.gate_up_proj",
+       "unified.body.sparse_cycle_full_index.moe.shared_expert.gate_up_proj",
+       "unified.body.sparse_cycle_index_share.moe.shared_expert.gate_up_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 6144,
+       "k": 512,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "down_proj"
+      ],
+      "paths": [
+       "unified.body.sparse_initial_index_share.moe.shared_expert.down_proj",
+       "unified.body.sparse_cycle_full_index.moe.shared_expert.down_proj",
+       "unified.body.sparse_cycle_index_share.moe.shared_expert.down_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 38720,
+       "k": 6144,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "lm_head"
+      ],
+      "paths": [
+       "unified.main.lm_head"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "Llama 3 8B",
+    "family": "Llama",
+    "deployment": "TP1",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "n": 6144,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "qkv_proj"
+      ],
+      "paths": [
+       "pd.attn_block.qkv_proj",
+       "unified.pre_attn.qkv_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 4096,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "o_proj"
+      ],
+      "paths": [
+       "pd.attn_block.o_proj",
+       "unified.post_attn.o_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 28672,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "up_gate_proj"
+      ],
+      "paths": [
+       "pd.mlp_block.up_gate_proj",
+       "unified.post_attn.up_gate_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 4096,
+       "k": 14336,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "down_proj"
+      ],
+      "paths": [
+       "pd.mlp_block.down_proj",
+       "unified.post_attn.down_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 128256,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "lm_head"
+      ],
+      "paths": [
+       "pd.lm_head",
+       "unified.lm_head"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "Qwen3-235B-A22B",
+    "family": "Qwen",
+    "deployment": "attention TP4, EP32",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "n": 2304,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "qkv_proj"
+      ],
+      "paths": [
+       "unified.attn_block.qkv_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 4096,
+       "k": 2048,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "o_proj"
+      ],
+      "paths": [
+       "unified.attn_block.o_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 128,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "router_gemm"
+      ],
+      "paths": [
+       "unified.moe_router.router_gemm"
+      ]
+     },
+     {
+      "spec": {
+       "n": 151936,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "lm_head"
+      ],
+      "paths": [
+       "unified.lm_head"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "Qwen3-235B-A22B",
+    "family": "Qwen",
+    "deployment": "attention TP4, EP8",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "n": 2304,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "qkv_proj"
+      ],
+      "paths": [
+       "unified.attn_block.qkv_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 4096,
+       "k": 2048,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "o_proj"
+      ],
+      "paths": [
+       "unified.attn_block.o_proj"
+      ]
+     },
+     {
+      "spec": {
+       "n": 128,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "router_gemm"
+      ],
+      "paths": [
+       "unified.moe_router.router_gemm"
+      ]
+     },
+     {
+      "spec": {
+       "n": 151936,
+       "k": 4096,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "lm_head"
+      ],
+      "paths": [
+       "unified.lm_head"
+      ]
+     }
+    ]
+   }
+  ],
+  "all_reduce": [
+   {
+    "model": "Qwen3-235B-A22B",
+    "family": "Qwen",
+    "deployment": "AFD FFN side, EP8",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "num_gpus": 4,
+       "fabric": "nvlink"
+      },
+      "ops": [
+       "tp_allreduce"
+      ],
+      "paths": [
+       "afd.post_attn.tp_allreduce"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "GLM-5.2 NVFP4",
+    "family": "GLM",
+    "deployment": "EP4",
+    "gpu": "NVIDIA B200",
+    "shapes": [
+     {
+      "spec": {
+       "num_gpus": 4,
+       "fabric": "nvlink"
+      },
+      "ops": [
+       "tp_allreduce_fallback",
+       "tp_allreduce"
+      ],
+      "paths": [
+       "unified.main.embedding.tp_allreduce_fallback",
+       "unified.body.dense_full_index.attention.tp_allreduce",
+       "unified.body.dense_full_index.ffn.tp_allreduce_fallback",
+       "unified.body.sparse_initial_index_share.attention.tp_allreduce",
+       "unified.body.sparse_initial_index_share.moe.tp_allreduce_fallback",
+       "unified.body.sparse_cycle_full_index.attention.tp_allreduce",
+       "unified.body.sparse_cycle_full_index.moe.tp_allreduce_fallback",
+       "unified.body.sparse_cycle_index_share.attention.tp_allreduce",
+       "unified.body.sparse_cycle_index_share.moe.tp_allreduce_fallback"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "Qwen3-235B-A22B",
+    "family": "Qwen",
+    "deployment": "attention TP4, EP32",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "num_gpus": 4,
+       "fabric": "nvlink"
+      },
+      "ops": [
+       "tp_allreduce"
+      ],
+      "paths": [
+       "unified.attn_block.tp_allreduce"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "Qwen3-235B-A22B",
+    "family": "Qwen",
+    "deployment": "attention TP4, EP8",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "num_gpus": 4,
+       "fabric": "nvlink"
+      },
+      "ops": [
+       "tp_allreduce"
+      ],
+      "paths": [
+       "unified.attn_block.tp_allreduce"
+      ]
+     }
+    ]
+   }
+  ],
+  "residual_rms_norm": [
+   {
+    "model": "GLM-5.2 FP8",
+    "family": "GLM",
+    "deployment": "EP8",
+    "gpu": "NVIDIA H200",
+    "shapes": [
+     {
+      "spec": {
+       "hidden": 6144,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "input_add_rms_norm",
+       "post_attn_add_rms_norm",
+       "final_residual_rms_norm"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.attention.input_add_rms_norm",
+       "unified.body.dense_full_index.ffn.post_attn_add_rms_norm",
+       "unified.body.sparse_initial_index_share.attention.input_add_rms_norm",
+       "unified.body.sparse_initial_index_share.moe.router.post_attn_add_rms_norm",
+       "unified.body.sparse_cycle_full_index.attention.input_add_rms_norm",
+       "unified.body.sparse_cycle_full_index.moe.router.post_attn_add_rms_norm",
+       "unified.body.sparse_cycle_index_share.attention.input_add_rms_norm",
+       "unified.body.sparse_cycle_index_share.moe.router.post_attn_add_rms_norm",
+       "unified.main.final_residual_rms_norm"
+      ]
+     }
+    ]
+   },
+   {
+    "model": "GLM-5.2 NVFP4",
+    "family": "GLM",
+    "deployment": "EP4",
+    "gpu": "NVIDIA B200",
+    "shapes": [
+     {
+      "spec": {
+       "hidden": 6144,
+       "dtype": "bf16"
+      },
+      "ops": [
+       "input_add_rms_norm",
+       "post_attn_add_rms_norm",
+       "final_residual_rms_norm"
+      ],
+      "paths": [
+       "unified.body.dense_full_index.attention.input_add_rms_norm",
+       "unified.body.dense_full_index.ffn.post_attn_add_rms_norm",
+       "unified.body.sparse_initial_index_share.attention.input_add_rms_norm",
+       "unified.body.sparse_initial_index_share.moe.router.post_attn_add_rms_norm",
+       "unified.body.sparse_cycle_full_index.attention.input_add_rms_norm",
+       "unified.body.sparse_cycle_full_index.moe.router.post_attn_add_rms_norm",
+       "unified.body.sparse_cycle_index_share.attention.input_add_rms_norm",
+       "unified.body.sparse_cycle_index_share.moe.router.post_attn_add_rms_norm",
+       "unified.main.final_residual_rms_norm"
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}
