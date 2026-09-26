@@ -24,8 +24,7 @@ const resources = [
 export function Hero() {
   const [notice, setNotice] = useState(null);
   /* These live in public/, so they are not import-resolved and Vite cannot
-     rewrite them: the base prefix has to be applied here. It is "/" in dev and
-     "/ServingStudioIntro/" in the published build. */
+     rewrite them: the base prefix has to be applied here. */
   const asset = (name) => `${import.meta.env.BASE_URL}images/${name}`;
   const previewImages = {
     original: asset("shoreline-v3.webp"),

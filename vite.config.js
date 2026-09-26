@@ -4,19 +4,18 @@ import { blogContent } from "./scripts/blog-content.mjs";
 import { sitemap } from "./scripts/sitemap.mjs";
 
 export default defineConfig({
-  /* The site is published at https://syfi-servingstudio.github.io/ServingStudioIntro/, so
-     every asset URL has to carry that prefix. Vite rewrites the ones it can
-     see: relative imports, and the absolute /fonts and /images references in
-     CSS. It cannot rewrite a path written as a string in JSX, so those read
-     import.meta.env.BASE_URL instead. */
-  base: "/ServingStudioIntro/",
+  /* The site is published at the root of https://servingstudio.cs.washington.edu/
+     by scripts/deploy-cse.sh. Paths written as strings in JSX still read
+     import.meta.env.BASE_URL, so moving the site under a subpath again only
+     needs this value changed. */
+  base: "/",
   plugins: [
     react(),
     blogContent(),
-    // Submit https://syfi-servingstudio.github.io/ServingStudioIntro/sitemap.xml
-    // in Google Search Console. The cover template blog-overview.html is omitted.
+    // Submit https://servingstudio.cs.washington.edu/sitemap.xml in Google
+    // Search Console. The cover template blog-overview.html is omitted.
     sitemap({
-      origin: "https://syfi-servingstudio.github.io",
+      origin: "https://servingstudio.cs.washington.edu",
       pages: ["", "features.html", "architecture.html", "blog.html"],
     }),
   ],

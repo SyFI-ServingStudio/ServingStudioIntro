@@ -20,9 +20,31 @@ npm run build
 
 Vite writes the deployable site to `dist/`.
 
+## Deployment
+
+The site is served from the root of https://servingstudio.cs.washington.edu/.
+Its files live in `/cse/web/research/servingstudio`, which the CSE web hosts
+such as `bicycle` and `recycle` mount. With passwordless ssh to `bicycle`,
+publish the current checkout with:
+
+```bash
+npm run deploy:cse              # build, then rsync dist/ to the server
+npm run deploy:cse -- --dry-run # build, then list what would change
+```
+
+The sync deletes server files that are not in the build, so put anything the
+server needs, such as an `.htaccess`, in `public/`.
+
+The old address, https://syfi-servingstudio.github.io/ServingStudioIntro/, now
+serves only redirects. On every push to `main`, the GitHub Actions workflow
+checks the build, runs `scripts/build-github-redirects.mjs` to write one
+redirect page per site page plus a catch-all `404.html`, and publishes them.
+Each old URL forwards to the same path on the CSE site. Pushing does not update
+the CSE site; run `npm run deploy:cse` for that.
+
 ## Blog posts
 
-The blog index is at `/ServingStudioIntro/blog.html`. Each post has one source
+The blog index is at `/blog.html`. Each post has one source
 directory; its folder name becomes the URL slug:
 
 ```text
@@ -63,13 +85,12 @@ within a paragraph.
 
 `npm run build` validates the metadata and local asset references, then generates
 each article at `dist/blog/<slug>/index.html` with its assets. These URLs work on
-GitHub Pages without a server-side router. The introduction article is available
-at `/ServingStudioIntro/blog/introducing-servingstudio/`.
+any static host without a server-side router. The introduction article is
+available at `/blog/introducing-servingstudio/`.
 
 The build also writes `sitemap.xml` with the main pages and every published
 post (with its date as `lastmod`). Submit
-`https://syfi-servingstudio.github.io/ServingStudioIntro/sitemap.xml` in Google
-Search Console; new posts are added automatically. To list another page, add it
+`https://servingstudio.cs.washington.edu/sitemap.xml` in Google Search Console; new posts are added automatically. To list another page, add it
 to the `sitemap` plugin's `pages` in `vite.config.js`.
 
 Run `npm test`, `npm run lint:css`, and `npm run build` before publishing.
