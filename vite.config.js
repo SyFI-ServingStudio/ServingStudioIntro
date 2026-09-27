@@ -3,10 +3,11 @@ import react from "@vitejs/plugin-react";
 import { blogContent } from "./scripts/blog-content.mjs";
 import { sitemap } from "./scripts/sitemap.mjs";
 
-/* The Kernel Library reads ServingStudio Sim's read-only public API. Pages
-   request /api/public/v1 from their own origin and the server in front of the
-   site forwards it; here that is Vite, pointed at the service by
-   PUBLIC_API_PROXY_TARGET (`uv run python -m public_api serve` in Sim). */
+/* The Models and Kernels pages read ServingStudio Sim's read-only public API.
+   Pages request /api/public/v1 from their own origin and the server in front of
+   the site forwards it: public/.htaccess on the CSE site, and here Vite, pointed
+   at the service by PUBLIC_API_PROXY_TARGET (`uv run python -m public_api serve`
+   in Sim). */
 function publicApiProxy(env) {
   const target = env.PUBLIC_API_PROXY_TARGET;
   return target ? { "/api/public/v1": { target, changeOrigin: true } } : undefined;
