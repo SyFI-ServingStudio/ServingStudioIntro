@@ -164,9 +164,10 @@ const valueOf = (config, key) =>
 const tupleOf = (config, keys) =>
   JSON.stringify(keys.map((key) => valueOf(config, key)));
 
-/* What tells a model's configs apart on its chips: the profile.db args that
-   differ between them, then, while two chips still read alike, the Rust
-   config values that no DB column carries (a folded rank position, say). */
+/* What tells a set of configs apart on their chips: the profile.db args that
+   differ between them, then, while two chips still read alike, each Rust
+   config value no DB column carries (a folded rank position, say) that
+   splits some of them. */
 function distinguishing(configs) {
   const differs = (key) =>
     new Set(configs.map((c) => JSON.stringify(valueOf(c, key)))).size > 1;
@@ -175,10 +176,10 @@ function distinguishing(configs) {
   const extra = [
     ...new Set(configs.flatMap((c) => Object.keys(c.config_args))),
   ].filter((key) => !fixedKeys.includes(key) && differs(key));
+  const distinct = (list) => new Set(configs.map((c) => tupleOf(c, list))).size;
   for (const key of extra) {
-    const seen = new Set(configs.map((c) => tupleOf(c, keys)));
-    if (seen.size === configs.length) break;
-    keys.push(key);
+    if (distinct(keys) === configs.length) break;
+    if (distinct([...keys, key]) > distinct(keys)) keys.push(key);
   }
   return keys;
 }
@@ -217,8 +218,33 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
     return i < 0 ? kernel.args.length : i;
   };
   const ordered = (list) => [...list].sort((a, b) => argIndex(a) - argIndex(b));
-  const keys = ordered(distinguishing(configs));
   const allOps = new Set(entries.flatMap((e) => [...e.roles].map(opOf)));
+  /* A chip names what tells its config apart from every config on this GPU
+     for the same op, whichever model or deployment uses it: two deployment
+     groups can each hold one q_absorb config that differ only in
+     num_batches (EP4 against EP8), and the chips must say so. A field every
+     such config shares is left out. */
+  const opsOf = (entry) => [...new Set([...entry.roles].map(opOf))].sort().join();
+  const keysByOps = useMemo(() => {
+    const byOps = new Map();
+    for (const deployments of index.get(gpu).values())
+      for (const { entries: claimed } of deployments.values())
+        for (const e of claimed.values()) {
+          const ops = opsOf(e);
+          if (!byOps.has(ops)) byOps.set(ops, new Map());
+          byOps.get(ops).set(e.config.config_hash, e.config);
+        }
+    return new Map(
+      [...byOps].map(([ops, set]) => [
+        ops,
+        ordered(distinguishing([...set.values()])),
+      ]),
+    );
+    // `ordered` only reads the kernel's argument order.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, gpu, kernel]);
+  const keysOf = (entry) => keysByOps.get(opsOf(entry)) ?? [];
+  const keys = ordered([...new Set(entries.flatMap(keysOf))]);
   const best = [...configs].sort((a, b) => measuredCells(b) - measuredCells(a))[0];
   const config = configs.find((c) => c.config_hash === query.config) ?? best;
 
@@ -230,9 +256,9 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
       ...patch,
     });
 
-  const chipText = (entry, chipKeys) => {
+  const chipText = (entry) => {
     const ops = [...new Set([...entry.roles].map(opOf))];
-    const parts = chipKeys.map(
+    const parts = keysOf(entry).map(
       (key) =>
         // A config without this value (another variant's field) reads "–".
         `${key} ${formatValue(valueOf(entry.config, key) ?? "–", argUnit(kernel, key))}`,
@@ -243,17 +269,12 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
     };
   };
 
-  /* A group's chips name only what differs inside the group (its deployment
-     label already says the rest). A config only some of a deployment's
-     members use (one max_model_len of several, say) goes under a caption
-     naming them, after the configs every member uses. Configs that still read
-     alike differ in a structured config value no chip can show (a recorded
-     expert-demand table, say); their chips add the config's short hash. */
+  /* A config only some of a deployment's members use (one max_model_len of
+     several, say) goes under a caption naming them, after the configs every
+     member uses. Configs that still read alike differ in a structured config
+     value no chip can show (a recorded expert-demand table, say); their chips
+     add the config's short hash. */
   const chipsOf = (group) => {
-    const groupKeys =
-      group.entries.length > 1
-        ? ordered(distinguishing(group.entries.map((e) => e.config)))
-        : keys;
     const [deployment] = group.deployments;
     const parts = new Map();
     for (const e of group.entries) {
@@ -264,13 +285,12 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
         parts.set(id, {
           caption: whole ? null : `${membersText(deployment, members)} only`,
           order: whole ? [-1] : members,
-          keys: groupKeys,
           entries: [],
         });
       parts.get(id).entries.push(e);
     }
     const label = (e) => {
-      const { ops, text } = chipText(e, groupKeys);
+      const { ops, text } = chipText(e);
       return `${ops}|${text}`;
     };
     return [...parts.values()]
@@ -364,7 +384,7 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
                   {part.caption && <p className={s.caption}>{part.caption}</p>}
                   <div className={picker.choices}>
                     {part.entries.map((entry) => {
-                      const { ops, text } = chipText(entry, part.keys);
+                      const { ops, text } = chipText(entry);
                       const c = entry.config;
                       const measured = measuredCells(c);
                       return (
