@@ -10,8 +10,11 @@ export const API_BASE = import.meta.env.VITE_PUBLIC_API_BASE ?? "/api/public/v1"
 export const apiUrl = (path) =>
   new URL(`${API_BASE}/${path}`, window.location.origin).href;
 
+/* One request per path, shared by every page that asks. A failed request
+   rejects with the service's message; a detail that is an object (a query the
+   service will not guess at, with the valid choices) rides on the error. */
 const cache = new Map();
-function load(path) {
+export function load(path) {
   if (!cache.has(path)) {
     cache.set(
       path,
@@ -21,9 +24,14 @@ function load(path) {
             (body) => body.detail,
             () => null,
           );
-          throw new Error(
-            `${API_BASE}/${path}: ${detail ?? `HTTP ${response.status}`}`,
+          const message =
+            typeof detail === "object" && detail ? detail.message : detail;
+          const error = new Error(
+            `${API_BASE}/${path}: ${message ?? `HTTP ${response.status}`}`,
           );
+          error.status = response.status;
+          error.detail = detail;
+          throw error;
         }
         return response.json();
       }),

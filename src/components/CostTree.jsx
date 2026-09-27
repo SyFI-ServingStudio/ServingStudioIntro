@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { GitBranch, Play } from "lucide-react";
+import { ChevronRight, GitBranch, Play } from "lucide-react";
 import { Tabs } from "./Tabs";
 import qwenData from "../data/qwenCostTree.json";
 import llamaData from "../data/llamaCostTree.json";
@@ -164,7 +164,7 @@ function ModelCostTree({ data }) {
   );
 }
 
-const backendLabels = {
+export const backendLabels = {
   deepgemm: "DeepGEMM",
   fa3: "FA3",
   flashinfer: "FlashInfer",
@@ -176,9 +176,17 @@ const backendLabels = {
   torch: "PyTorch",
 };
 
-function TreeRows({ rows }) {
+/* The tree as rows, one per node, indented by depth, with its composition
+   (Sum, Max, Scale, Leaf) as a badge. A recorded tree (the example above) gives
+   each leaf its time and backends. A live tree may instead give a row:
+   `toggle` and `open` to expand and collapse a composite, `note` under its
+   name, `after` beside it, and `meta` in place of the recorded metrics. */
+export function TreeRows({ rows, className, label }) {
   return (
-    <ol className={s.tree}>
+    <ol
+      className={className ? `${s.tree} ${className}` : s.tree}
+      aria-label={label}
+    >
       {rows.map((node, index) => (
         <li
           key={node.id}
@@ -189,22 +197,43 @@ function TreeRows({ rows }) {
           <div className={s.row}>
             <b data-kind={node.kind}>{node.kind}</b>
             <strong>
-              {node.name === "Expert rank 2" ? "Expert compute" : node.name}
+              {node.toggle ? (
+                <button
+                  type="button"
+                  className={s.disclosure}
+                  aria-expanded={node.open}
+                  onClick={node.toggle}
+                >
+                  <ChevronRight size={16} aria-hidden="true" />
+                  {node.name}
+                </button>
+              ) : node.name === "Expert rank 2" ? (
+                "Expert compute"
+              ) : (
+                node.name
+              )}
+              {node.after}
               {node.parallelCount && (
                 <span className={s.parallelNote}>
                   {node.parallelCount} parallel ranks · slowest rank shown
                 </span>
               )}
+              {node.note && <small>{node.note}</small>}
             </strong>
-            {node.kind === "Leaf" && (
-              <div className={s.nodeMetrics}>
-                <span className={s.time}>{node.ms.toFixed(3)} ms</span>
-                <span className={s.backend}>
-                  {node.backends
-                    ?.map((name) => backendLabels[name] || name)
-                    .join(" · ")}
-                </span>
-              </div>
+            {node.meta ? (
+              <div className={s.nodeMetrics}>{node.meta}</div>
+            ) : (
+              node.kind === "Leaf" &&
+              node.ms != null && (
+                <div className={s.nodeMetrics}>
+                  <span className={s.time}>{node.ms.toFixed(3)} ms</span>
+                  <span className={s.backend}>
+                    {node.backends
+                      ?.map((name) => backendLabels[name] || name)
+                      .join(" · ")}
+                  </span>
+                </div>
+              )
             )}
           </div>
         </li>

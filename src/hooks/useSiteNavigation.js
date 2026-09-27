@@ -8,6 +8,7 @@ const pages = new Map([
   [`${base}index.html`, "overview"],
   [`${base}features.html`, "features"],
   [`${base}architecture.html`, "architecture"],
+  [`${base}models.html`, "models"],
   [`${base}kernels.html`, "kernels"],
   [`${base}blog.html`, "blog"],
 ]);
@@ -23,10 +24,21 @@ export function pageFromPath(pathname) {
 }
 const currentPage = () => pageFromPath(window.location.pathname) || "overview";
 
+// Pages that open on their own header rather than a hero photograph.
+export const HEROLESS = new Set(["models"]);
+
 // Start route-specific work before replacing the current page. The browser can
 // keep showing the current page while a lazily loaded page becomes ready.
+
 export function preparePage(page, search = "") {
-  const hero = prepareHero(page, search);
+  const hero = HEROLESS.has(page) ? Promise.resolve() : prepareHero(page, search);
+  if (page === "models")
+    return Promise.all([
+      import("../pages/models/Models"),
+      import("../pages/models/modelData").then(({ loadArchs }) =>
+        loadArchs().catch(() => {}),
+      ),
+    ]);
   if (page === "kernels")
     return Promise.all([
       hero,
@@ -120,7 +132,7 @@ export function useSiteNavigation(mainRef) {
     document.title =
       page === "overview"
         ? "ServingStudio | Simulate and improve LLM serving"
-        : `${{ features: "Features", kernels: "Kernels" }[page] || "Architecture"} | ServingStudio`;
+        : `${{ features: "Features", models: "Models", kernels: "Kernels" }[page] || "Architecture"} | ServingStudio`;
   }, [page]);
   return page;
 }

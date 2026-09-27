@@ -82,3 +82,43 @@
     gap: clamp(8px, 2.5vw, 14px);
   }
 }
+
+/* Six items fill a phone's width: set them a step smaller, and let the row
+   scroll sideways, not the page, if a narrower screen still cannot hold them. */
+@media (max-width: 479px) {
+  .navigation nav {
+    gap: 12px;
+    overflow: auto hidden;
+    scrollbar-width: none;
+  }
+
+  .navigation nav[data-more="end"] {
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+
+  .navigation nav[data-more="start"] {
+    mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent);
+  }
+
+  .navigation nav[data-more="both"] {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 32px,
+      #000 calc(100% - 32px),
+      transparent
+    );
+  }
+
+  .navigation nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .navigation nav a {
+    font-size: var(--fs-fine);
+  }
+
+  .navigation nav a[aria-current="page"]::after {
+    bottom: 0;
+  }
+}
