@@ -74,6 +74,8 @@ function Tree({ tree }) {
   const defaults = Object.entries(tree.defaults).filter(
     ([name]) => !["num_layers", "sim_num_layers"].includes(name),
   );
+  // Params the schema marks as traffic (MoE routing): no default stands in.
+  const predicting = tree.set_when_predicting ?? [];
 
   return (
     <section className={s.treePanel} aria-labelledby="tree-title">
@@ -100,16 +102,32 @@ function Tree({ tree }) {
             <dd>{tree.gpus_per_replica ?? "unknown"}</dd>
           </div>
         </dl>
-        {defaults.length > 0 && (
+        {(defaults.length > 0 || predicting.length > 0) && (
           <p className={s.defaults}>
-            Built with the other params at their defaults:{" "}
-            {defaults.map(([name, value], index) => (
-              <span key={name}>
-                {index > 0 && ", "}
-                <code>{name}</code> {paramValue(value)}
-              </span>
-            ))}
-            .
+            {defaults.length > 0 && (
+              <>
+                Built with the other params at their defaults:{" "}
+                {defaults.map(([name, value], index) => (
+                  <span key={name}>
+                    {index > 0 && ", "}
+                    <code>{name}</code> {paramValue(value)}
+                  </span>
+                ))}
+                .{predicting.length > 0 && " "}
+              </>
+            )}
+            {predicting.length > 0 && (
+              <>
+                {predicting.map((name, index) => (
+                  <span key={name}>
+                    {index > 0 &&
+                      (index === predicting.length - 1 ? " and " : ", ")}
+                    <code>{name}</code>
+                  </span>
+                ))}{" "}
+                {predicting.length > 1 ? "are" : "is"} set when predicting.
+              </>
+            )}
           </p>
         )}
       </div>
