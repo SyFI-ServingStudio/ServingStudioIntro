@@ -5,7 +5,9 @@ import s from "./PerfChart.module.css";
 
 /* Categorical slots, stepped bright for the dark page so lines read at a
    glance. Slots 1-4 stay apart for every pair, colour-blind included (worst
-   CVD ΔE 16.6 vs #0c0d0f); most kernels have one to three backends. */
+   CVD ΔE 16.6 vs #0c0d0f); most kernels have one to three backends. The
+   eighth is a near-white, the only colour that stays apart from all seven
+   hues (worst CVD ΔE 19.5), so eight EP ranks never repeat the first. */
 export const SERIES_COLORS = [
   "#5ad8f5",
   "#ff6b6b",
@@ -14,7 +16,7 @@ export const SERIES_COLORS = [
   "#ff9f43",
   "#f06bd8",
   "#6fdc5a",
-  "#62b6ff",
+  "#ddeedd",
 ];
 
 /* The colour of one value among the lines of a chart. Up to four values keep
