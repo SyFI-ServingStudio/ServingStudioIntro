@@ -2,7 +2,14 @@ import { ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { readQuery, setQuery, shortGpu, subscribeUrl } from "../kernels/kernelData";
 import { Tag, ToggleTag } from "../kernels/Tag";
-import { CONTRACTS, loadArch, memberFromUrl, paramValue } from "./modelData";
+import {
+  CONTRACTS,
+  loadArch,
+  loadCostTree,
+  memberFromUrl,
+  paramValue,
+  routingText,
+} from "./modelData";
 import { modelHref, openModel } from "./Models";
 import { CostTreeExplorer } from "./CostTreeExplorer";
 import { PredictPlaceholder } from "./PredictPlaceholder";
@@ -109,6 +116,13 @@ function Explorer({ arch, family }) {
     members[0];
   const { model, gpu } = current.member.query;
   const pick = (next) => setQuery({ arch: arch.arch, ...next.member.query });
+  // Every other key in the link picks one of the set's registered runs.
+  const runQuery = Object.fromEntries(
+    Object.entries(url).filter(
+      ([key]) => key !== "arch" && !arch.query.includes(key),
+    ),
+  );
+  const tree = useTree(arch.arch, current.member.query, runQuery);
 
   const models = arch.models.filter((m) =>
     members.some(({ member }) => member.query.model === m.model_config),
@@ -228,12 +242,23 @@ function Explorer({ arch, family }) {
         )}
       </section>
 
-      <div className={s.treeLayout}>
-        <CostTreeExplorer
-          key={JSON.stringify(current.member.query)}
-          arch={arch}
-          member={current.member}
+      {tree.stale && (
+        <p className={s.notice} role="status">
+          No registered run of this set used the run configuration the link named,
+          so the best-measured run is shown.
+        </p>
+      )}
+      {tree.data?.run?.basis === "registry" && (
+        <RunPicker
+          run={tree.data.run}
+          onPick={(params) =>
+            setQuery({ arch: arch.arch, ...current.member.query, ...params })
+          }
         />
+      )}
+
+      <div className={s.treeLayout}>
+        <CostTreeExplorer tree={tree.data} error={tree.error} />
         <aside className={s.aside}>
           <Legend />
           <PredictPlaceholder />
@@ -242,6 +267,115 @@ function Explorer({ arch, family }) {
     </>
   );
 }
+
+/* The set's cost tree for the run the link names. A link naming run params
+   no registered run used opens on the best-measured run instead, and says so. */
+function useTree(archName, setQuery, runQuery) {
+  const key = JSON.stringify([archName, setQuery, runQuery]);
+  const [state, setState] = useState({ key: null });
+  useEffect(() => {
+    let live = true;
+    const hasRun = Object.keys(runQuery).length > 0;
+    loadCostTree(archName, { ...setQuery, ...runQuery })
+      .catch((error) => {
+        if (!hasRun || error.status !== 404) throw error;
+        return loadCostTree(archName, setQuery).then((data) => ({
+          data,
+          stale: true,
+        }));
+      })
+      .then(
+        (result) =>
+          live &&
+          setState(result.stale ? { key, ...result } : { key, data: result }),
+        (error) => live && setState({ key, error }),
+      );
+    return () => {
+      live = false;
+    };
+    // `key` stands for the three inputs.
+  }, [key]);
+  return state.key === key ? state : {};
+}
+
+/* The params the set leaves open, as its registered runs set them: one picker
+   per param that the runs set differently, the rest as text. A value no run
+   pairs with the current others is dimmed; picking it moves to the best run
+   that has it. */
+function RunPicker({ run, onPick }) {
+  const open = run.pickers.filter((p) => !p.fixed);
+  const fixed = run.pickers.filter((p) => p.fixed);
+  const pickOption = (picker, option) => {
+    if (!option.compatible) return onPick(option.value);
+    const rest = Object.fromEntries(
+      Object.entries(run.params).filter(([name]) => !picker.keys.includes(name)),
+    );
+    onPick({ ...rest, ...option.value });
+  };
+  return (
+    <section
+      className={`${detail.controls} ${s.picker}`}
+      aria-label="Run configuration"
+    >
+      <div className={`${picker.level} ${s.setLevel}`}>
+        <span className={picker.levelName}>
+          Run configuration
+          <span className={picker.levelCount}>
+            {run.combinations} registered{" "}
+            {run.combinations === 1 ? "run uses" : "runs use"} this set
+          </span>
+        </span>
+      </div>
+      {open.map((p) => (
+        <div key={p.name} className={`${picker.level} ${s.runLevel}`}>
+          <span className={picker.levelName}>
+            <code className={s.runName}>{p.name}</code>
+          </span>
+          <div className={picker.choices}>
+            {p.options.map((option) => (
+              <ToggleTag
+                key={JSON.stringify(option.value)}
+                type="choice"
+                value={optionText(p, option)}
+                pressed={option.selected}
+                faint={!option.compatible}
+                title={optionTitle(option)}
+                onClick={() => pickOption(p, option)}
+              >
+                <span className={s.runChip}>
+                  {optionText(p, option)}
+                  <small>
+                    {option.counts.measured}/{option.counts.configs}
+                  </small>
+                </span>
+              </ToggleTag>
+            ))}
+          </div>
+        </div>
+      ))}
+      {fixed.length > 0 && (
+        <p className={s.fixed}>
+          Same in every run here:{" "}
+          {fixed.map((p, index) => (
+            <span key={p.name}>
+              {index > 0 && ", "}
+              <code>{p.name}</code> {optionText(p, p.options[0])}
+            </span>
+          ))}
+        </p>
+      )}
+    </section>
+  );
+}
+
+const optionText = (p, option) =>
+  p.name === "routing"
+    ? routingText(option.value, option.routing)
+    : paramValue(option.value[p.name]);
+
+const optionTitle = (option) =>
+  `${option.counts.measured} of ${option.counts.configs} shapes measured` +
+  (option.compatible ? "" : "; picking it changes the other run params too");
 
 const LEGEND = [
   ["Sum", "Children run one after another. Their times add."],

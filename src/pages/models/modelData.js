@@ -46,6 +46,37 @@ export const paramValue = (value) =>
         : "off"
       : String(value);
 
+/* A routing as a reader reads it: its kind and, for a measured routing, the
+   file it was measured into. A hub reference keeps its repository and path
+   but shortens the commit, which the title gives whole. */
+export const shortReference = (reference) =>
+  reference.replace(/@([0-9a-f]{7})[0-9a-f]+\//, "@$1/");
+
+export function routingText(value, routing) {
+  const kind = value.routing ?? "not recorded";
+  const file = Object.entries(value).find(
+    ([name]) => name !== "routing" && name !== "routing_seed",
+  )?.[1];
+  const seed = value.routing_seed != null ? `, seed ${value.routing_seed}` : "";
+  const label = routing?.label ?? file;
+  return label && label !== kind
+    ? `${kind} ${shortReference(label)}${seed}`
+    : `${kind}${seed}`;
+}
+
+/* How one registry source recorded a run: a preset, an alignment case of a
+   pack, or a prediction config. A path another machine had is named by its
+   file name only. */
+export function sourceText(source) {
+  const where = source.path ?? `${source.name} (recorded on another machine)`;
+  if (source.kind === "alignment") {
+    const cases = source.cases.map((name) => name.split("_")[0]).join(", ");
+    return `the alignment pack ${where}, ${source.variant}${cases ? `, cases ${cases}` : ""}`;
+  }
+  if (source.kind === "timing_predict") return `the prediction config ${where}`;
+  return where;
+}
+
 /* What each contract means for a reader. An iter-wise arch is one model that
    costs a whole iteration; the layer-wise pair is the two sides of an
    attention-FFN disaggregated deployment. */
