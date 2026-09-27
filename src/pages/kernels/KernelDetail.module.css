@@ -41,7 +41,7 @@
 
 .identity code {
   color: var(--c-ink-1300);
-  font-size: 15px;
+  font-size: var(--fs-fine);
 }
 
 .summary {
@@ -54,17 +54,6 @@
 
 .count {
   color: var(--subtle);
-}
-
-.codeList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 12px;
-  max-width: 44ch;
-}
-
-.codeList code {
-  font-size: 14px;
 }
 
 /* The tabs scroll sideways on a narrow screen. The rule under them is drawn
@@ -141,39 +130,6 @@
   background: var(--surface);
 }
 
-/* What the chart plots: the lines (Compare) and the x axis. Both decide which
-   levels the configuration under them offers. */
-.controlsHead {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px 48px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--line);
-}
-
-.controlsBody {
-  display: grid;
-  gap: 14px;
-  padding-top: 18px;
-}
-
-.group {
-  display: grid;
-  gap: 8px;
-}
-
-.groupName {
-  color: var(--c-ink-1300);
-  font-size: var(--fs-fine);
-  font-weight: 500;
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
 /* How the chart is drawn sits right above it: the metric on the left, log
    scales and the peak line on the right. None of them changes the data. */
 .chartBar {
@@ -204,16 +160,6 @@
   inline-size: 16px;
   block-size: 16px;
   accent-color: var(--accent-strong);
-}
-
-.fixed {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-.fixed code {
-  color: var(--c-ink-1300);
 }
 
 .chartColumn,
@@ -258,45 +204,7 @@
 .note {
   margin-top: 12px;
   color: var(--muted);
-  font-size: 14px;
-}
-
-.empty {
-  min-height: 300px;
-  padding: 32px;
-  border: 1px dashed var(--c-line-300);
-  border-radius: var(--r-md);
-  color: var(--c-ink-1300);
   font-size: var(--fs-fine);
-}
-
-.empty ul {
-  display: grid;
-  gap: 8px;
-  margin: 20px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.empty button {
-  display: flex;
-  gap: 12px;
-  align-items: baseline;
-  padding: 10px 14px;
-  border: 1px solid var(--c-line-200);
-  border-radius: var(--r-sm);
-  font-family: var(--font-code);
-  font-size: 14px;
-  text-align: left;
-}
-
-.empty button:hover {
-  border-color: var(--accent);
-}
-
-.empty button span {
-  color: var(--subtle);
-  font-family: Geist, sans-serif;
 }
 
 .rows {
@@ -339,10 +247,11 @@
   overflow-x: auto;
 }
 
+/* Table text is body text: the size of the paragraphs around it. */
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--fs-fine);
+  font-size: var(--fs-sm);
 }
 
 .table th,
@@ -374,7 +283,7 @@
 }
 
 .table .code {
-  font-size: 14px;
+  font-size: 0.94em;
 }
 
 .date {
@@ -429,21 +338,23 @@
   font-size: 0.88em;
 }
 
+/* The overview leads the tab by weight and colour, at body size. */
 .description {
-  color: var(--c-ink-1600);
-  font-size: var(--fs-lg);
-  line-height: 1.6;
+  color: var(--c-ink-1800);
+  font-weight: 450;
 }
 
 .formula {
   display: inline-block;
+  max-width: 100%;
   margin: 0;
+  overflow-wrap: anywhere;
   padding: 18px 24px;
   border-left: 3px solid var(--accent-strong);
   color: var(--c-ink-1800);
   font-family: var(--font-code);
-  font-size: 15px;
-  line-height: 1.9;
+  font-size: var(--fs-sm);
+  line-height: 1.8;
   white-space: pre-wrap;
   background: var(--surface);
 }
@@ -476,7 +387,6 @@
   display: grid;
   gap: 4px;
   margin-top: 12px;
-  font-size: var(--fs-fine);
 }
 
 .backendList dl div {
@@ -512,7 +422,7 @@
   padding: 10px 16px;
   border-bottom: 1px solid var(--c-line-100);
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-fine);
 }
 
 .codeHead button {
@@ -532,12 +442,12 @@
   padding: 16px 20px;
   overflow: auto;
   color: var(--c-ink-1600);
-  font-size: 14px;
+  font-size: var(--fs-fine);
   line-height: 1.6;
 }
 
 .codeBlock pre code {
-  font-size: 14px;
+  font-size: inherit;
 }
 
 .notice {
@@ -634,7 +544,7 @@
 
 .viewSwitch button span {
   color: var(--subtle);
-  font-size: 13px;
+  font-size: var(--fs-fine);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
@@ -662,5 +572,5 @@
 .viewNote {
   margin: 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-fine);
 }

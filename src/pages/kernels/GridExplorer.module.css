@@ -11,24 +11,61 @@
   padding-top: 18px;
 }
 
-/* A config group names each deployment that uses it, one per line. */
-.deployment {
+/* A config group names each deployment that uses it, one per line: the
+   #[supported] row, then whether alignment runs validated it. */
+.deployments {
   display: grid;
-  gap: 2px;
-  font-family: var(--font-code);
-  font-size: 13px;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.deployment span {
+.deployments li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 14px;
+}
+
+.deployment {
   color: color-mix(in oklab, var(--family) 45%, white);
-  font-size: 13px;
+  font-family: var(--font-code);
+  font-size: var(--fs-fine);
+  overflow-wrap: anywhere;
+}
+
+.validated {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 6px;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+}
+
+.validated svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.validated:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* A config's short hash, when nothing a chip can show tells it apart. */
+.hash {
+  margin-left: 8px;
+  color: var(--subtle);
+  font-family: var(--font-code);
 }
 
 /* How many of the config's cells some backend measured. */
 .coverage {
   margin-left: 8px;
   color: var(--subtle);
-  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -45,7 +82,7 @@
   padding-top: 8px;
   border-top: 1px solid var(--c-line-200);
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-fine);
   line-height: 1.45;
 }
 
@@ -55,7 +92,9 @@
 
 .facts h2 {
   margin-bottom: 14px;
-  font-size: 20px;
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  letter-spacing: -0.02em;
 }
 
 .facts dl {
@@ -68,7 +107,7 @@
   display: grid;
   grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
   gap: 4px 20px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .facts dt {
@@ -81,7 +120,8 @@
   gap: 4px 16px;
   margin: 0;
   min-width: 0;
-  /* source paths have no spaces to break at */
+
+  /* role paths have no spaces to break at */
   overflow-wrap: anywhere;
   color: var(--c-ink-1300);
   font-variant-numeric: tabular-nums;
@@ -89,7 +129,7 @@
 
 .facts code {
   font-family: var(--font-code);
-  font-size: 13px;
+  font-size: 0.94em;
   color: var(--c-ink-1600);
 }
 
@@ -105,7 +145,7 @@
 .unit {
   display: block;
   color: var(--subtle);
-  font-size: 12px;
+  font-size: var(--fs-fine);
   font-weight: 400;
 }
 
@@ -128,12 +168,12 @@
 .caption {
   display: grid;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-fine);
   overflow-wrap: anywhere;
 }
 
 .moreSources {
   align-self: flex-start;
   color: var(--accent);
-  font-size: 14px;
+  font-size: var(--fs-fine);
 }

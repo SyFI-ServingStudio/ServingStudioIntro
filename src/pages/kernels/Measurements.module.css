@@ -1,0 +1,350 @@
+/* Every measured row as a table: filters in a panel on top, then the table,
+   which scrolls inside its own box (both ways) with its header held. */
+.measurements {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.measurements code {
+  font-family: var(--font-code);
+}
+
+.filters {
+  display: grid;
+  gap: 18px;
+  padding: 20px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.filtersHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 20px;
+}
+
+.filtersHead h2 {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.count {
+  color: var(--c-ink-1300);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: var(--fs-fine);
+}
+
+.clear:hover {
+  color: var(--ink);
+}
+
+.filterGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 36px;
+}
+
+.filter {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.filterName {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+  font-weight: 500;
+}
+
+.filterName code {
+  font-weight: 400;
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}
+
+.number,
+.text {
+  padding: 6px 10px;
+  border: 1px solid var(--c-line-200);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+  background: var(--raised, transparent);
+}
+
+.number {
+  inline-size: 9em;
+}
+
+.text {
+  inline-size: 16em;
+  max-inline-size: 100%;
+}
+
+.number:focus-visible,
+.text:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.tableHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.constant {
+  max-width: 90ch;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  line-height: 1.55;
+}
+
+.constant code {
+  color: var(--c-ink-1300);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 22px;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+}
+
+.toggle input {
+  inline-size: 16px;
+  block-size: 16px;
+  accent-color: var(--accent-strong);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border: 1px solid var(--c-line-300);
+  border-radius: var(--r-pill);
+  color: var(--ink);
+  font-size: var(--fs-fine);
+}
+
+.action:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.action:disabled {
+  opacity: 0.45;
+}
+
+.scroll {
+  max-block-size: min(78vh, 900px);
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--c-line-100);
+  border-radius: var(--r-sm);
+}
+
+.scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.table {
+  min-inline-size: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--fs-sm);
+}
+
+.table th,
+.table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--c-line-100);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0;
+  color: var(--muted);
+  font-weight: 400;
+  background: var(--surface);
+  box-shadow: inset 0 -1px 0 var(--c-line-200);
+}
+
+.table thead button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  inline-size: 100%;
+  padding: 10px 14px;
+  color: inherit;
+  font-size: var(--fs-sm);
+  text-align: inherit;
+  white-space: nowrap;
+}
+
+.table thead .num button {
+  justify-content: flex-end;
+}
+
+.table thead button:hover,
+.table thead [aria-sort="ascending"] button,
+.table thead [aria-sort="descending"] button {
+  color: var(--ink);
+}
+
+.table thead button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.argName {
+  font-family: var(--font-code);
+  font-size: 0.94em;
+}
+
+.unit {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  font-weight: 400;
+}
+
+.table td {
+  color: var(--c-ink-1300);
+}
+
+.table tbody tr:hover td {
+  background: color-mix(in oklab, var(--c-line-100) 45%, transparent);
+}
+
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.provenance {
+  color: var(--subtle) !important;
+}
+
+/* A list cell shows its summary; the whole value opens beneath it, wrapped
+   to the summary's width so the column does not grow. */
+.list {
+  max-inline-size: 36em;
+}
+
+.listToggle {
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+  text-decoration: underline dotted
+    color-mix(in oklab, currentcolor 45%, transparent);
+  text-underline-offset: 4px;
+}
+
+.listToggle:hover {
+  color: var(--ink);
+}
+
+.listValue {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  inline-size: 36em;
+  max-inline-size: 70vw;
+}
+
+.empty {
+  padding: 28px;
+  border: 1px dashed var(--c-line-300);
+  border-radius: var(--r-md);
+  color: var(--c-ink-1300);
+  font-size: var(--fs-sm);
+}
+
+.empty button {
+  color: var(--accent);
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+}
+
+.pager button {
+  padding: 8px 16px;
+  border: 1px solid var(--c-line-300);
+  border-radius: var(--r-pill);
+  color: var(--ink);
+}
+
+.pager button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (max-width: 767px) {
+  .filters {
+    padding: 16px;
+  }
+
+  .filterGrid {
+    gap: 16px 24px;
+  }
+}

@@ -1,36 +1,21 @@
 import { ArrowLeft, Check, Copy, Download, ExternalLink } from "lucide-react";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   apiUrl,
-  argNames,
-  argRole,
-  argUnit,
-  downloadText,
   expandRows,
-  formatValue,
-  isDtype,
-  isList,
-  isNumeric,
   formatDate,
-  formatNumber,
   loadConfigs,
   loadKernel,
   loadRows,
-  metricDoc,
-  metricNames,
-  peakFor,
   readQuery,
   setQuery,
   shortGpu,
   subscribeUrl,
-  toCsv,
 } from "./kernelData";
 import { kernelHref, openKernel } from "./Kernels";
-import { ChartBar } from "./ChartBar";
-import { ConfigPicker, buildLevels, shownDims } from "./ConfigPicker";
 import { GridExplorer } from "./GridExplorer";
-import { PerfChart, SERIES_COLORS, seriesColor } from "./PerfChart";
-import { Tag, ToggleTag } from "./Tag";
+import { Measurements, apiFilters } from "./Measurements";
+import { Tag } from "./Tag";
 import s from "./KernelDetail.module.css";
 
 const TABS = [
@@ -142,13 +127,13 @@ export function KernelDetail({ catalog, entry }) {
 
 const VIEWS = [
   ["grid", "Simulator grid"],
-  ["rows", "All measurements"],
+  ["rows", "Measurements"],
 ];
 
 /* Two views of one kernel's numbers. "Simulator grid" (the default when the
    simulator registered configs for this kind) plots each config on the cache
-   axes it interpolates over, per GPU and model. "All measurements" plots the
-   profile.db rows by their arguments, whoever asked for them. */
+   axes it interpolates over, per GPU and model. "Measurements" is a table of
+   every profile.db row, whoever asked for it, to sort and filter. */
 function Performance({ kernel, records, catalog, query }) {
   const [list, setList] = useState(null);
   const [error, setError] = useState(null);
@@ -193,7 +178,7 @@ function Performance({ kernel, records, catalog, query }) {
               ? "No simulator config reads this kernel's rows yet."
               : view === "grid"
                 ? "The cells the simulator reads for each kernel config, on its own cache axes."
-                : "Every profile.db row, by its arguments."}
+                : "Every measured row for this kernel, including shapes no supported deployment reads."}
         </p>
       </div>
       {view === "grid" ? (
@@ -205,11 +190,11 @@ function Performance({ kernel, records, catalog, query }) {
           update={update}
         />
       ) : (
-        <Explorer
+        <Measurements
           kernel={kernel}
           records={records}
-          catalog={catalog}
           query={query}
+          update={update}
         />
       )}
     </>
@@ -227,457 +212,6 @@ const sortValues = (values) =>
       ? a - b
       : String(a).localeCompare(String(b)),
   );
-
-function useExplorerState(kernel, records, query) {
-  return useMemo(() => {
-    const args = argNames(kernel);
-    const dims = ["gpu", "backend", ...args];
-    const values = Object.fromEntries(
-      dims.map((d) => [d, sortValues(new Set(records.map((r) => r[d])))]),
-    );
-    const role = (a) => argRole(kernel, a);
-    const numeric = (a) => isNumeric(kernel, a);
-    // The x axis is what a run sweeps (tokens, batch, message size). A shape
-    // dimension such as a GEMM's n or k is fixed by the model, so it is never
-    // one. A kernel no supported model runs has no roles yet and falls back
-    // to any numeric argument. In argument order, the default axis first.
-    const sweeps = args.filter(
-      (a) => values[a] && numeric(a) && role(a) === "sweep" && values[a].length > 1,
-    );
-    const numericSweeps = sweeps.length
-      ? sweeps
-      : args.filter((a) => numeric(a) && values[a].length > 1);
-    const x = numericSweeps.includes(query.x) ? query.x : numericSweeps[0];
-    // Two or more shape dimensions move together (n with k, heads with head
-    // size), so lines of one of them would mix shapes. They are picked as a
-    // whole in the configuration instead. A lone one, like num_gpus, compares.
-    const shapeDims = args.filter(
-      (a) => numeric(a) && role(a) !== "sweep" && values[a].length > 1,
-    );
-    const comparable = ["backend", "gpu", ...args].filter(
-      (d) =>
-        d !== x &&
-        values[d].length > 1 &&
-        !(shapeDims.length > 1 && shapeDims.includes(d)),
-    );
-    const color = comparable.includes(query.color) ? query.color : "backend";
-    // With no numeric sweep, what varies is a list argument such as the
-    // per-request (queries, context) pairs. There is no axis to plot it on,
-    // so its rows are all listed rather than pinned to one value.
-    const listDims = x
-      ? []
-      : args.filter((a) => isList(kernel, a) && values[a].length > 1);
-    const filterDims = dims.filter(
-      (d) => d !== x && d !== color && !listDims.includes(d),
-    );
-
-    // Explicit choices come from the URL. Every other filter defaults to the
-    // configuration with the most measured rows among the rows that match.
-    const selection = {};
-    const matchesFixed = (r) =>
-      Object.entries(selection).every(([d, v]) => String(r[d]) === v);
-    filterDims.forEach((d) => {
-      if (query[d] != null && values[d].some((v) => String(v) === query[d]))
-        selection[d] = query[d];
-    });
-    const open = filterDims.filter((d) => !(d in selection));
-    if (open.length) {
-      const counts = new Map();
-      records.filter(matchesFixed).forEach((r) => {
-        const key = JSON.stringify(open.map((d) => r[d]));
-        counts.set(key, (counts.get(key) || 0) + 1);
-      });
-      let best = null;
-      counts.forEach((n, key) => {
-        if (!best || n > best[1]) best = [key, n];
-      });
-      const tuple = best ? JSON.parse(best[0]) : open.map((d) => values[d][0]);
-      open.forEach((d, i) => (selection[d] = String(tuple[i])));
-    }
-    return {
-      dims,
-      values,
-      numericSweeps,
-      comparable,
-      x,
-      color,
-      listDims,
-      filterDims,
-      selection,
-    };
-  }, [kernel, records, query]);
-}
-
-function Explorer({ kernel, records, catalog, query }) {
-  const state = useExplorerState(kernel, records, query);
-  const {
-    values,
-    numericSweeps,
-    comparable,
-    x,
-    color,
-    listDims,
-    filterDims,
-    selection,
-  } = state;
-  // A metric no row records (energy for collectives) is not offered.
-  const metrics = metricNames(kernel).filter((m) =>
-    records.some((r) => r[m] != null),
-  );
-  const y = metrics.includes(query.y)
-    ? query.y
-    : metrics.includes(kernel.default_metric)
-      ? kernel.default_metric
-      : metrics[0];
-  // A log axis needs every x above zero; a sweep that starts at 0 stays linear.
-  const xValues = x ? values[x] : [];
-  const positiveX = xValues.length > 0 && xValues[0] > 0;
-  const spanX = positiveX ? xValues.at(-1) / xValues[0] : 0;
-  const scale = query.scale || (spanX > 16 ? "logx" : "linear");
-  const logX = positiveX && scale.includes("logx");
-  const logY = scale.includes("logy");
-  const showPeak = query.peak !== "off";
-
-  const update = (patch, options) => setQuery({ ...query, ...patch }, options);
-
-  const matching = records.filter((r) =>
-    filterDims.every((d) => String(r[d]) === selection[d]),
-  );
-  const colorValues = values[color];
-  const present = sortValues(new Set(matching.map((r) => r[color])));
-  const series = present
-    .slice(0, SERIES_COLORS.length)
-    .map((value) => ({
-      key: String(value),
-      label:
-        color === "gpu"
-          ? shortGpu(value)
-          : formatValue(value, argUnit(kernel, color)),
-      color: seriesColor(colorValues, present, value),
-      points: matching
-        .filter((r) => r[color] === value && r[y] != null && (!logY || r[y] > 0))
-        .map((r) => ({ x: r[x], y: r[y], record: r }))
-        .sort((a, b) => a.x - b.x),
-    }))
-    .filter((serie) => serie.points.length);
-  const dropped = present.length - Math.min(present.length, SERIES_COLORS.length);
-
-  const peak = showPeak ? peakFor(kernel, y, color, selection, catalog) : null;
-  // What the lines are is the first choice; the configuration then pins
-  // everything else. Only dimensions with more than one value can be compared.
-  const varyingDtypes = state.dims.filter(
-    (d) => isDtype(kernel, d) && values[d].length > 1,
-  );
-  // In the order the configuration below reads: backend, GPU, precision,
-  // shape, then sweeps.
-  const rank = (d) =>
-    d === "backend"
-      ? 0
-      : d === "gpu"
-        ? 1
-        : isDtype(kernel, d)
-          ? 2
-          : argRole(kernel, d) === "sweep"
-            ? 4
-            : 3;
-  const compareDims = [...comparable].sort((a, b) => rank(a) - rank(b));
-  const compareLabel = (d) =>
-    d === "gpu"
-      ? "GPU"
-      : d === "backend"
-        ? "Backend"
-        : isDtype(kernel, d) && varyingDtypes.length === 1
-          ? "Precision"
-          : d;
-  // The same, as a noun in a sentence: "one GPU", "one precision".
-  const compareNoun = (d) =>
-    d === "gpu" ? "GPU" : compareLabel(d) === d ? d : compareLabel(d).toLowerCase();
-  const levels = buildLevels(kernel, values, filterDims);
-  const shown = shownDims(levels);
-  const fixedDims = filterDims.filter(
-    (d) => values[d].length === 1 && !shown.includes(d),
-  );
-
-  const metric = metricDoc(kernel, y);
-  const describe = `${metric.label} of ${kernel.kind} against ${x}, one line per ${color}. ${series.length} series, ${matching.length} measured rows.`;
-  const listNames = listDims.join(" and ");
-
-  return (
-    <div className={s.explorer}>
-      <section className={s.controls} aria-label="Chart settings">
-        <div className={s.controlsHead}>
-          <div className={s.group}>
-            <span className={s.groupName}>Compare</span>
-            <div className={s.chips} role="group" aria-label="Compare">
-              {compareDims.map((d) => (
-                <ToggleTag
-                  key={d}
-                  type="choice"
-                  value={d}
-                  pressed={d === color}
-                  onClick={() => update({ color: d, [d]: "" })}
-                >
-                  {compareLabel(d)}
-                </ToggleTag>
-              ))}
-            </div>
-          </div>
-          <div className={s.group}>
-            <span className={s.groupName}>X axis</span>
-            <div className={s.chips} role="group" aria-label="X axis">
-              {!x ? (
-                <span className={s.fixed}>None: only {listNames} varies</span>
-              ) : numericSweeps.length === 1 ? (
-                <Tag type="choice" value={x} title="The only dimension swept">
-                  {x}
-                </Tag>
-              ) : (
-                numericSweeps.map((a) => (
-                  <ToggleTag
-                    key={a}
-                    type="choice"
-                    value={a}
-                    pressed={a === x}
-                    onClick={() => update({ x: a, [a]: "" })}
-                  >
-                    {a}
-                  </ToggleTag>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-        <div className={s.controlsBody}>
-          <ConfigPicker
-            levels={levels}
-            records={records}
-            deployments={kernel.used_by}
-            models={catalog.models}
-            selection={selection}
-            compare={
-              color === "backend" ? null : { dim: color, label: compareNoun(color) }
-            }
-            onPick={(patch) => update(patch)}
-          />
-          {fixedDims.length > 0 && (
-            <p className={s.fixed}>
-              Every row has{" "}
-              {fixedDims.map((dim, i) => (
-                <span key={dim}>
-                  {i > 0 && ", "}
-                  <code>{dim}</code>{" "}
-                  {dim === "gpu"
-                    ? shortGpu(values[dim][0])
-                    : formatValue(values[dim][0], argUnit(kernel, dim))}
-                </span>
-              ))}
-              .
-            </p>
-          )}
-        </div>
-      </section>
-
-      <div className={s.chartColumn}>
-        <ChartBar
-          kernel={kernel}
-          metrics={metrics}
-          y={y}
-          logX={logX}
-          logY={logY}
-          positiveX={positiveX}
-          showPeak={showPeak}
-          update={update}
-        />
-
-        {!x ? (
-          <p className={s.note}>
-            These rows differ only in {listNames}, which has no numeric axis to plot
-            against. Each row is listed below.
-          </p>
-        ) : series.length ? (
-          <>
-            <PerfChart
-              series={series}
-              xName={x}
-              xUnit={argUnit(kernel, x)}
-              colorName={color === "gpu" ? "GPU" : color}
-              yLabel={metric.label}
-              yUnit={metric.unit}
-              logX={logX}
-              logY={logY}
-              peak={peak}
-              describe={describe}
-            />
-            {dropped > 0 && (
-              <p className={s.note}>
-                {dropped} more values of {color} have rows here. The chart shows the
-                first {SERIES_COLORS.length}; compare something else to see them.
-              </p>
-            )}
-            {y === "energy_j" && (
-              <p className={s.note}>
-                Rows without an energy reading are left out of this chart.
-              </p>
-            )}
-          </>
-        ) : (
-          <EmptyState
-            records={records}
-            filterDims={filterDims}
-            selection={selection}
-            onApply={(tuple) => update(tuple)}
-          />
-        )}
-      </div>
-
-      <div className={s.rowsColumn}>
-        <RowsTable
-          kernel={kernel}
-          rows={matching}
-          columnsBy={x ? [x] : listDims}
-          color={color}
-        />
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ records, filterDims, selection, onApply }) {
-  const nearby = useMemo(() => {
-    const seen = new Map();
-    records.forEach((r) => {
-      const tuple = Object.fromEntries(filterDims.map((d) => [d, String(r[d])]));
-      const key = JSON.stringify(tuple);
-      if (!seen.has(key)) {
-        const score = filterDims.filter((d) => tuple[d] === selection[d]).length;
-        seen.set(key, { tuple, score, rows: 0 });
-      }
-      seen.get(key).rows += 1;
-    });
-    return [...seen.values()]
-      .sort((a, b) => b.score - a.score || b.rows - a.rows)
-      .slice(0, 5);
-  }, [records, filterDims, selection]);
-  return (
-    <div className={s.empty}>
-      <p>
-        Nothing was measured with this combination. These measured configurations
-        are the closest:
-      </p>
-      <ul>
-        {nearby.map(({ tuple, rows }) => (
-          <li key={JSON.stringify(tuple)}>
-            <button type="button" onClick={() => onApply(tuple)}>
-              {filterDims
-                .filter((d) => tuple[d] !== selection[d])
-                .map(
-                  (d) =>
-                    `${d === "gpu" ? "GPU" : d} ${d === "gpu" ? shortGpu(tuple[d]) : tuple[d]}`,
-                )
-                .join(", ")}
-              <span>{rows} rows</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function RowsTable({ kernel, rows, columnsBy, color }) {
-  // Rows sort by the x axis when there is one; list columns keep row order.
-  const x =
-    columnsBy.length === 1 && typeof rows[0]?.[columnsBy[0]] === "number"
-      ? columnsBy[0]
-      : null;
-  const [all, setAll] = useState(false);
-  const sorted = useMemo(
-    () =>
-      [...rows].sort(
-        (a, b) =>
-          String(a[color]).localeCompare(String(b[color]), undefined, {
-            numeric: true,
-          }) || (x ? a[x] - b[x] : 0),
-      ),
-    [rows, x, color],
-  );
-  const shown = all ? sorted : sorted.slice(0, 12);
-  const metrics = metricNames(kernel);
-  const columns = [color, ...columnsBy, ...metrics];
-  const csvColumns = ["gpu", "backend", ...argNames(kernel), ...metrics];
-  if (!rows.length) return null;
-  return (
-    <div className={s.rows}>
-      <div className={s.rowsHead}>
-        <h2>Rows behind the chart</h2>
-        <button
-          type="button"
-          className={s.action}
-          onClick={() =>
-            downloadText(
-              `${kernel.kind}-selection.csv`,
-              toCsv(sorted, csvColumns),
-              "text/csv",
-            )
-          }
-        >
-          <Download size={18} aria-hidden="true" />
-          Download these {rows.length} rows as CSV
-        </button>
-      </div>
-      <div
-        className={s.tableScroll}
-        tabIndex={0}
-        role="region"
-        aria-label="Measured rows"
-      >
-        <table className={s.table}>
-          <thead>
-            <tr>
-              {columns.map((c) => (
-                <th
-                  key={c}
-                  scope="col"
-                  className={metrics.includes(c) ? s.num : undefined}
-                >
-                  {metrics.includes(c)
-                    ? `${metricDoc(kernel, c).label} ${metricDoc(kernel, c).unit}`
-                    : c === "gpu"
-                      ? "GPU"
-                      : c}
-                </th>
-              ))}
-              <th scope="col">Measured</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((r, i) => (
-              <tr key={i}>
-                {columns.map((c) => (
-                  <td key={c} className={metrics.includes(c) ? s.num : s.code}>
-                    {metrics.includes(c)
-                      ? formatNumber(r[c])
-                      : c === "gpu"
-                        ? shortGpu(r[c])
-                        : formatValue(r[c], argUnit(kernel, c))}
-                  </td>
-                ))}
-                <td className={s.date}>
-                  {formatDate(r.provenance.profiler_run_at)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {sorted.length > 12 && (
-        <button type="button" className={s.more} onClick={() => setAll(!all)}>
-          {all ? "Show the first 12 rows" : `Show all ${sorted.length} rows`}
-        </button>
-      )}
-    </div>
-  );
-}
 
 /* ---------- About ---------- */
 
@@ -865,13 +399,14 @@ function CodeBlock({ source, name }) {
 /* ---------- Data and API ---------- */
 
 function DataAndApi({ kernel, records, catalog, query }) {
-  // The request carries the configuration the chart is showing, defaults included.
-  const { selection, filterDims } = useExplorerState(kernel, records, query);
-  const params = new URLSearchParams(filterDims.map((d) => [d, selection[d]]));
+  // The request carries the Measurements table's filters the API can express:
+  // each column picked down to one value (it filters by equality only).
+  const params = new URLSearchParams(apiFilters(kernel, query));
   const rowsUrl = apiUrl(`kernels/${kernel.kind}/rows`);
-  const api = `${rowsUrl}?${params}`;
+  const csvParams = new URLSearchParams([...params, ["format", "csv"]]);
+  const csvApi = `${rowsUrl}?${csvParams}`;
   const snippets = [
-    ["curl", `curl "${api}&format=csv" -o ${kernel.kind}.csv`],
+    ["curl", `curl "${csvApi}" -o ${kernel.kind}.csv`],
     [
       "Python",
       [
@@ -886,7 +421,7 @@ function DataAndApi({ kernel, records, catalog, query }) {
         'rows = requests.get(url, params=params).json()["rows"]',
       ].join("\n"),
     ],
-    ["DuckDB", `SELECT *\nFROM read_csv_auto('${api}&format=csv');`],
+    ["DuckDB", `SELECT *\nFROM read_csv_auto('${csvApi}');`],
   ];
   return (
     <div className={s.prose}>

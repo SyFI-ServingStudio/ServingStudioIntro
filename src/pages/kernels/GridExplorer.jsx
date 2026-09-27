@@ -1,10 +1,11 @@
-import { Download, ExternalLink } from "lucide-react";
+import { BadgeCheck, Download, ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ChartBar } from "./ChartBar";
 import {
   apiUrl,
   argUnit,
   downloadText,
+  engineName,
   formatNumber,
   formatValue,
   loadConfig,
@@ -34,18 +35,58 @@ import s from "./GridExplorer.module.css";
 const opOf = (role) => role.split(".").at(-1);
 const byNumber = (a, b) => a.localeCompare(b, undefined, { numeric: true });
 const measuredCells = (config) => Math.max(0, ...Object.values(config.measured));
-// Entries a config's role or source list shows before the rest fold away.
+// Entries a config's role list shows before the rest fold away.
 const LIST_SHOWN = 4;
-const SOURCE_LABELS = {
-  supported: "supported deployment",
-  timing_predict: "timing prediction",
-  alignment: "alignment",
-  preset: "preset run",
-};
+// Where the site shows predictions checked against real serving runs.
+const ALIGNMENT_HREF = `${import.meta.env.BASE_URL}features.html#accuracy`;
+
+/* A deployment entry is one #[supported] row: the params the row lists
+   several values for (d.varies) hold a list, one value per member. These say
+   which members something covers: "max_model_len 524288", or each member
+   spelled out when the row varies more than one param. */
+function membersText(d, members) {
+  if (d.varies.length === 1) {
+    const [name] = d.varies;
+    return `${name} ${members.map((i) => formatValue(d.members[i].params[name])).join(" · ")}`;
+  }
+  return members
+    .map((i) =>
+      d.varies
+        .map((name) => `${name} ${formatValue(d.members[i].params[name])}`)
+        .join(", "),
+    )
+    .join("; ");
+}
+const allMembers = (d, members) => members.length === d.members.length;
+
+/* The label the API gives, with numbers read as the chips read them: a
+   param the row lists several values for reads "max_model_len 8,192 · 65,536". */
+const deploymentLabel = (d) =>
+  [
+    d.arch,
+    ...Object.entries(d.params).map(
+      ([name, v]) =>
+        `${name} ${Array.isArray(v) ? v.map((x) => formatValue(x)).join(" · ") : formatValue(v)}`,
+    ),
+  ].join(", ");
+
+/* "Validated against SGLang serving", from the alignment runs the API found
+   for this deployment; "at max_model_len 131072" when only some members ran. */
+function validatedText(d) {
+  const engines = d.validated_against.map(engineName);
+  const against = engines.length
+    ? `${engines.join(" and ")} serving`
+    : "real serving";
+  const members = d.members.flatMap((m, i) => (m.validated ? [i] : []));
+  return allMembers(d, members)
+    ? `Validated against ${against}`
+    : `Validated against ${against} at ${membersText(d, members)}`;
+}
 
 /* configs → GPU → model → deployment → the configs it uses, each with the
-   roles and sources that use it. A config no deployment claims (built only
-   at the deployment level) sits under model null. */
+   roles that use it and which of the deployment's members ask. A config no
+   deployment claims (built only at the deployment level) sits under model
+   null. */
 function buildIndex(list) {
   const deployments = new Map(list.deployments.map((d) => [d.id, d]));
   const gpus = new Map();
@@ -54,11 +95,15 @@ function buildIndex(list) {
     const models = gpus.get(config.gpu);
     const claims = config.uses.flatMap((use) =>
       use.deployments.length
-        ? use.deployments.map((id) => [deployments.get(id), use])
-        : [[null, use]],
+        ? use.deployments.map(({ id, members }) => [
+            deployments.get(id),
+            use,
+            members,
+          ])
+        : [[null, use, []]],
     );
     const named = claims.some(([d]) => d);
-    for (const [d, use] of claims) {
+    for (const [d, use, members] of claims) {
       if (!d && named) continue;
       const stem = d?.model_config ?? null;
       if (!models.has(stem)) models.set(stem, new Map());
@@ -71,34 +116,46 @@ function buildIndex(list) {
         entries.set(config.config_hash, {
           config,
           roles: new Set(),
-          sources: new Set(),
+          members: new Set(),
         });
       const entry = entries.get(config.config_hash);
       entry.roles.add(use.role);
-      entry.sources.add(use.source);
+      members.forEach((m) => entry.members.add(m));
     }
   }
   return gpus;
 }
 
-/* A model's deployments that use the same configs read as one group. */
+/* A model's deployments that use the same configs, each by every member,
+   read as one group. A deployment some of whose configs only some members
+   use stays on its own, so its captions can name those members. */
 function groupsOf(byDeployment) {
   const groups = new Map();
   for (const { deployment, entries } of byDeployment.values()) {
-    const key = [...entries.keys()].sort().join();
+    const whole = [...entries.values()].every(
+      (e) => !deployment || allMembers(deployment, [...e.members]),
+    );
+    const key = whole
+      ? [...entries.keys()].sort().join()
+      : `deployment ${deployment.id}`;
     if (!groups.has(key))
-      groups.set(key, { labels: [], entries: [...entries.values()] });
+      groups.set(key, { deployments: [], entries: [...entries.values()] });
     const group = groups.get(key);
-    group.labels.push(deployment?.label ?? "Built at the deployment level");
-    // Roles and sources of every merged deployment.
+    group.deployments.push(deployment);
+    // Roles of every merged deployment.
     group.entries.forEach((entry) => {
-      const other = entries.get(entry.config.config_hash);
-      other.roles.forEach((r) => entry.roles.add(r));
-      other.sources.forEach((x) => entry.sources.add(x));
+      entries
+        .get(entry.config.config_hash)
+        .roles.forEach((r) => entry.roles.add(r));
     });
   }
+  const labelOf = (d) => d?.label ?? "Built at the deployment level";
   return [...groups.values()]
-    .map((g) => ({ ...g, labels: g.labels.sort(byNumber) }))
+    .map((g) => ({
+      ...g,
+      deployments: g.deployments.sort((a, b) => byNumber(labelOf(a), labelOf(b))),
+      labels: g.deployments.map(labelOf).sort(byNumber),
+    }))
     .sort((a, b) => byNumber(a.labels[0], b.labels[0]));
 }
 
@@ -126,22 +183,8 @@ function distinguishing(configs) {
   return keys;
 }
 
-const sourceText = (source) =>
-  [
-    SOURCE_LABELS[source.type] ?? source.type,
-    source.ref,
-    source.variant,
-    source.cases ? `${source.cases} cases` : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
-
 export function GridExplorer({ kernel, catalog, list, query, update }) {
   const index = useMemo(() => buildIndex(list), [list]);
-  const sources = useMemo(
-    () => new Map(list.sources.map((x) => [x.id, x])),
-    [list],
-  );
   const models = catalog.models;
   const rank = (stem) => {
     const i = models.findIndex((m) => m.model_config === stem);
@@ -191,7 +234,8 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
     const ops = [...new Set([...entry.roles].map(opOf))];
     const parts = chipKeys.map(
       (key) =>
-        `${key} ${formatValue(valueOf(entry.config, key), argUnit(kernel, key))}`,
+        // A config without this value (another variant's field) reads "–".
+        `${key} ${formatValue(valueOf(entry.config, key) ?? "–", argUnit(kernel, key))}`,
     );
     return {
       ops: allOps.size > 1 ? ops.join(", ") : null,
@@ -200,34 +244,42 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
   };
 
   /* A group's chips name only what differs inside the group (its deployment
-     label already says the rest). Configs that still read alike differ in
-     what built them, such as uniform versus recorded expert routing, so they
-     are split by the sources that registered them. */
+     label already says the rest). A config only some of a deployment's
+     members use (one max_model_len of several, say) goes under a caption
+     naming them, after the configs every member uses. Configs that still read
+     alike differ in a structured config value no chip can show (a recorded
+     expert-demand table, say); their chips add the config's short hash. */
   const chipsOf = (group) => {
     const groupKeys =
       group.entries.length > 1
         ? ordered(distinguishing(group.entries.map((e) => e.config)))
         : keys;
-    const label = (e) => {
-      const { ops, text } = chipText(e, groupKeys);
-      return `${ops}|${text}`;
-    };
-    const labels = group.entries.map(label);
-    if (new Set(labels).size === labels.length)
-      return [{ caption: null, keys: groupKeys, entries: group.entries }];
+    const [deployment] = group.deployments;
     const parts = new Map();
     for (const e of group.entries) {
-      const ids = [...e.sources].sort((a, b) => a - b);
-      const id = ids.join();
+      const members = [...e.members].sort((a, b) => a - b);
+      const whole = !deployment || allMembers(deployment, members);
+      const id = whole ? "all" : members.join();
       if (!parts.has(id))
         parts.set(id, {
-          caption: ids.map((i) => sourceText(sources.get(i))),
+          caption: whole ? null : `${membersText(deployment, members)} only`,
+          order: whole ? [-1] : members,
           keys: groupKeys,
           entries: [],
         });
       parts.get(id).entries.push(e);
     }
-    return [...parts.values()];
+    const label = (e) => {
+      const { ops, text } = chipText(e, groupKeys);
+      return `${ops}|${text}`;
+    };
+    return [...parts.values()]
+      .sort((a, b) => a.order[0] - b.order[0] || a.order.length - b.order.length)
+      .map((part) => {
+        const labels = part.entries.map(label);
+        const alike = new Set(labels.filter((l, i) => labels.indexOf(l) !== i));
+        return { ...part, alike: (e) => alike.has(label(e)) };
+      });
   };
 
   return (
@@ -292,20 +344,24 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
               }}
               aria-label={group.labels.join("; ")}
             >
-              <p className={`${picker.modelName} ${s.deployment}`}>
-                {group.labels.map((label) => (
-                  <span key={label}>{label}</span>
+              <ul className={s.deployments}>
+                {group.deployments.map((d) => (
+                  <li key={d?.id ?? "none"}>
+                    <span className={s.deployment}>
+                      {d ? deploymentLabel(d) : "Built at the deployment level"}
+                    </span>
+                    {d?.validated && (
+                      <a className={s.validated} href={ALIGNMENT_HREF}>
+                        <BadgeCheck size={16} aria-hidden="true" />
+                        {validatedText(d)}
+                      </a>
+                    )}
+                  </li>
                 ))}
-              </p>
+              </ul>
               {chipsOf(group).map((part) => (
-                <div key={part.caption?.join() ?? "all"} className={s.part}>
-                  {part.caption && (
-                    <p className={s.caption}>
-                      {part.caption.map((text) => (
-                        <span key={text}>{text}</span>
-                      ))}
-                    </p>
-                  )}
+                <div key={part.caption ?? "all"} className={s.part}>
+                  {part.caption && <p className={s.caption}>{part.caption}</p>}
                   <div className={picker.choices}>
                     {part.entries.map((entry) => {
                       const { ops, text } = chipText(entry, part.keys);
@@ -320,15 +376,17 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
                           faint={measured === 0}
                           title={[
                             ...[...entry.roles].sort(),
-                            ...[...entry.sources].map((id) =>
-                              sourceText(sources.get(id)),
-                            ),
                             `config ${c.config_hash.slice(0, 12)}`,
                           ].join("\n")}
                           onClick={() => pick({ config: c.config_hash })}
                         >
                           {ops && <span className={picker.op}>{ops}</span>}
                           {text || (!ops && [...allOps].join(", "))}
+                          {part.alike(entry) && (
+                            <span className={s.hash}>
+                              {c.config_hash.slice(0, 6)}
+                            </span>
+                          )}
                           <span className={s.coverage}>
                             {measured}/{c.cells}
                           </span>
@@ -349,7 +407,6 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
         catalog={catalog}
         config={config}
         entry={entries.find((e) => e.config === config)}
-        sources={sources}
         query={query}
         update={update}
       />
@@ -366,7 +423,7 @@ function Level({ label, children }) {
   );
 }
 
-function GridChart({ kernel, catalog, config, entry, sources, query, update }) {
+function GridChart({ kernel, catalog, config, entry, query, update }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
@@ -394,14 +451,13 @@ function GridChart({ kernel, catalog, config, entry, sources, query, update }) {
       catalog={catalog}
       detail={detail}
       entry={entry}
-      sources={sources}
       query={query}
       update={update}
     />
   );
 }
 
-function GridView({ kernel, catalog, detail, entry, sources, query, update }) {
+function GridView({ kernel, catalog, detail, entry, query, update }) {
   const coords = detail.cache_coords;
   const axes = detail.axes;
   const points = detail.points;
@@ -571,12 +627,7 @@ function GridView({ kernel, catalog, detail, entry, sources, query, update }) {
       </div>
 
       <div className={k.rowsColumn}>
-        <ConfigFacts
-          kernel={kernel}
-          detail={detail}
-          entry={entry}
-          sources={sources}
-        />
+        <ConfigFacts kernel={kernel} detail={detail} entry={entry} />
         <CellTable
           kernel={kernel}
           detail={detail}
@@ -630,7 +681,7 @@ function FoldedList({ items, render }) {
   );
 }
 
-function ConfigFacts({ kernel, detail, entry, sources }) {
+function ConfigFacts({ kernel, detail, entry }) {
   const fixed = Object.entries(detail.fixed);
   const own = Object.entries(detail.config_args).filter(
     ([key]) => !(key in detail.fixed),
@@ -638,7 +689,6 @@ function ConfigFacts({ kernel, detail, entry, sources }) {
   const url = apiUrl(
     `kernels/${kernel.kind}/configs/${detail.config_hash}?gpu=${encodeURIComponent(detail.gpu)}`,
   );
-  const used = entry ? [...entry.sources].map((id) => sources.get(id)) : [];
   return (
     <div className={s.facts}>
       <h2>This config</h2>
@@ -686,15 +736,6 @@ function ConfigFacts({ kernel, detail, entry, sources }) {
             <FoldedList
               items={[...entry.roles].sort()}
               render={(role) => <code key={role}>{role}</code>}
-            />
-          </div>
-        )}
-        {used.length > 0 && (
-          <div>
-            <dt>Registered from</dt>
-            <FoldedList
-              items={used}
-              render={(source) => <span key={source.id}>{sourceText(source)}</span>}
             />
           </div>
         )}

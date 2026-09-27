@@ -79,6 +79,11 @@ export function expandRows({ columns, rows, provenance }) {
 
 export const shortGpu = (name) => name.replace(/^NVIDIA /, "");
 
+/* A serving engine as the API names it (the alignment pack's `engine`), in
+   its project's own spelling. One the site does not know reads as given. */
+const ENGINE_NAMES = { vllm: "vLLM", sglang: "SGLang", trtllm: "TensorRT-LLM" };
+export const engineName = (engine) => ENGINE_NAMES[engine] ?? engine;
+
 /* The spec-sheet ceiling Sim gives this metric on the picked GPU. A throughput
    ceiling depends on the compute dtype, so it shows only with one picked. */
 export function peakFor(kernel, y, color, selection, catalog) {

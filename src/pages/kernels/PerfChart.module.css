@@ -28,7 +28,7 @@
   align-items: center;
   gap: 8px;
   font-family: var(--font-code);
-  font-size: 14px;
+  font-size: var(--fs-fine);
 }
 
 .legend i {
@@ -47,7 +47,7 @@
 .single code {
   color: var(--c-ink-1300);
   font-family: var(--font-code);
-  font-size: 14px;
+  font-size: var(--fs-fine);
 }
 
 .zoom {
@@ -60,7 +60,7 @@
 .zoomRange {
   margin-right: 6px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-fine);
   font-variant-numeric: tabular-nums;
 }
 
@@ -77,7 +77,7 @@
 
 .zoom .showAll {
   padding-inline: 12px;
-  font-size: 14px;
+  font-size: var(--fs-fine);
 }
 
 .zoom button:hover:not(:disabled) {
@@ -135,13 +135,13 @@
 
 .tick {
   fill: var(--subtle);
-  font-size: 14px;
+  font-size: var(--fs-fine);
   font-variant-numeric: tabular-nums;
 }
 
 .axisLabel {
   fill: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-fine);
 }
 
 .line {
@@ -170,13 +170,13 @@
 
 .peakLabel {
   fill: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-fine);
 }
 
 .endLabel {
   fill: var(--c-ink-1300);
   font-family: var(--font-code);
-  font-size: 13px;
+  font-size: var(--fs-fine);
 }
 
 .tooltip {
@@ -188,7 +188,7 @@
   border: 1px solid var(--c-line-300);
   border-radius: var(--r-sm);
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--fs-fine);
   background: var(--raised);
   box-shadow: 0 8px 24px #0008;
   pointer-events: none;
@@ -212,7 +212,7 @@
   padding: 3px 12px 3px 0;
   color: var(--c-ink-1300);
   font-family: var(--font-code);
-  font-size: 13px;
+  font-size: var(--fs-fine);
   font-weight: 400;
   text-align: left;
 }
@@ -235,14 +235,14 @@
   padding-top: 8px;
   border-top: 1px solid var(--c-line-200);
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-fine);
   line-height: 1.45;
 }
 
 .hint {
   margin-top: 12px;
   color: var(--subtle);
-  font-size: 14px;
+  font-size: var(--fs-fine);
 }
 
 /* The simulator's grid along the bottom of the plot: a tick per cell, bright

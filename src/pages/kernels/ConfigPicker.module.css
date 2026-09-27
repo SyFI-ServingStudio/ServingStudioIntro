@@ -1,11 +1,3 @@
-/* Levels read left to right, each a name over its choices, wrapping as the
-   row fills. Shapes, the longest level, take a line of their own. */
-.picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px 40px;
-}
-
 .level {
   display: grid;
   gap: 8px;
@@ -24,7 +16,7 @@
 
 .levelCount {
   color: var(--subtle);
-  font-size: 14px;
+  font-size: var(--fs-fine);
   font-weight: 400;
 }
 
@@ -48,86 +40,9 @@
   border-left: 2px solid color-mix(in oklab, var(--family) 60%, transparent);
 }
 
-.modelName {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 10px;
-  color: color-mix(in oklab, var(--family) 45%, white);
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.modelName span {
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 400;
-}
-
 /* The layer that asks for a shape, ahead of its numbers. */
 .op {
   margin-right: 8px;
   color: var(--muted);
   font-family: var(--font-code, ui-monospace, monospace);
-  font-size: 13px;
-}
-
-.othersToggle {
-  display: inline-flex;
-  align-items: baseline;
-  justify-self: start;
-  gap: 10px;
-  color: var(--c-ink-1300);
-  font-size: 15px;
-}
-
-.othersToggle::before {
-  content: "";
-  align-self: center;
-  inline-size: 6px;
-  block-size: 6px;
-  border-right: 1.5px solid currentcolor;
-  border-bottom: 1.5px solid currentcolor;
-  transform: rotate(-45deg);
-  transition: transform 120ms ease;
-}
-
-.othersToggle[aria-expanded="true"]::before {
-  transform: rotate(45deg);
-}
-
-.othersToggle:hover {
-  color: var(--ink);
-}
-
-.othersToggle:focus-visible {
-  border-radius: var(--r-xs);
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .othersToggle::before {
-    transition: none;
-  }
-}
-
-.menuLevel {
-  flex-basis: 100%;
-}
-
-.menu {
-  max-inline-size: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--c-line-200);
-  border-radius: var(--r-sm);
-  color: var(--c-ink-1300);
-  font-family: var(--font-code);
-  font-size: 13px;
-  background: var(--raised);
-}
-
-.menu:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
