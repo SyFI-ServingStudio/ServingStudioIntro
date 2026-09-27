@@ -3,6 +3,7 @@ const heroes = {
   overview: "b",
   features: "a",
   architecture: "c",
+  models: "models",
   kernels: "kernels",
   blog: "blog",
 };
@@ -22,8 +23,8 @@ export function prepareHero(page, search = "", priority = "high") {
     ? "shoreline-v3"
     : page === "blog"
       ? "hero-blog"
-      : page === "kernels"
-        ? "hero-kernels"
+      : page === "models" || page === "kernels"
+        ? `hero-${page}`
         : `hero-datacenter-${variant}`;
   const key = `${name}:${window.innerWidth}:${window.devicePixelRatio}`;
   if (!pending.has(key)) {

@@ -24,16 +24,14 @@ export function pageFromPath(pathname) {
 }
 const currentPage = () => pageFromPath(window.location.pathname) || "overview";
 
-// Pages that open on their own header rather than a hero photograph.
-export const HEROLESS = new Set(["models"]);
-
 // Start route-specific work before replacing the current page. The browser can
 // keep showing the current page while a lazily loaded page becomes ready.
 
 export function preparePage(page, search = "") {
-  const hero = HEROLESS.has(page) ? Promise.resolve() : prepareHero(page, search);
+  const hero = prepareHero(page, search);
   if (page === "models")
     return Promise.all([
+      hero,
       import("../pages/models/Models"),
       import("../pages/models/modelData").then(({ loadArchs }) =>
         loadArchs().catch(() => {}),
