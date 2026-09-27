@@ -99,11 +99,15 @@ function thin(ticks, count) {
 
 /* A series' points may include { x, y: null }: an x the chart covers but the
    series has no value at (a grid cell nobody measured). The line breaks
-   there, the hover reads "not measured", and a point left alone between two
+   there, the hover reads "not measured" (or the point's `missing`), and a point left alone between two
    gaps keeps its marker so it does not vanish.
 
    `cells` marks the simulator's grid along the bottom of the plot, one tick
-   per cell: { x, status: "measured" | "missing" | "infeasible" }. */
+   per cell: { x, status: "measured" | "missing" | "infeasible" }.
+
+   A linear y axis starts at zero unless `yFit` is set: then it spans the
+   values drawn, for a ratio whose lines sit close together far from zero.
+   `formatY` writes a point's value in the tooltip. */
 export function PerfChart({
   series,
   xName,
@@ -114,9 +118,11 @@ export function PerfChart({
   yUnit,
   logX,
   logY,
+  yFit = false,
   peak,
   cells,
   describe,
+  formatY = (point) => `${formatNumber(point.y)} ${yUnit}`,
   note = "Each point is one measured row; nothing between points is interpolated.",
   foot = (points) => <Provenance points={points} />,
 }) {
@@ -201,6 +207,12 @@ export function PerfChart({
     if (logY) {
       yMin = 10 ** (Math.floor(Math.log10(yMin) * 2) / 2);
       yMax = 10 ** (Math.ceil(Math.log10(yMax) * 2) / 2);
+    } else if (yFit) {
+      // A margin past the values drawn; the ticks are the round steps inside.
+      // Lines that nearly agree still span 5% of the top value, not the plot.
+      const pad = Math.max(yMax - yMin, yMax * 0.05) * 0.1;
+      yMin -= pad;
+      yMax += pad;
     } else {
       yMin = 0;
       const ticks = linearTicks(yMax * 1.05);
@@ -222,13 +234,17 @@ export function PerfChart({
           ((Math.log10(y) - Math.log10(yMin)) /
             (Math.log10(yMax) - Math.log10(yMin))) *
             plotH
-        : plotH - (y / yMax) * plotH;
+        : plotH - ((y - yMin) / (yMax - yMin)) * plotH;
     const tickCount = width < 640 ? 4 : 8;
     const xTicks = thin(
       logX ? logTicks(xMin, xMax, 2) : rangeTicks(xMin, xMax),
       tickCount,
     );
-    const yTicks = logY ? decadeTicks(yMin, yMax) : linearTicks(yMax);
+    const yTicks = logY
+      ? decadeTicks(yMin, yMax)
+      : yFit
+        ? rangeTicks(yMin, yMax)
+        : linearTicks(yMax);
     return {
       allXs,
       full,
@@ -243,7 +259,7 @@ export function PerfChart({
       xTicks: xTicks.length >= 2 ? xTicks : thin(rangeTicks(xMin, xMax), tickCount),
       yTicks,
     };
-  }, [series, peak, logX, logY, plotW, plotH, width, zoomState, xName]);
+  }, [series, peak, logX, logY, yFit, plotW, plotH, width, zoomState, xName]);
 
   const { full, zoom, xs, tx, fromT, minSpan, sx, sy, xTicks, yTicks } = geometry;
   const activeX = xs.includes(active) ? active : null;
@@ -546,7 +562,8 @@ export function PerfChart({
               {zoom ? ", zoomed" : ""}
             </text>
             <text className={s.axisLabel} x={-MARGIN.left} y={-24}>
-              {yLabel} ({yUnit})
+              {yLabel}
+              {yUnit ? ` (${yUnit})` : ""}
             </text>
 
             {peak && (
@@ -657,8 +674,8 @@ export function PerfChart({
                     </th>
                     <td>
                       {point.y == null
-                        ? "not measured"
-                        : `${formatNumber(point.y)} ${yUnit}`}
+                        ? (point.missing ?? "not measured")
+                        : formatY(point)}
                     </td>
                   </tr>
                 ))}

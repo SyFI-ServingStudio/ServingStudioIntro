@@ -2,7 +2,12 @@ import { metricDoc } from "./kernelData";
 import s from "./KernelDetail.module.css";
 
 /* The metric on the y axis and the axis scales, above either chart. The
-   choices live in the URL (y, scale, peak), so both views read one setting. */
+   choices live in the URL (y, scale, peak), so both views read one setting.
+
+   A chart that can divide its lines by one of them passes `relative`:
+   { on, reference, set }, whether it does, the reference line's label and
+   how to change it. Log y and the spec-sheet peak mean nothing on a ratio,
+   so they are off while it is on. */
 export function ChartBar({
   kernel,
   metrics,
@@ -11,8 +16,10 @@ export function ChartBar({
   logY,
   positiveX,
   showPeak,
+  relative,
   update,
 }) {
+  const ratio = Boolean(relative?.on);
   const scale = (x, yLog) => `${x ? "logx" : ""}${yLog ? "logy" : ""}` || "linear";
   return (
     <div className={s.chartBar}>
@@ -31,6 +38,24 @@ export function ChartBar({
         ))}
       </div>
       <div className={s.chartOptions}>
+        {relative && (
+          <div className={s.modeSwitch} role="radiogroup" aria-label="Y values">
+            {[
+              [false, "Absolute"],
+              [true, `Relative to ${relative.reference}`],
+            ].map(([on, text]) => (
+              <button
+                key={text}
+                type="button"
+                role="radio"
+                aria-checked={on === ratio}
+                onClick={() => relative.set(on)}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+        )}
         <label className={s.toggle}>
           <input
             type="checkbox"
@@ -45,7 +70,8 @@ export function ChartBar({
         <label className={s.toggle}>
           <input
             type="checkbox"
-            checked={logY}
+            checked={logY && !ratio}
+            disabled={ratio}
             onChange={(event) =>
               update({ scale: scale(logX, event.target.checked) })
             }
@@ -55,7 +81,8 @@ export function ChartBar({
         <label className={s.toggle}>
           <input
             type="checkbox"
-            checked={showPeak}
+            checked={showPeak && !ratio}
+            disabled={ratio}
             onChange={(event) =>
               update({ peak: event.target.checked ? "" : "off" })
             }

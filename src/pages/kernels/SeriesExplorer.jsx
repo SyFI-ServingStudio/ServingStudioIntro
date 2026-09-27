@@ -26,17 +26,25 @@ import s from "./SeriesExplorer.module.css";
    view.workload.field is picked with a selector, by the name /configs gives
    each config's value (config_labels). Series values are positions in an
    order, 0 first: line n reads "<label> n+1", and position 0, which leads the
-   order, is drawn strongest. Nothing here knows the kind.
+   order, is drawn strongest. The chart shows each line relative to the first
+   one by default, since the lines differ by far less than a line moves along
+   x; absolute values are a switch away. Nothing here knows the kind.
 
-   URL keys: cgpu, cmodel (shared with the grid view), dep, work, leaf and
-   backend. */
+   URL keys: cgpu, cmodel (shared with the grid view), dep, work, leaf,
+   backend and ymode ("absolute", else relative). */
 
 const byNumber = (a, b) =>
   String(a).localeCompare(String(b), undefined, { numeric: true });
 
-// Position 0 in the base colour, later positions stepped toward the page, so
-// the order reads as one hue fading; SERIES_COLORS[0] is tuned for the page.
+/* A position's colour: its categorical slot, so neighbours in the order,
+   which sit next to each other on the chart, stay apart (every adjacent pair
+   of slots does, colour-blind included). Past the slots, which no view has
+   needed yet, the order reads as one hue fading toward the page instead. */
 const SURFACE = [12, 13, 15];
+const positionColor = (position, positions) =>
+  positions.every((p) => p < SERIES_COLORS.length)
+    ? SERIES_COLORS[position]
+    : rampColor(position, positions.length);
 function rampColor(position, count) {
   const hex = SERIES_COLORS[0];
   const base = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -427,21 +435,42 @@ function LinesView({
   const scale =
     query.scale || (positiveX && xs.at(-1) / xs[0] > 16 ? "logx" : "linear");
   const logX = positiveX && scale.includes("logx");
-  const logY = scale.includes("logy");
-  const showPeak = query.peak !== "off";
-
   const count = leaf.lines.length;
   const lineLabel = (position) => `${view.series.label} ${position + 1}`;
-  const value = (p) => {
-    const v = p.measured[backend]?.[y];
-    return v == null || (logY && v <= 0) ? null : v;
+
+  // Relative: each line divided, cell by cell, by the first in the order at
+  // the same x. A cell the reference did not measure has no ratio, and none
+  // is made up. Log y and the peak stay as set, for the absolute view.
+  const reference = lineLabel(leaf.lines[0].position);
+  const relative = count > 1 && query.ymode !== "absolute";
+  const wantLogY = scale.includes("logy");
+  const logY = wantLogY && !relative;
+  const wantPeak = query.peak !== "off";
+  const showPeak = wantPeak && !relative;
+  const measured = (p) => p.measured[backend]?.[y] ?? null;
+  const base = new Map(slices[0].map((p) => [p.coords[xi], measured(p)]));
+  const pointOf = (p) => {
+    const x = p.coords[xi];
+    const v = measured(p);
+    if (!relative)
+      return { x, y: v == null || (logY && v <= 0) ? null : v, record: p };
+    const by = base.get(x);
+    return by > 0 && v != null
+      ? { x, y: v / by, abs: v, record: p }
+      : {
+          x,
+          y: null,
+          record: p,
+          missing: v == null ? null : `no ${reference} value`,
+        };
   };
+  const positions = leaf.lines.map((l) => l.position);
   const series = leaf.lines.map(({ position, config }, i) => ({
     key: config.config_hash,
     label: lineLabel(position),
-    color: rampColor(position, count),
+    color: positionColor(position, positions),
     width: position === 0 ? 4.5 : 2,
-    points: slices[i].map((p) => ({ x: p.coords[xi], y: value(p), record: p })),
+    points: slices[i].map(pointOf),
   }));
   const lead = leaf.lines.findIndex((l) => l.position === 0);
   const cells =
@@ -457,6 +486,9 @@ function LinesView({
         }));
 
   const metric = y ? metricDoc(kernel, y) : null;
+  const yLabel = relative
+    ? `${metric?.label} relative to ${reference}`
+    : metric?.label;
   const peak =
     showPeak && y
       ? peakFor(kernel, y, "series", { gpu: first.gpu, ...first.fixed }, catalog)
@@ -473,9 +505,16 @@ function LinesView({
           metrics={metrics}
           y={y}
           logX={logX}
-          logY={logY}
+          logY={wantLogY}
           positiveX={positiveX}
-          showPeak={showPeak}
+          showPeak={wantPeak}
+          relative={
+            count > 1 && {
+              on: relative,
+              reference,
+              set: (on) => update({ ymode: on ? "" : "absolute" }),
+            }
+          }
           update={update}
         />
         {backends.length > 1 && (
@@ -503,19 +542,32 @@ function LinesView({
             xUnit={unit}
             // Each line's label already names the series.
             colorName=""
-            yLabel={metric.label}
-            yUnit={metric.unit}
+            yLabel={yLabel}
+            yUnit={relative ? "" : metric.unit}
             logX={logX}
             logY={logY}
+            yFit={relative}
             peak={peak}
             cells={cells}
-            describe={`${metric.label} of ${kernel.kind} over ${xName}, one line per ${view.series.label.toLowerCase()} of ${count}, ${backend}, ${view.workload.label.toLowerCase()} ${name.label}.`}
-            note={`Each line is one config's grid for ${backend}; ${lineLabel(0)}, drawn thickest, leads the order. The ticks along the bottom are its cells.`}
+            formatY={
+              relative
+                ? (p) =>
+                    `${formatNumber(p.y)}× · ${formatNumber(p.abs)} ${metric.unit}`
+                : undefined
+            }
+            describe={`${yLabel} of ${kernel.kind} over ${xName}, one line per ${view.series.label.toLowerCase()} of ${count}, ${backend}, ${view.workload.label.toLowerCase()} ${name.label}.`}
+            note={
+              relative
+                ? `Each line is one config's grid for ${backend}, divided cell by cell by ${reference}'s, which leads the order and so lies flat at 1; a cell ${reference} did not measure is left out. The ticks along the bottom are its cells.`
+                : `Each line is one config's grid for ${backend}; ${reference}, drawn thickest, leads the order. The ticks along the bottom are its cells.`
+            }
             foot={() => null}
           />
         ) : (
           <p className={k.note}>
-            No backend has measured a cell of these configs yet.
+            {relative && series.some((serie) => serie.points.some((p) => p.missing))
+              ? `${reference} has no ${backend} cell to divide the others by.`
+              : "No backend has measured a cell of these configs yet."}
           </p>
         )}
       </div>
@@ -578,6 +630,7 @@ function LinesView({
             xs={xs}
             series={series}
             metric={metric}
+            relative={relative && reference}
           />
         )}
       </div>
@@ -585,9 +638,14 @@ function LinesView({
   );
 }
 
-function LinesTable({ kernel, xName, xs, series, metric }) {
+/* Relative, the reference keeps its absolute column, so every value can be
+   read back, and the other lines show their ratio to it. */
+function LinesTable({ kernel, xName, xs, series, metric, relative }) {
   const [all, setAll] = useState(false);
-  const at = (serie, x) => serie.points.find((p) => p.x === x)?.y;
+  const at = (serie, x) => {
+    const p = serie.points.find((point) => point.x === x);
+    return relative && serie === series[0] ? p?.abs : p?.y;
+  };
   // Only the cells some line measured; the rest are in the grid view.
   const rows = xs.filter((x) => series.some((serie) => at(serie, x) != null));
   const shown = all ? rows : rows.slice(0, 12);
@@ -610,7 +668,9 @@ function LinesTable({ kernel, xName, xs, series, metric }) {
                 <th key={serie.key} scope="col" className={k.num}>
                   {serie.label}
                   <span className={g.unit}>
-                    {metric.label} {metric.unit}
+                    {relative && serie !== series[0]
+                      ? `relative to ${relative}`
+                      : `${metric.label} ${metric.unit}`}
                   </span>
                 </th>
               ))}

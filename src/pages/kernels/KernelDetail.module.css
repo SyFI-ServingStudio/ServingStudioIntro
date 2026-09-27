@@ -162,12 +162,19 @@
   accent-color: var(--accent-strong);
 }
 
+/* A choice the other settings rule out, such as log y on a ratio. */
+.toggle:has(input:disabled) {
+  color: var(--subtle);
+}
+
 .chartColumn,
 .rowsColumn {
   min-width: 0;
 }
 
-.metricSwitch {
+/* The y-value switch beside the scale toggles is the metric pill, smaller. */
+.metricSwitch,
+.modeSwitch {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -176,11 +183,16 @@
   border-radius: var(--r-pill);
 }
 
-.metricSwitch button {
+.metricSwitch button,
+.modeSwitch button {
   padding: 8px 16px;
   border-radius: var(--r-pill);
   color: var(--muted);
   font-size: var(--fs-fine);
+}
+
+.modeSwitch button {
+  padding: 5px 12px;
 }
 
 .metricSwitch button span {
@@ -188,11 +200,13 @@
   color: var(--subtle);
 }
 
-.metricSwitch button:hover {
+.metricSwitch button:hover,
+.modeSwitch button:hover {
   color: var(--ink);
 }
 
-.metricSwitch button[aria-checked="true"] {
+.metricSwitch button[aria-checked="true"],
+.modeSwitch button[aria-checked="true"] {
   color: var(--ink);
   background: var(--c-line-100);
 }
