@@ -115,7 +115,7 @@ function splitLabel(label, path) {
 /* Two subtrees are alike when they compose the same kernels the same way: the
    rank copies under a Max usually are, and one of them stands for all. */
 function signature(node) {
-  if (node.kind === "leaf") return `L:${node.slot.kind}:${node.slot.config_hash}`;
+  if (node.kind === "leaf") return `L:${node.slot.config_key}`;
   const own =
     node.kind === "scale" ? node.n : node.kind === "max" ? node.overlap : "";
   return `${node.kind}${own}(${node.children.map(signature).join(",")})`;
@@ -198,12 +198,14 @@ export function coverage(config) {
 }
 
 /* The kernel page for a leaf, open on the simulator grid at the leaf's config
-   when the registry holds it there. Only documented kinds have a page. */
+   when the registry holds it there. Only documented kinds have a page. A tree
+   keys a config by `config_key` (kind and hash): two kinds of one shape share
+   a hash. */
 export function kernelLink(tree, slot) {
   const kernel = tree.kernels[slot.kind];
   if (!kernel?.documented) return null;
   const params = new URLSearchParams({ kind: slot.kind });
-  if (tree.configs[slot.config_hash]?.registry) {
+  if (tree.configs[slot.config_key]?.registry) {
     params.set("view", "grid");
     params.set("cgpu", tree.gpu);
     params.set("cmodel", tree.model_config);

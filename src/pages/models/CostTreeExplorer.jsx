@@ -314,7 +314,7 @@ const COVERAGE = {
 
 function leafRow(tree, node) {
   const { slot } = node;
-  const config = tree.configs[slot.config_hash];
+  const config = tree.configs[slot.config_key];
   const kernel = tree.kernels[slot.kind];
   const href = kernelLink(tree, slot);
   const cov = coverage(config);
