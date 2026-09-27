@@ -34,8 +34,8 @@ import s from "./GridExplorer.module.css";
 const opOf = (role) => role.split(".").at(-1);
 const byNumber = (a, b) => a.localeCompare(b, undefined, { numeric: true });
 const measuredCells = (config) => Math.max(0, ...Object.values(config.measured));
-// Sources listed under a config before the rest fold away.
-const SOURCES_SHOWN = 4;
+// Entries a config's role or source list shows before the rest fold away.
+const LIST_SHOWN = 4;
 const SOURCE_LABELS = {
   supported: "supported deployment",
   timing_predict: "timing prediction",
@@ -611,6 +611,25 @@ function CellFoot({ point, detail }) {
 }
 
 /* What the picked config holds fixed, and who asked for it. */
+/** A list that shows its first LIST_SHOWN entries and folds the rest behind a toggle. */
+function FoldedList({ items, render }) {
+  const [all, setAll] = useState(false);
+  return (
+    <dd className={s.stack}>
+      {(all ? items : items.slice(0, LIST_SHOWN)).map(render)}
+      {items.length > LIST_SHOWN && (
+        <button
+          type="button"
+          className={s.moreSources}
+          onClick={() => setAll(!all)}
+        >
+          {all ? "Show fewer" : `and ${items.length - LIST_SHOWN} more`}
+        </button>
+      )}
+    </dd>
+  );
+}
+
 function ConfigFacts({ kernel, detail, entry, sources }) {
   const fixed = Object.entries(detail.fixed);
   const own = Object.entries(detail.config_args).filter(
@@ -620,7 +639,6 @@ function ConfigFacts({ kernel, detail, entry, sources }) {
     `kernels/${kernel.kind}/configs/${detail.config_hash}?gpu=${encodeURIComponent(detail.gpu)}`,
   );
   const used = entry ? [...entry.sources].map((id) => sources.get(id)) : [];
-  const [allSources, setAllSources] = useState(false);
   return (
     <div className={s.facts}>
       <h2>This config</h2>
@@ -665,32 +683,19 @@ function ConfigFacts({ kernel, detail, entry, sources }) {
         {entry && (
           <div>
             <dt>Asked for by</dt>
-            <dd className={s.stack}>
-              {[...entry.roles].sort().map((role) => (
-                <code key={role}>{role}</code>
-              ))}
-            </dd>
+            <FoldedList
+              items={[...entry.roles].sort()}
+              render={(role) => <code key={role}>{role}</code>}
+            />
           </div>
         )}
         {used.length > 0 && (
           <div>
             <dt>Registered from</dt>
-            <dd className={s.stack}>
-              {(allSources ? used : used.slice(0, SOURCES_SHOWN)).map((source) => (
-                <span key={source.id}>{sourceText(source)}</span>
-              ))}
-              {used.length > SOURCES_SHOWN && (
-                <button
-                  type="button"
-                  className={s.moreSources}
-                  onClick={() => setAllSources(!allSources)}
-                >
-                  {allSources
-                    ? "Show fewer"
-                    : `and ${used.length - SOURCES_SHOWN} more`}
-                </button>
-              )}
-            </dd>
+            <FoldedList
+              items={used}
+              render={(source) => <span key={source.id}>{sourceText(source)}</span>}
+            />
           </div>
         )}
         <div>
