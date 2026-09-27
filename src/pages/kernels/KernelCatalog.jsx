@@ -9,6 +9,7 @@ import {
   subscribeUrl,
 } from "./kernelData";
 import { kernelHref, openKernel } from "./Kernels";
+import { SkillInstall } from "./SkillInstall";
 import { Tag, TagList, ToggleTag, tagColor } from "./Tag";
 import s from "./KernelCatalog.module.css";
 
@@ -126,7 +127,15 @@ export function KernelCatalog({ catalog, unknownKind }) {
       <PageHero
         compact
         title="Kernel Library"
-        description="Explore measured GPU performance across the kernels, shapes, and backends that power LLM serving."
+        description={
+          <>
+            <span className={s.lede}>
+              Explore measured GPU performance across the kernels, shapes, and
+              backends that power LLM serving.
+            </span>
+            <SkillInstall />
+          </>
+        }
         image="hero-kernels.webp"
       />
       <div className={`wrap ${s.catalog}`}>
