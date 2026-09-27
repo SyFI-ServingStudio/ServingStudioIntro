@@ -15,10 +15,16 @@
 
 /* ---------- List ---------- */
 
+/* The list opens on its hero, as the kernel list does. */
+.page {
+  --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  padding-bottom: 120px;
+}
+
 .catalog {
   display: grid;
   gap: 44px;
-  padding-top: 32px;
+  padding-top: 48px;
 }
 
 .filters {
@@ -580,6 +586,14 @@
 }
 
 @media (max-width: 767px) {
+  .page {
+    padding-bottom: 72px;
+  }
+
+  .catalog {
+    padding-top: 32px;
+  }
+
   .archRow {
     padding: 16px 12px 16px 14px;
     gap: 12px;

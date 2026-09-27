@@ -1,11 +1,11 @@
 import { ArrowRight } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
+import { PageHero } from "../../components/PageHero";
 import { readQuery, setQuery, shortGpu, subscribeUrl } from "../kernels/kernelData";
 import { Tag, ToggleTag, tagColor } from "../kernels/Tag";
 import { CONTRACTS } from "./modelData";
 import { Prose } from "./Prose";
 import { modelHref, openModel } from "./Models";
-import detail from "../kernels/KernelDetail.module.css";
 import s from "./Models.module.css";
 
 const search = () => window.location.search;
@@ -33,15 +33,13 @@ export function ModelCatalog({ catalog, unknownArch }) {
     .filter((g) => g.archs.length);
 
   return (
-    <div className={detail.page}>
-      <header className={`wrap ${detail.header}`}>
-        <h1>Models</h1>
-        <p className={detail.summary}>
-          Each model runs as an execution graph, which the simulator costs as a tree
-          of measured kernels. Pick one and a supported set of parameters to see how
-          an iteration&apos;s time is put together.
-        </p>
-      </header>
+    <div className={s.page}>
+      <PageHero
+        compact
+        title="Models"
+        description="Each model runs as an execution graph, which the simulator costs as a tree of measured kernels. Pick one and a supported set of parameters to see how an iteration's time is put together."
+        image="hero-models.webp"
+      />
 
       <div className={`wrap ${s.catalog}`}>
         {unknownArch && (
