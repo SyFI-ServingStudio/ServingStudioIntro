@@ -347,14 +347,7 @@ function modelGroups(deployments, models, level, tuples, selection) {
           const item = items.get(key) ?? { key, tuple, ops: [], paths: [] };
           const op = shape.layer.split(".").at(-1);
           if (!item.ops.includes(op)) item.ops.push(op);
-          item.paths.push(
-            [
-              shape.layer,
-              ...Object.entries(shape.why).map(
-                ([dim, { expression }]) => `  ${dim} = ${expression}`,
-              ),
-            ].join("\n"),
-          );
+          if (!item.paths.includes(shape.layer)) item.paths.push(shape.layer);
           items.set(key, item);
         });
         return {
