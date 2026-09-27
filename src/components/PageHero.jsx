@@ -1,9 +1,17 @@
 import { ArrowDown } from "lucide-react";
 import s from "./PageHero.module.css";
 
-export function PageHero({ eyebrow, title, description, image, href, linkLabel }) {
+export function PageHero({
+  eyebrow,
+  title,
+  description,
+  image,
+  href,
+  linkLabel,
+  compact = false,
+}) {
   return (
-    <header className={s.hero}>
+    <header className={`${s.hero} ${compact ? s.compact : ""}`}>
       <img
         className={s.image}
         src={`${import.meta.env.BASE_URL}images/${image}`}
@@ -16,13 +24,15 @@ export function PageHero({ eyebrow, title, description, image, href, linkLabel }
       />
       <div className={s.shade} aria-hidden="true" />
       <div className={`wrap ${s.content}`}>
-        <p className={s.eyebrow}>{eyebrow}</p>
+        {eyebrow && <p className={s.eyebrow}>{eyebrow}</p>}
         <h1>{title}</h1>
         <p className={s.description}>{description}</p>
-        <a className={s.link} href={href}>
-          {linkLabel}
-          <ArrowDown size={20} aria-hidden="true" />
-        </a>
+        {href && linkLabel && (
+          <a className={s.link} href={href}>
+            {linkLabel}
+            <ArrowDown size={20} aria-hidden="true" />
+          </a>
+        )}
       </div>
     </header>
   );

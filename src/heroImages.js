@@ -1,9 +1,16 @@
 const base = `${import.meta.env.BASE_URL}images/`;
-const heroes = { overview: "b", features: "a", architecture: "c", blog: "blog" };
+const heroes = {
+  overview: "b",
+  features: "a",
+  architecture: "c",
+  kernels: "kernels",
+  blog: "blog",
+};
 const pending = new Map();
 
 // Share the same responsive sources as the rendered hero so prefetches are reused.
 export function prepareHero(page, search = "", priority = "high") {
+  // Blog posts have no hero photograph.
   if (page?.startsWith("blog/")) return Promise.resolve();
   const preview = new URLSearchParams(search).get("hero");
   const variant =
@@ -15,7 +22,9 @@ export function prepareHero(page, search = "", priority = "high") {
     ? "shoreline-v3"
     : page === "blog"
       ? "hero-blog"
-      : `hero-datacenter-${variant}`;
+      : page === "kernels"
+        ? "hero-kernels"
+        : `hero-datacenter-${variant}`;
   const key = `${name}:${window.innerWidth}:${window.devicePixelRatio}`;
   if (!pending.has(key)) {
     const image = new Image();
