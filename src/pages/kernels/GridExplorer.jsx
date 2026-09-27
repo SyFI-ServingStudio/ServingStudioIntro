@@ -1,11 +1,10 @@
-import { BadgeCheck, Download, ExternalLink } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ChartBar } from "./ChartBar";
 import {
   apiUrl,
   argUnit,
   downloadText,
-  engineName,
   formatNumber,
   formatValue,
   loadConfig,
@@ -37,8 +36,6 @@ const byNumber = (a, b) => a.localeCompare(b, undefined, { numeric: true });
 const measuredCells = (config) => Math.max(0, ...Object.values(config.measured));
 // Entries a config's role list shows before the rest fold away.
 const LIST_SHOWN = 4;
-// Where the site shows predictions checked against real serving runs.
-const ALIGNMENT_HREF = `${import.meta.env.BASE_URL}features.html#accuracy`;
 
 /* A deployment entry is one #[supported] row: the params the row lists
    several values for (d.varies) hold a list, one value per member. These say
@@ -69,19 +66,6 @@ const deploymentLabel = (d) =>
         `${name} ${Array.isArray(v) ? v.map((x) => formatValue(x)).join(" · ") : formatValue(v)}`,
     ),
   ].join(", ");
-
-/* "Validated against SGLang serving", from the alignment runs the API found
-   for this deployment; "at max_model_len 131072" when only some members ran. */
-function validatedText(d) {
-  const engines = d.validated_against.map(engineName);
-  const against = engines.length
-    ? `${engines.join(" and ")} serving`
-    : "real serving";
-  const members = d.members.flatMap((m, i) => (m.validated ? [i] : []));
-  return allMembers(d, members)
-    ? `Validated against ${against}`
-    : `Validated against ${against} at ${membersText(d, members)}`;
-}
 
 /* configs → GPU → model → deployment → the configs it uses, each with the
    roles that use it and which of the deployment's members ask. A config no
@@ -370,12 +354,6 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
                     <span className={s.deployment}>
                       {d ? deploymentLabel(d) : "Built at the deployment level"}
                     </span>
-                    {d?.validated && (
-                      <a className={s.validated} href={ALIGNMENT_HREF}>
-                        <BadgeCheck size={16} aria-hidden="true" />
-                        {validatedText(d)}
-                      </a>
-                    )}
                   </li>
                 ))}
               </ul>
