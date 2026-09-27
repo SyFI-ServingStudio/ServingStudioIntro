@@ -58,7 +58,7 @@ const allMembers = (d, members) => members.length === d.members.length;
 
 /* The label the API gives, with numbers read as the chips read them: a
    param the row lists several values for reads "max_model_len 8,192 · 65,536". */
-const deploymentLabel = (d) =>
+export const deploymentLabel = (d) =>
   [
     d.arch,
     ...Object.entries(d.params).map(
@@ -412,7 +412,7 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
   );
 }
 
-function Level({ label, children }) {
+export function Level({ label, children }) {
   return (
     <div className={picker.level} role="group" aria-label={label}>
       <span className={picker.levelName}>{label}</span>

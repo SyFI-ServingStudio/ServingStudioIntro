@@ -567,35 +567,40 @@ export function PerfChart({
               />
             )}
 
-            {series.map((serie) => (
-              <g key={serie.key}>
-                <path
-                  className={s.line}
-                  clipPath={`url(#${clipId})`}
-                  stroke={serie.color}
-                  d={linePath(serie.points, sx, sy)}
-                />
-                {serie.points
-                  .filter(
-                    (p, i, all) =>
-                      p.y != null &&
-                      inView(p) &&
-                      (!dense(serie) ||
-                        p.x === activeX ||
-                        (all[i - 1]?.y == null && all[i + 1]?.y == null)),
-                  )
-                  .map((p) => (
-                    <circle
-                      key={p.x}
-                      className={s.dot}
-                      cx={sx(p.x)}
-                      cy={sy(p.y)}
-                      r={p.x === activeX ? 6.5 : 4.5}
-                      fill={serie.color}
-                    />
-                  ))}
-              </g>
-            ))}
+            {/* A series may set its own stroke `width`; wider lines draw last,
+                on top of the rest. */}
+            {[...series]
+              .sort((a, b) => (a.width ?? 0) - (b.width ?? 0))
+              .map((serie) => (
+                <g key={serie.key}>
+                  <path
+                    className={s.line}
+                    clipPath={`url(#${clipId})`}
+                    stroke={serie.color}
+                    style={serie.width ? { strokeWidth: serie.width } : undefined}
+                    d={linePath(serie.points, sx, sy)}
+                  />
+                  {serie.points
+                    .filter(
+                      (p, i, all) =>
+                        p.y != null &&
+                        inView(p) &&
+                        (!dense(serie) ||
+                          p.x === activeX ||
+                          (all[i - 1]?.y == null && all[i + 1]?.y == null)),
+                    )
+                    .map((p) => (
+                      <circle
+                        key={p.x}
+                        className={s.dot}
+                        cx={sx(p.x)}
+                        cy={sy(p.y)}
+                        r={p.x === activeX ? 6.5 : 4.5}
+                        fill={serie.color}
+                      />
+                    ))}
+                </g>
+              ))}
 
             {cells?.filter(inView).map((cell) => (
               <g

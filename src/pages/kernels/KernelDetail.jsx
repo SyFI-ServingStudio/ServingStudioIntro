@@ -14,6 +14,7 @@ import {
 } from "./kernelData";
 import { kernelHref, openKernel } from "./Kernels";
 import { GridExplorer } from "./GridExplorer";
+import { SeriesExplorer, hasSeriesView } from "./SeriesExplorer";
 import { Measurements, apiFilters } from "./Measurements";
 import { Tag } from "./Tag";
 import s from "./KernelDetail.module.css";
@@ -125,12 +126,9 @@ export function KernelDetail({ catalog, entry }) {
 
 /* ---------- Performance ---------- */
 
-const VIEWS = [
-  ["grid", "Simulator grid"],
-  ["rows", "Measurements"],
-];
-
-/* Two views of one kernel's numbers. "Simulator grid" (the default when the
+/* Views of one kernel's numbers. A kind whose Sim doc declares a chart over
+   several configs (kernel.view) opens on it: one line per config of one
+   deployment's leaf. "Simulator grid" (the default otherwise, when the
    simulator registered configs for this kind) plots each config on the cache
    axes it interpolates over, per GPU and model. "Measurements" is a table of
    every profile.db row, whoever asked for it, to sort and filter. */
@@ -142,7 +140,17 @@ function Performance({ kernel, records, catalog, query }) {
   }, [kernel.kind]);
   const update = (patch) => setQuery({ ...query, ...patch });
   const hasGrid = list?.configs.length > 0;
-  const view = hasGrid && query.view !== "rows" ? "grid" : "rows";
+  const hasSeries = Boolean(list) && hasSeriesView(kernel, list);
+  const views = [
+    ...(hasSeries ? [["series", kernel.view.title]] : []),
+    ["grid", "Simulator grid"],
+    ["rows", "Measurements"],
+  ];
+  const available = (id) =>
+    id === "series" ? hasSeries : id === "grid" ? hasGrid : id === "rows";
+  // The first available view is the default and keeps the URL clean.
+  const fallback = views.find(([id]) => available(id))[0];
+  const view = available(query.view) ? query.view : fallback;
   if (!list && !error)
     return (
       <p role="status" className={s.loading}>
@@ -153,20 +161,22 @@ function Performance({ kernel, records, catalog, query }) {
     <>
       <div className={s.viewBar}>
         <div className={s.viewSwitch} role="radiogroup" aria-label="View">
-          {VIEWS.map(([id, label]) => (
+          {views.map(([id, label]) => (
             <button
               key={id}
               type="button"
               role="radio"
               aria-checked={view === id}
-              disabled={id === "grid" && !hasGrid}
-              onClick={() => update({ view: id === "grid" ? "" : id })}
+              disabled={!available(id)}
+              onClick={() => update({ view: id === fallback ? "" : id })}
             >
               {label}
               <span>
-                {id === "grid"
-                  ? `${list?.configs.length ?? 0} configs`
-                  : `${records.length.toLocaleString("en-US")} rows`}
+                {id === "series"
+                  ? `by ${kernel.view.series.label.toLowerCase()}`
+                  : id === "grid"
+                    ? `${list?.configs.length ?? 0} configs`
+                    : `${records.length.toLocaleString("en-US")} rows`}
               </span>
             </button>
           ))}
@@ -176,12 +186,22 @@ function Performance({ kernel, records, catalog, query }) {
             ? `The kernel configs did not load (${error.message}).`
             : !hasGrid
               ? "No simulator config reads this kernel's rows yet."
-              : view === "grid"
-                ? "The cells the simulator reads for each kernel config, on its own cache axes."
-                : "Every measured row for this kernel, including shapes no supported deployment reads."}
+              : view === "series"
+                ? `One chart per deployment and ${kernel.view.workload.label.toLowerCase()}, one line per ${kernel.view.series.label.toLowerCase()}.`
+                : view === "grid"
+                  ? "The cells the simulator reads for each kernel config, on its own cache axes."
+                  : "Every measured row for this kernel, including shapes no supported deployment reads."}
         </p>
       </div>
-      {view === "grid" ? (
+      {view === "series" ? (
+        <SeriesExplorer
+          kernel={kernel}
+          catalog={catalog}
+          list={list}
+          query={query}
+          update={update}
+        />
+      ) : view === "grid" ? (
         <GridExplorer
           kernel={kernel}
           catalog={catalog}
