@@ -35,6 +35,11 @@ function load(path) {
 export const loadCatalog = () => load("kernels");
 export const loadKernel = (kind) => load(`kernels/${kind}`);
 export const loadRows = (kind) => load(`kernels/${kind}/rows`);
+// The kernel configs the simulator registered as reading this kind's rows,
+// and one config's grid on its cache axes.
+export const loadConfigs = (kind) => load(`kernels/${kind}/configs`);
+export const loadConfig = (kind, hash, gpu) =>
+  load(`kernels/${kind}/configs/${hash}?gpu=${encodeURIComponent(gpu)}`);
 
 /* A kernel's arguments, in profile.db column order, and the role a supported
    model gives each: "sweep" (varies with the batch), "config" (fixed by the
@@ -73,6 +78,27 @@ export function expandRows({ columns, rows, provenance }) {
 }
 
 export const shortGpu = (name) => name.replace(/^NVIDIA /, "");
+
+/* The spec-sheet ceiling Sim gives this metric on the picked GPU. A throughput
+   ceiling depends on the compute dtype, so it shows only with one picked. */
+export function peakFor(kernel, y, color, selection, catalog) {
+  if (color === "gpu") return null;
+  const peak = catalog.gpus.find((g) => g.name === selection.gpu)?.peaks[y];
+  if (!peak) return null;
+  const dtypeArg = precisionArg(kernel);
+  const dtype = peak.by_dtype ? selection[dtypeArg] : null;
+  if (peak.by_dtype && (!dtype || color === dtypeArg)) return null;
+  const value = peak.by_dtype ? peak.by_dtype[dtype] : peak.value;
+  if (value == null) return null;
+  const { label, unit } = metricDoc(kernel, y);
+  const amount = `${value.toLocaleString("en-US")} ${unit}`;
+  const note = [dtype, peak.note].filter(Boolean).join(" ");
+  return {
+    value,
+    label: `${shortGpu(selection.gpu)} spec-sheet ${label.toLowerCase()}, ${note}: ${amount} (not measured)`,
+    short: `Spec-sheet ${value.toLocaleString("en-US")}`,
+  };
+}
 
 export function formatNumber(value, digits = 3) {
   if (value == null) return "not measured";
@@ -211,15 +237,28 @@ export function setQuery(params, { push = false } = {}) {
 export const readQuery = () =>
   Object.fromEntries(new URLSearchParams(window.location.search));
 
+/* A model is keyed by its model config (the file stem Sim names it by); the
+   catalog gives most of them a name and a family. One it does not name reads
+   as its model config and stands in a family of its own. */
+export const modelEntry = (models, stem) =>
+  models.find((m) => m.model_config === stem);
+export const modelName = (models, stem) => modelEntry(models, stem)?.name ?? stem;
+export const modelFamily = (models, stem) =>
+  modelEntry(models, stem)?.family ?? modelName(models, stem);
+
 /* The models a kernel is used by, grouped by family in catalog order:
-   [{ family: "Qwen", names: ["Qwen3.6", "Qwen3", "Qwen3-MoE"] }, ...]. */
+   [{ family: "Qwen", stems: [...], names: ["Qwen3 235B-A22B", ...] }, ...]. */
 export function groupModels(usedBy, models) {
   const groups = [];
-  for (const { name, family } of models) {
-    if (!usedBy.includes(name)) continue;
+  for (const { model_config: stem } of models) {
+    if (!usedBy.includes(stem)) continue;
+    const family = modelFamily(models, stem);
+    const name = modelName(models, stem);
     const group = groups.find((g) => g.family === family);
-    if (group) group.names.push(name);
-    else groups.push({ family, names: [name] });
+    if (group) {
+      group.stems.push(stem);
+      group.names.push(name);
+    } else groups.push({ family, stems: [stem], names: [name] });
   }
   return groups;
 }

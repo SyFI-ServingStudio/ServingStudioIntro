@@ -1,4 +1,11 @@
-import { argRole, argUnit, formatValue, isDtype, shortGpu } from "./kernelData";
+import {
+  argRole,
+  argUnit,
+  formatValue,
+  isDtype,
+  isList,
+  shortGpu,
+} from "./kernelData";
 import { useState } from "react";
 import { Tag, ToggleTag, tagColor } from "./Tag";
 import s from "./ConfigPicker.module.css";
@@ -10,6 +17,8 @@ import s from "./ConfigPicker.module.css";
    chart. */
 
 const isNumber = (values, d) => typeof values[d][0] === "number";
+// Past this many values a list argument is picked from a menu.
+const LIST_MENU_AFTER = 8;
 
 const PRECISIONS = [
   ["nvfp4", "NVFP4"],
@@ -61,7 +70,15 @@ export function buildLevels(kernel, values, allDims) {
   }
   filterDims
     .filter((d) => d !== "gpu" && !dtype(d) && !isNumber(values, d))
-    .forEach((d) => levels.push({ id: d, label: d, dims: [d], kind: "choice" }));
+    .forEach((d) =>
+      levels.push({
+        id: d,
+        label: d,
+        dims: [d],
+        kind: "choice",
+        list: isList(kernel, d),
+      }),
+    );
   const shape = filterDims.filter(
     (d) => isNumber(values, d) && role(d) !== "sweep",
   );
@@ -233,6 +250,35 @@ function Level({
         : String(tuple[0]);
   const type = level.kind === "choice" ? "choice" : level.kind;
 
+  // Many list values (one per request or expert, hundreds of entries each)
+  // would wall the picker with chips; they are offered as a menu instead.
+  if (level.list && all.length > LIST_MENU_AFTER)
+    return (
+      <div className={`${s.level} ${s.menuLevel}`}>
+        <label className={s.levelName} htmlFor={labelId}>
+          {level.label}
+          <span className={s.levelCount}>
+            {available.size} of {all.length} under the choices above
+          </span>
+        </label>
+        <select
+          id={labelId}
+          className={s.menu}
+          value={current}
+          onChange={(event) => pick(JSON.parse(event.target.value))}
+        >
+          {all.map((tuple) => {
+            const key = tupleKey(tuple);
+            return (
+              <option key={key} value={key} disabled={!available.has(key)}>
+                {label(tuple)}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+    );
+
   return (
     <div className={s.level} role="group" aria-labelledby={labelId}>
       <span id={labelId} className={s.levelName}>
@@ -274,17 +320,12 @@ function Level({
   );
 }
 
-// A deployment reads as its parallel sizes: "tp_size 4".
-const deploymentLabel = (d) =>
-  Object.entries(d.parallel)
-    .map(([name, value]) => `${name} ${value}`)
-    .join(", ") || d.arch;
-
-/* The supported model deployments whose cost trees ask for the shapes on
-   offer, each with the shapes it asks for and the layer that asks. A shape
-   counts only if the deployment runs on the GPU picked above and in the
-   precision picked above, so a label never names a model for a measurement it
-   would not make. Models keep the catalog's order. */
+/* The model deployments that ask for the shapes on offer (their supported
+   cost trees and the kernel configs the simulator registered), each with the
+   shapes it asks for and the layer that asks. A shape counts only if the
+   deployment runs on the GPU picked above and in the precision picked above,
+   so a label never names a model for a measurement it would not make. Models
+   keep the catalog's order. */
 function modelGroups(deployments, models, level, tuples, selection) {
   const offered = new Set(tuples.map(tupleKey));
   const order = (d) => models.findIndex((m) => m.model_config === d.model_config);
@@ -320,7 +361,7 @@ function modelGroups(deployments, models, level, tuples, selection) {
           model: d.model?.name ?? d.model_config,
           family: d.model?.family,
           order: order(d),
-          deployment: deploymentLabel(d),
+          deployment: d.label,
           items: [...items.values()],
         };
       })

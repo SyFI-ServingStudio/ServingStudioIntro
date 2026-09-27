@@ -36,7 +36,7 @@ function matcher(query, catalog) {
   };
   const matches = (k, over = {}) => {
     const m = over.models ?? models;
-    if (m.size && !k.used_by.some((name) => m.has(name))) return false;
+    if (m.size && !k.used_by.some((stem) => m.has(stem))) return false;
     if (!covered(k, over).length) return false;
     if (!needle) return true;
     return [
@@ -45,7 +45,10 @@ function matcher(query, catalog) {
       categoryOf(k),
       k.subcategory ?? "",
       ...k.used_by,
-      ...groupModels(k.used_by, catalog.models).map((g) => g.family),
+      ...groupModels(k.used_by, catalog.models).flatMap((g) => [
+        g.family,
+        ...g.names,
+      ]),
       ...k.coverage.map((c) => c.backend),
     ]
       .join(" ")
@@ -73,7 +76,7 @@ export function KernelCatalog({ catalog, unknownKind }) {
   const m = matcher(query, catalog);
 
   const families = groupModels(
-    catalog.models.map((model) => model.name),
+    catalog.models.map((model) => model.model_config),
     catalog.models,
   );
   const gpuNames = catalog.gpus.map((g) => shortGpu(g.name));
@@ -203,12 +206,12 @@ export function KernelCatalog({ catalog, unknownKind }) {
             <div className={s.filterCell}>
               <span className={s.columnName}>Used by</span>
               <div className={s.choices}>
-                {families.map(({ family, names }) => {
-                  const picked = names.filter((n) => m.models.has(n));
+                {families.map(({ family, stems, names }) => {
+                  const picked = stems.filter((n) => m.models.has(n));
                   const state =
                     picked.length === 0
                       ? false
-                      : picked.length === names.length
+                      : picked.length === stems.length
                         ? true
                         : "mixed";
                   return (
@@ -217,10 +220,10 @@ export function KernelCatalog({ catalog, unknownKind }) {
                       type="family"
                       value={family}
                       pressed={state}
-                      count={countWith({ models: new Set(names) })}
+                      count={countWith({ models: new Set(stems) })}
                       title={names.join(", ")}
                       onClick={() =>
-                        update({ model: toggle(m.models, names, state !== true) })
+                        update({ model: toggle(m.models, stems, state !== true) })
                       }
                     />
                   );
@@ -228,29 +231,29 @@ export function KernelCatalog({ catalog, unknownKind }) {
               </div>
               {families
                 .filter(
-                  ({ names }) =>
-                    names.length > 1 && names.some((n) => m.models.has(n)),
+                  ({ stems }) =>
+                    stems.length > 1 && stems.some((n) => m.models.has(n)),
                 )
-                .map(({ family, names }) => (
+                .map(({ family, stems, names }) => (
                   <div
                     key={family}
                     className={s.variants}
                     aria-label={`${family} models`}
                   >
-                    {names.map((name) => (
+                    {stems.map((stem, i) => (
                       <ToggleTag
-                        key={name}
+                        key={stem}
                         type="family"
                         value={family}
                         small
-                        pressed={m.models.has(name)}
+                        pressed={m.models.has(stem)}
                         onClick={() =>
                           update({
-                            model: toggle(m.models, [name], !m.models.has(name)),
+                            model: toggle(m.models, [stem], !m.models.has(stem)),
                           })
                         }
                       >
-                        {name}
+                        {names[i]}
                       </ToggleTag>
                     ))}
                   </div>

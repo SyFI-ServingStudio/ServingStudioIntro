@@ -13,11 +13,12 @@ import {
   isNumeric,
   formatDate,
   formatNumber,
+  loadConfigs,
   loadKernel,
   loadRows,
   metricDoc,
   metricNames,
-  precisionArg,
+  peakFor,
   readQuery,
   setQuery,
   shortGpu,
@@ -25,7 +26,9 @@ import {
   toCsv,
 } from "./kernelData";
 import { kernelHref, openKernel } from "./Kernels";
+import { ChartBar } from "./ChartBar";
 import { ConfigPicker, buildLevels, shownDims } from "./ConfigPicker";
+import { GridExplorer } from "./GridExplorer";
 import { PerfChart, SERIES_COLORS, seriesColor } from "./PerfChart";
 import { Tag, ToggleTag } from "./Tag";
 import s from "./KernelDetail.module.css";
@@ -112,7 +115,7 @@ export function KernelDetail({ catalog, entry }) {
             Loading {entry.rows.toLocaleString("en-US")} measurements…
           </p>
         ) : tab === "performance" ? (
-          <Explorer
+          <Performance
             kernel={kernel}
             records={records}
             catalog={catalog}
@@ -136,6 +139,82 @@ export function KernelDetail({ catalog, entry }) {
 }
 
 /* ---------- Performance ---------- */
+
+const VIEWS = [
+  ["grid", "Simulator grid"],
+  ["rows", "All measurements"],
+];
+
+/* Two views of one kernel's numbers. "Simulator grid" (the default when the
+   simulator registered configs for this kind) plots each config on the cache
+   axes it interpolates over, per GPU and model. "All measurements" plots the
+   profile.db rows by their arguments, whoever asked for them. */
+function Performance({ kernel, records, catalog, query }) {
+  const [list, setList] = useState(null);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    loadConfigs(kernel.kind).then(setList, setError);
+  }, [kernel.kind]);
+  const update = (patch) => setQuery({ ...query, ...patch });
+  const hasGrid = list?.configs.length > 0;
+  const view = hasGrid && query.view !== "rows" ? "grid" : "rows";
+  if (!list && !error)
+    return (
+      <p role="status" className={s.loading}>
+        Loading kernel configs…
+      </p>
+    );
+  return (
+    <>
+      <div className={s.viewBar}>
+        <div className={s.viewSwitch} role="radiogroup" aria-label="View">
+          {VIEWS.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={view === id}
+              disabled={id === "grid" && !hasGrid}
+              onClick={() => update({ view: id === "grid" ? "" : id })}
+            >
+              {label}
+              <span>
+                {id === "grid"
+                  ? `${list?.configs.length ?? 0} configs`
+                  : `${records.length.toLocaleString("en-US")} rows`}
+              </span>
+            </button>
+          ))}
+        </div>
+        <p className={s.viewNote}>
+          {error
+            ? `The kernel configs did not load (${error.message}).`
+            : !hasGrid
+              ? "No simulator config reads this kernel's rows yet."
+              : view === "grid"
+                ? "The cells the simulator reads for each kernel config, on its own cache axes."
+                : "Every profile.db row, by its arguments."}
+        </p>
+      </div>
+      {view === "grid" ? (
+        <GridExplorer
+          kernel={kernel}
+          catalog={catalog}
+          list={list}
+          query={query}
+          update={update}
+        />
+      ) : (
+        <Explorer
+          kernel={kernel}
+          records={records}
+          catalog={catalog}
+          query={query}
+        />
+      )}
+    </>
+  );
+}
 
 const ROLE_LABELS = {
   sweep: "Varies with the batch",
@@ -399,68 +478,21 @@ function Explorer({ kernel, records, catalog, query }) {
       </section>
 
       <div className={s.chartColumn}>
-        <div className={s.chartBar}>
-          <div className={s.metricSwitch} role="radiogroup" aria-label="Metric">
-            {metrics.map((m) => (
-              <button
-                key={m}
-                type="button"
-                role="radio"
-                aria-checked={m === y}
-                onClick={() => update({ y: m })}
-              >
-                {metricDoc(kernel, m).label}
-                <span>{metricDoc(kernel, m).unit}</span>
-              </button>
-            ))}
-          </div>
-          <div className={s.chartOptions}>
-            <label className={s.toggle}>
-              <input
-                type="checkbox"
-                checked={logX}
-                disabled={!positiveX}
-                onChange={(event) =>
-                  update({
-                    scale:
-                      `${event.target.checked ? "logx" : ""}${logY ? "logy" : ""}` ||
-                      "linear",
-                  })
-                }
-              />
-              Log x
-            </label>
-            <label className={s.toggle}>
-              <input
-                type="checkbox"
-                checked={logY}
-                onChange={(event) =>
-                  update({
-                    scale:
-                      `${logX ? "logx" : ""}${event.target.checked ? "logy" : ""}` ||
-                      "linear",
-                  })
-                }
-              />
-              Log y
-            </label>
-            <label className={s.toggle}>
-              <input
-                type="checkbox"
-                checked={showPeak}
-                onChange={(event) =>
-                  update({ peak: event.target.checked ? "" : "off" })
-                }
-              />
-              Spec-sheet peak
-            </label>
-          </div>
-        </div>
+        <ChartBar
+          kernel={kernel}
+          metrics={metrics}
+          y={y}
+          logX={logX}
+          logY={logY}
+          positiveX={positiveX}
+          showPeak={showPeak}
+          update={update}
+        />
 
         {!x ? (
           <p className={s.note}>
-            These rows differ only in {listNames}, which has no numeric axis to
-            plot against. Each row is listed below.
+            These rows differ only in {listNames}, which has no numeric axis to plot
+            against. Each row is listed below.
           </p>
         ) : series.length ? (
           <>
@@ -508,27 +540,6 @@ function Explorer({ kernel, records, catalog, query }) {
       </div>
     </div>
   );
-}
-
-/* The spec-sheet ceiling Sim gives this metric on the picked GPU. A throughput
-   ceiling depends on the compute dtype, so it shows only with one picked. */
-function peakFor(kernel, y, color, selection, catalog) {
-  if (color === "gpu") return null;
-  const peak = catalog.gpus.find((g) => g.name === selection.gpu)?.peaks[y];
-  if (!peak) return null;
-  const dtypeArg = precisionArg(kernel);
-  const dtype = peak.by_dtype ? selection[dtypeArg] : null;
-  if (peak.by_dtype && (!dtype || color === dtypeArg)) return null;
-  const value = peak.by_dtype ? peak.by_dtype[dtype] : peak.value;
-  if (value == null) return null;
-  const { label, unit } = metricDoc(kernel, y);
-  const amount = `${value.toLocaleString("en-US")} ${unit}`;
-  const note = [dtype, peak.note].filter(Boolean).join(" ");
-  return {
-    value,
-    label: `${shortGpu(selection.gpu)} spec-sheet ${label.toLowerCase()}, ${note}: ${amount} (not measured)`,
-    short: `Spec-sheet ${value.toLocaleString("en-US")}`,
-  };
 }
 
 function EmptyState({ records, filterDims, selection, onApply }) {

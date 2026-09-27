@@ -1,0 +1,135 @@
+/* GPU and model sit on one line; the configs take the width below them. */
+.levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 40px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.configs {
+  padding-top: 18px;
+}
+
+/* A config group names each deployment that uses it, one per line. */
+.deployment {
+  display: grid;
+  gap: 2px;
+  font-family: var(--font-code);
+  font-size: 13px;
+}
+
+.deployment span {
+  color: color-mix(in oklab, var(--family) 45%, white);
+  font-size: 13px;
+}
+
+/* How many of the config's cells some backend measured. */
+.coverage {
+  margin-left: 8px;
+  color: var(--subtle);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The grid axis on x and the value each other axis is held at. */
+.axes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 36px;
+  margin-bottom: 20px;
+}
+
+.foot {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--c-line-200);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.facts {
+  margin-bottom: 36px;
+}
+
+.facts h2 {
+  margin-bottom: 14px;
+  font-size: 20px;
+}
+
+.facts dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.facts dl > div {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) 1fr;
+  gap: 4px 20px;
+  font-size: 14px;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  color: var(--c-ink-1300);
+  font-variant-numeric: tabular-nums;
+}
+
+.facts code {
+  font-family: var(--font-code);
+  font-size: 13px;
+  color: var(--c-ink-1600);
+}
+
+.fact code {
+  color: var(--muted);
+}
+
+.stack {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.unit {
+  display: block;
+  color: var(--subtle);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+@media (max-width: 640px) {
+  .facts dl > div {
+    grid-template-columns: 1fr;
+  }
+}
+
+.part {
+  display: grid;
+  gap: 6px;
+}
+
+.part + .part {
+  margin-top: 4px;
+}
+
+/* What registered the chips below it, when that is what tells them apart. */
+.caption {
+  display: grid;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.moreSources {
+  align-self: flex-start;
+  color: var(--accent);
+  font-size: 14px;
+}

@@ -97,9 +97,17 @@ function thin(ticks, count) {
   return ticks.filter((_, i) => i % every === 0);
 }
 
+/* A series' points may include { x, y: null }: an x the chart covers but the
+   series has no value at (a grid cell nobody measured). The line breaks
+   there, the hover reads "not measured", and a point left alone between two
+   gaps keeps its marker so it does not vanish.
+
+   `cells` marks the simulator's grid along the bottom of the plot, one tick
+   per cell: { x, status: "measured" | "missing" | "infeasible" }. */
 export function PerfChart({
   series,
   xName,
+  xLabel = xName,
   xUnit,
   colorName,
   yLabel,
@@ -107,7 +115,10 @@ export function PerfChart({
   logX,
   logY,
   peak,
+  cells,
   describe,
+  note = "Each point is one measured row; nothing between points is interpolated.",
+  foot = (points) => <Provenance points={points} />,
 }) {
   const wrapRef = useRef(null);
   // useId gives characters a url(#…) reference would have to escape.
@@ -400,9 +411,9 @@ export function PerfChart({
   // End labels only while they stay attached to their lines: at most four
   // series, and only when their ends sit at least one line height apart.
   const ends = series
-    .filter((serie) => serie.points.some(inView))
+    .filter((serie) => serie.points.some((p) => inView(p) && p.y != null))
     .map((serie) => {
-      const last = serie.points.findLast(inView);
+      const last = serie.points.findLast((p) => inView(p) && p.y != null);
       return { serie, x: sx(last.x), y: sy(last.y) };
     })
     .sort((a, b) => a.y - b.y);
@@ -411,6 +422,10 @@ export function PerfChart({
     series.length <= 4 &&
     width >= 640 &&
     ends.every((end, i) => i === 0 || end.y - ends[i - 1].y >= 18);
+
+  // Past MARKER_LIMIT points on screen a series reads as a line.
+  const dense = (serie) =>
+    serie.points.filter((p) => p.y != null && inView(p)).length > MARKER_LIMIT;
 
   const hovered =
     activeX == null || panning
@@ -526,7 +541,7 @@ export function PerfChart({
               </text>
             ))}
             <text className={s.axisLabel} x={plotW} y={plotH + 48} textAnchor="end">
-              {xName}
+              {xLabel}
               {logX ? ", log scale" : ""}
               {zoom ? ", zoomed" : ""}
             </text>
@@ -558,18 +573,16 @@ export function PerfChart({
                   className={s.line}
                   clipPath={`url(#${clipId})`}
                   stroke={serie.color}
-                  d={serie.points
-                    .map(
-                      (p, i) =>
-                        `${i ? "L" : "M"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`,
-                    )
-                    .join("")}
+                  d={linePath(serie.points, sx, sy)}
                 />
                 {serie.points
-                  .filter(inView)
                   .filter(
-                    (p, _, shown) =>
-                      shown.length <= MARKER_LIMIT || p.x === activeX,
+                    (p, i, all) =>
+                      p.y != null &&
+                      inView(p) &&
+                      (!dense(serie) ||
+                        p.x === activeX ||
+                        (all[i - 1]?.y == null && all[i + 1]?.y == null)),
                   )
                   .map((p) => (
                     <circle
@@ -581,6 +594,20 @@ export function PerfChart({
                       fill={serie.color}
                     />
                   ))}
+              </g>
+            ))}
+
+            {cells?.filter(inView).map((cell) => (
+              <g
+                key={cell.x}
+                className={`${s.cell} ${s[cell.status]}`}
+                transform={`translate(${sx(cell.x)},${plotH})`}
+              >
+                {cell.status === "infeasible" ? (
+                  <path d="M-3,-10L3,-4M3,-10L-3,-4" />
+                ) : (
+                  <line y1={-9} y2={-2} />
+                )}
               </g>
             ))}
 
@@ -624,27 +651,46 @@ export function PerfChart({
                       {serie.label}
                     </th>
                     <td>
-                      {formatNumber(point.y)} {yUnit}
+                      {point.y == null
+                        ? "not measured"
+                        : `${formatNumber(point.y)} ${yUnit}`}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <Provenance points={hovered.map((h) => h.point)} />
+            {foot(hovered.map((h) => h.point))}
           </div>
         )}
       </div>
       <p className={s.hint}>
         Hover or focus the chart and use the arrow keys to read values. Hold ctrl
         and scroll, or pinch, to zoom around the pointer (+ and − work too); drag or
-        swipe sideways to move along; double-click or press 0 to see all of it. Each
-        point is one measured row; nothing between points is interpolated.
+        swipe sideways to move along; double-click or press 0 to see all of it.{" "}
+        {note}
       </p>
     </figure>
   );
 }
 
+// A path through the points, lifting the pen at each point with no value.
+function linePath(points, sx, sy) {
+  let pen = "M";
+  let d = "";
+  for (const p of points) {
+    if (p.y == null) {
+      pen = "M";
+      continue;
+    }
+    d += `${pen}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`;
+    pen = "L";
+  }
+  return d;
+}
+
 function Provenance({ points }) {
+  points = points.filter((p) => p.record?.provenance);
+  if (!points.length) return null;
   const dates = [
     ...new Set(
       points.map((p) => p.record.provenance.profiler_run_at?.slice(0, 10)),

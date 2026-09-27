@@ -111,3 +111,23 @@
     transition: none;
   }
 }
+
+.menuLevel {
+  flex-basis: 100%;
+}
+
+.menu {
+  max-inline-size: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--c-line-200);
+  border-radius: var(--r-sm);
+  color: var(--c-ink-1300);
+  font-family: var(--font-code);
+  font-size: 13px;
+  background: var(--raised);
+}
+
+.menu:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

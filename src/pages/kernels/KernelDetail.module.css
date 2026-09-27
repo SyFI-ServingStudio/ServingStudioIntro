@@ -600,3 +600,67 @@
     border-radius: var(--r-sm);
   }
 }
+
+/* Which numbers the Performance tab shows: the simulator's grid or every
+   measured row. Two wide choices, each saying how much is behind it. */
+.viewBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin-bottom: 20px;
+}
+
+.viewSwitch {
+  display: inline-flex;
+  border: 1px solid var(--c-line-200);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.viewSwitch button {
+  display: grid;
+  gap: 2px;
+  padding: 10px 20px;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  font-weight: 500;
+  text-align: left;
+}
+
+.viewSwitch button + button {
+  border-left: 1px solid var(--c-line-200);
+}
+
+.viewSwitch button span {
+  color: var(--subtle);
+  font-size: 13px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.viewSwitch button:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.viewSwitch button[aria-checked="true"] {
+  color: var(--ink);
+  background: var(--c-line-100);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.viewSwitch button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.viewSwitch button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.viewNote {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
