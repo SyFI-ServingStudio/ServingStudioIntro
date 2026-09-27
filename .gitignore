@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-redirect/
 
 .DS_Store
 *.log

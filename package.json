@@ -4,10 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "node --test scripts/blog-content.test.mjs scripts/sitemap.test.mjs",
+    "test": "node --test scripts/blog-content.test.mjs scripts/sitemap.test.mjs scripts/github-redirects.test.mjs",
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "build:single": "node scripts/build-single-file.mjs",
+    "build:github-redirects": "node scripts/build-github-redirects.mjs",
+    "deploy:cse": "scripts/deploy-cse.sh",
     "preview": "vite preview --host 0.0.0.0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

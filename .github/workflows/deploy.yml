@@ -1,8 +1,11 @@
-name: Deploy to GitHub Pages
+name: Check and publish GitHub Pages redirects
 
-# Publishes dist/ to https://syfi-servingstudio.github.io/ServingStudioIntro/ on every push
-# to main. The subpath is why vite.config.js sets `base`; a build without it
-# would ask for its assets at the domain root and load nothing.
+# The site now lives at https://servingstudio.cs.washington.edu/ and is
+# published by scripts/deploy-cse.sh, not by this workflow. On every push to
+# main this checks the build, then replaces
+# https://syfi-servingstudio.github.io/ServingStudioIntro/ with pages that
+# redirect each old URL to the same path on the CSE site, so existing links
+# keep working.
 
 on:
   push:
@@ -33,10 +36,11 @@ jobs:
       - run: npm run lint:css
       - run: npm test
       - run: npm run build
+      - run: npm run build:github-redirects
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: dist-redirect
 
   deploy:
     needs: build

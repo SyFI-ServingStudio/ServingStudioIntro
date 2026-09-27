@@ -76,7 +76,7 @@ We plan to:
 
 ServingStudio Sim helps engineers explore optimization ideas faster in simulation. ServingStudio Agent then implements promising changes and validates their effects on real hardware.
 
-Explore ServingStudio on [GitHub](https://github.com/SyFI-ServingStudio/ServingStudio) and read the [project overview](https://syfi-servingstudio.github.io/ServingStudioIntro/).
+Explore ServingStudio on [GitHub](https://github.com/SyFI-ServingStudio/ServingStudio) and read the [project overview](https://servingstudio.cs.washington.edu/).
 
 ## Citation
 
