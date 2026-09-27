@@ -248,7 +248,6 @@
 }
 
 .subRow p {
-  max-width: 72ch;
   margin-top: 4px;
   color: var(--muted);
   font-size: var(--fs-fine);
