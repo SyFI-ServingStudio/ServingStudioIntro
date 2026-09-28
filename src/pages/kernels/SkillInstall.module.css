@@ -1,0 +1,103 @@
+/* One line under the hero description: quieter than the prose above it, with
+   the command in the page's code face. */
+.install {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  max-width: 100%;
+  margin-top: 26px;
+  font-size: var(--fs-fine);
+  line-height: 1.4;
+}
+
+/* The label takes its own row, so the chip and the source link share the
+   next one on a wide screen. */
+.label {
+  flex-basis: 100%;
+  color: var(--muted);
+}
+
+/* The chip never grows past the column; a command wider than the screen
+   scrolls inside it, and the copy button stays in view. */
+.chip {
+  display: inline-flex;
+  align-items: stretch;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--c-line-300);
+  border-radius: var(--r-sm);
+  background: var(--c-alpha-700);
+}
+
+.command {
+  min-width: 0;
+  padding: 8px 12px;
+  overflow-x: auto;
+  color: var(--c-ink-1600);
+  font-family: var(--font-code, ui-monospace, monospace);
+  white-space: nowrap;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
+  animation: commandFade linear both;
+  animation-timeline: scroll(self inline);
+}
+
+/* A command cut off by the chip fades out at the right edge until it is
+   scrolled to its end. The scroll timeline only runs while the command
+   overflows, so a command that fits is never faded. */
+@property --fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@keyframes commandFade {
+  from {
+    --fade: 32px;
+  }
+
+  to {
+    --fade: 0;
+  }
+}
+
+/* The command is focusable so a keyboard can scroll it. Its mask would clip
+   its own focus ring, so the chip draws the ring. */
+.command:focus-visible {
+  outline: none;
+}
+
+.chip:has(> .command:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.copy {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-left: 1px solid var(--c-line-300);
+  color: var(--c-ink-1300);
+}
+
+.copy:hover {
+  color: var(--ink);
+}
+
+.copy:focus-visible {
+  outline-offset: -2px;
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+}
+
+.source:hover {
+  color: var(--ink);
+}

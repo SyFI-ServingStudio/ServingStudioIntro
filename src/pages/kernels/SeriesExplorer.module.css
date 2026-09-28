@@ -1,0 +1,26 @@
+/* The deployment, the workload and, when a workload holds several, the leaf,
+   under the GPU and model line. */
+.levels {
+  display: grid;
+  gap: 16px;
+  padding-top: 18px;
+}
+
+.code {
+  font-family: var(--font-code);
+  overflow-wrap: anywhere;
+}
+
+/* What the chart shows, under the choices it depends on. */
+.summary {
+  margin-top: 18px;
+  max-width: 72ch;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  line-height: 1.5;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}

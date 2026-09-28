@@ -8,6 +8,15 @@
   overflow: hidden;
 }
 
+.compact {
+  min-height: 440px;
+  padding-block: 60px 68px;
+}
+
+.compact .description {
+  margin-block: 18px 0;
+}
+
 .image,
 .shade {
   position: absolute;
@@ -41,6 +50,10 @@
   margin-top: 24px;
 }
 
+.content h1:first-child {
+  margin-top: 0;
+}
+
 .description {
   max-width: 700px;
   color: var(--ink);
@@ -66,6 +79,11 @@
   .hero {
     min-height: 580px;
     padding-block: 60px 76px;
+  }
+
+  .compact {
+    min-height: 390px;
+    padding-block: 56px 62px;
   }
 
   .image {

@@ -1,0 +1,683 @@
+/* The Models page. It borrows the kernel pages' header, panel and picker
+   (KernelDetail and ConfigPicker modules) and the landing page's cost-tree
+   rows (CostTree module); what is here is only what those do not have. */
+
+.notice {
+  max-width: 70ch;
+  margin-bottom: 20px;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}
+
+.notice code {
+  color: var(--c-ink-1300);
+}
+
+/* ---------- List ---------- */
+
+/* The list opens on its hero, as the kernel list does. */
+.page {
+  --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  padding-bottom: 120px;
+}
+
+.catalog {
+  display: grid;
+  gap: 44px;
+  padding-top: 48px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* A family is a heading and its archs, ruled in the family's colour. */
+.family h2 {
+  margin-bottom: 12px;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.archList {
+  display: grid;
+  border-left: 2px solid color-mix(in oklab, var(--family) 60%, transparent);
+}
+
+.archList li + li .archRow {
+  border-top: 1px solid var(--c-line-100);
+}
+
+.archRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 20px;
+  gap: 12px 40px;
+  align-items: center;
+  padding: 20px 20px 20px 22px;
+  transition: background-color 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.archRow:hover {
+  background: var(--c-alpha-1300);
+}
+
+.archRow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.archMain {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.archName {
+  color: var(--ink);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  letter-spacing: -0.012em;
+}
+
+.archTag {
+  color: var(--subtle);
+  font-family: var(--font-code);
+  font-size: var(--fs-fine);
+  overflow-wrap: anywhere;
+}
+
+.archSummary code,
+.prose code {
+  color: var(--c-ink-1300);
+  font-family: var(--font-code);
+  font-size: 0.92em;
+}
+
+.archSummary {
+  max-width: 68ch;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.archFacts {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+
+.factName {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+}
+
+.factValue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  min-width: 0;
+}
+
+.figure {
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.contract {
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}
+
+.archArrow {
+  color: var(--subtle);
+  transition:
+    transform 160ms cubic-bezier(0.2, 0, 0, 1),
+    color 160ms ease-out;
+}
+
+.archRow:hover .archArrow {
+  color: var(--accent);
+  transform: translateX(3px);
+}
+
+/* ---------- One arch ---------- */
+
+.detailBody {
+  display: grid;
+  gap: 28px;
+  padding-top: 32px;
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 40px;
+}
+
+.setLevel {
+  flex-basis: 100%;
+}
+
+/* A set's chip names its params in code and their values as figures. */
+.setChip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0 14px;
+  font-family: var(--font-code);
+}
+
+.setChip b {
+  font-family: Geist, sans-serif;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.fixed,
+.defaults {
+  flex-basis: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  line-height: 1.6;
+}
+
+.fixed code,
+.defaults code {
+  color: var(--c-ink-1100);
+  font-family: var(--font-code);
+}
+
+/* A run param's name reads as code, as a set's params do. */
+.runName {
+  color: var(--c-ink-1300);
+  font-family: var(--font-code);
+  font-weight: 400;
+}
+
+/* A routing's file can outrun a phone's width: its chip wraps instead. */
+.runLevel {
+  max-width: 100%;
+}
+
+.runLevel button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+
+/* A run value, then how many of that run's shapes are measured. */
+.runChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.runChip small {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+}
+
+/* Where the run was recorded, and a routing's file: paths that may break
+   anywhere on a narrow screen. */
+.source,
+.runValue {
+  color: var(--c-ink-1300);
+  overflow-wrap: anywhere;
+}
+
+.soft {
+  color: var(--subtle);
+}
+
+/* The tree takes the width; the legend and the prediction to come sit beside
+   it on a wide screen and under it otherwise. */
+.treeLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 40px;
+  align-items: start;
+}
+
+.aside {
+  position: sticky;
+  top: 108px;
+  display: grid;
+  gap: 20px;
+}
+
+.treePanel {
+  min-width: 0;
+}
+
+.treeLoading {
+  min-height: 60vh;
+  color: var(--muted);
+}
+
+.treeHead {
+  display: grid;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.treeHead h2,
+.legend h2,
+.predict h2 {
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 40px;
+}
+
+.stats div {
+  display: grid;
+  gap: 2px;
+}
+
+.stats dt {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+}
+
+.stats dd {
+  color: var(--ink);
+  font-size: var(--fs-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.stats dd span {
+  color: var(--subtle);
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+}
+
+.treeBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 16px 8px;
+}
+
+.treeActions {
+  display: flex;
+  gap: 8px;
+}
+
+.treeActions button,
+.predictActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--c-line-200);
+  border-radius: var(--r-sm);
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+  transition:
+    border-color 160ms ease-out,
+    color 160ms ease-out;
+}
+
+.treeActions button:hover {
+  border-color: var(--c-line-500);
+  color: var(--ink);
+}
+
+.treeActions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The rows are the landing page's; here they sit in the page, not a figure. */
+.treeScroll {
+  min-width: 0;
+}
+
+.tree {
+  padding-bottom: 8px;
+}
+
+.tree :global(li) > div {
+  grid-template-columns: 62px minmax(0, 1fr) fit-content(42%);
+  padding-block: 8px;
+}
+
+/* Roles are dotted identifiers with no spaces; they break anywhere rather
+   than push the row past a phone's edge. */
+.tree :global(li) strong {
+  overflow-wrap: anywhere;
+}
+
+.tree :global(li) strong small {
+  font-family: var(--font-code);
+  font-size: var(--fs-fine);
+  overflow-wrap: anywhere;
+}
+
+.times,
+.ranks {
+  margin-left: 10px;
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.times {
+  color: var(--cost-scale-ink);
+}
+
+.nodeCount {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.kernelLink,
+.kernelPlain {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-fine);
+  line-height: 1.5;
+  text-align: right;
+}
+
+.kernelLink {
+  color: var(--accent);
+}
+
+.kernelLink:hover {
+  color: var(--c-ink-accent-600);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.kernelLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+.kernelPlain {
+  color: var(--c-ink-1100);
+}
+
+.coverage {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px 6px;
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  line-height: 1.5;
+}
+
+.coverage svg {
+  flex-shrink: 0;
+}
+
+.coverage[data-state="measured"] svg {
+  color: var(--cost-sum-ink);
+}
+
+.coverage[data-state="partial"] svg {
+  color: var(--cost-max-ink);
+}
+
+.backends {
+  color: var(--c-ink-100);
+}
+
+/* ---------- Beside the tree ---------- */
+
+.legend,
+.predict {
+  display: grid;
+  gap: 14px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.legend h2,
+.predict h2 {
+  font-size: var(--fs-sm);
+}
+
+.legend dl {
+  display: grid;
+  gap: 12px;
+}
+
+.legend dl div {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+
+.legend dd {
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  line-height: 1.5;
+}
+
+/* The composition badges, in the landing tree's colours. */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--c-line-200);
+  border-radius: var(--r-xs);
+  font-size: var(--fs-fine);
+  font-weight: 400;
+}
+
+.badge[data-kind="Sum"] {
+  border-color: var(--cost-sum-border);
+  color: var(--cost-sum-ink);
+  background: var(--cost-sum-surface);
+}
+
+.badge[data-kind="Max"] {
+  border-color: var(--cost-max-border);
+  color: var(--cost-max-ink);
+  background: var(--cost-max-surface);
+}
+
+.badge[data-kind="Scale"] {
+  border-color: var(--cost-scale-border);
+  color: var(--cost-scale-ink);
+  background: var(--cost-scale-surface);
+}
+
+.badge[data-kind="Leaf"] {
+  border-color: var(--c-line-accent-100);
+  color: var(--accent);
+}
+
+/* The prediction to come: laid out as it will work, switched off, and said
+   so in words as well as by its dimmed controls. */
+.predict {
+  border-style: dashed;
+  background: none;
+}
+
+.predictHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.soon {
+  padding: 1px 8px;
+  border: 1px solid var(--c-line-300);
+  border-radius: var(--r-xs);
+  color: var(--c-ink-1100);
+  font-size: var(--fs-fine);
+}
+
+.predict > p {
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  line-height: 1.55;
+}
+
+.predictForm {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.predictForm label {
+  display: grid;
+  gap: 6px;
+  color: var(--c-ink-1100);
+  font-size: var(--fs-fine);
+}
+
+.predictForm input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--c-line-200);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  font: inherit;
+  background: var(--bg);
+}
+
+.predictForm:disabled label,
+.predictForm:disabled button {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.predictActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.primary {
+  border-color: var(--c-line-accent-100) !important;
+  color: var(--accent) !important;
+}
+
+.predictNote {
+  color: var(--subtle) !important;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 1199px) {
+  .treeLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .aside {
+    position: static;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  .archRow {
+    grid-template-columns: minmax(0, 1fr) 20px;
+  }
+
+  .archFacts {
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 767px) {
+  .page {
+    padding-bottom: 72px;
+  }
+
+  .catalog {
+    padding-top: 32px;
+  }
+
+  .archRow {
+    padding: 16px 12px 16px 14px;
+    gap: 12px;
+  }
+
+  .fact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .tree :global(li) > div {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .tree :global(li) > div > div {
+    grid-column: 2;
+    justify-self: start;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .coverage {
+    justify-content: flex-start;
+  }
+
+  .stats {
+    gap: 12px 28px;
+  }
+
+  .aside {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .archRow,
+  .archArrow,
+  .treeActions button {
+    transition: none;
+  }
+}

@@ -1,0 +1,590 @@
+.page {
+  --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  padding-block: 28px 120px;
+}
+
+.page code,
+.code {
+  font-family: var(--font-code);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}
+
+.back:hover {
+  color: var(--ink);
+}
+
+.header h1 {
+  margin-top: 20px;
+  font-size: var(--fs-h2);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}
+
+.identity code {
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+}
+
+.summary {
+  max-width: 62ch;
+  margin-top: 14px;
+  color: var(--c-ink-1600);
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+}
+
+.count {
+  color: var(--subtle);
+}
+
+/* The tabs scroll sideways on a narrow screen. The rule under them is drawn
+   inside the box and the marker sits on it, so nothing spills past the bottom
+   edge: a 1px spill made overflow-y scroll and showed a scrollbar. */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 28px;
+  overflow: auto hidden;
+  box-shadow: inset 0 -1px 0 var(--line);
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs button {
+  position: relative;
+  padding: 14px 18px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.tabs button:first-child {
+  padding-left: 0;
+}
+
+.tabs button:hover {
+  color: var(--ink);
+}
+
+.tabs button[aria-selected="true"] {
+  color: var(--ink);
+}
+
+.tabs button[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 18px 0;
+  height: 3px;
+  background: var(--accent);
+}
+
+.tabs button:first-child[aria-selected="true"]::after {
+  left: 0;
+}
+
+.panel {
+  padding-top: 28px;
+}
+
+.loading {
+  color: var(--muted);
+  min-height: 480px;
+}
+
+/* ---------- Performance ---------- */
+
+/* The settings are a panel across the top: what to compare and how to draw
+   it on the first line, the configuration under it. The chart and its rows
+   follow at full width. */
+.explorer {
+  display: grid;
+  gap: 28px;
+}
+
+.controls {
+  padding: 20px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+/* How the chart is drawn sits right above it: the metric on the left, log
+   scales and the peak line on the right. None of them changes the data. */
+.chartBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 32px;
+  margin-bottom: 24px;
+}
+
+.chartOptions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 22px;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+}
+
+.toggle input {
+  inline-size: 16px;
+  block-size: 16px;
+  accent-color: var(--accent-strong);
+}
+
+/* A choice the other settings rule out, such as log y on a ratio. */
+.toggle:has(input:disabled) {
+  color: var(--subtle);
+}
+
+.chartColumn,
+.rowsColumn {
+  min-width: 0;
+}
+
+/* The y-value switch beside the scale toggles is the metric pill, smaller. */
+.metricSwitch,
+.modeSwitch {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--c-line-100);
+  border-radius: var(--r-pill);
+}
+
+.metricSwitch button,
+.modeSwitch button {
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}
+
+.modeSwitch button {
+  padding: 5px 12px;
+}
+
+.metricSwitch button span {
+  margin-left: 6px;
+  color: var(--subtle);
+}
+
+.metricSwitch button:hover,
+.modeSwitch button:hover {
+  color: var(--ink);
+}
+
+.metricSwitch button[aria-checked="true"],
+.modeSwitch button[aria-checked="true"] {
+  color: var(--ink);
+  background: var(--c-line-100);
+}
+
+.metricSwitch button[aria-checked="true"] span {
+  color: var(--muted);
+}
+
+.note {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}
+
+.rows {
+  margin-top: 48px;
+}
+
+.rowsHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 16px;
+}
+
+.rowsHead h2,
+.prose h2 {
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border: 1px solid var(--c-line-300);
+  border-radius: var(--r-pill);
+  color: var(--ink);
+  font-size: var(--fs-fine);
+}
+
+.action:hover {
+  border-color: var(--accent);
+}
+
+.tableScroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+/* Table text is body text: the size of the paragraphs around it. */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.table th,
+.table td {
+  padding: 10px 16px 10px 0;
+  border-bottom: 1px solid var(--c-line-100);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.45;
+}
+
+.table thead th {
+  color: var(--subtle);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.table tbody th {
+  font-weight: 400;
+}
+
+.table td {
+  color: var(--c-ink-1300);
+}
+
+.table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table .code {
+  font-size: 0.94em;
+}
+
+.date {
+  white-space: nowrap;
+  color: var(--subtle) !important;
+}
+
+.more {
+  margin-top: 14px;
+  color: var(--accent);
+  font-size: var(--fs-fine);
+}
+
+/* ---------- Text tabs ---------- */
+
+.prose {
+  max-width: 1080px;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-sm);
+  line-height: 1.65;
+}
+
+.prose > p,
+.prose > ul {
+  max-width: 72ch;
+}
+
+.prose h2 {
+  margin: 48px 0 16px;
+  color: var(--ink);
+}
+
+.prose > h2:first-child,
+.prose > .notice + h2 {
+  margin-top: 0;
+}
+
+.prose > .notice + h2 {
+  margin-top: 36px;
+}
+
+.prose ul {
+  padding-left: 1.2em;
+  list-style: disc;
+}
+
+.prose li + li {
+  margin-top: 8px;
+}
+
+.prose code {
+  font-size: 0.88em;
+}
+
+/* The overview leads the tab by weight and colour, at body size. */
+.description {
+  color: var(--c-ink-1800);
+  font-weight: 450;
+}
+
+.formula {
+  display: inline-block;
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: 18px 24px;
+  border-left: 3px solid var(--accent-strong);
+  color: var(--c-ink-1800);
+  font-family: var(--font-code);
+  font-size: var(--fs-sm);
+  line-height: 1.8;
+  white-space: pre-wrap;
+  background: var(--surface);
+}
+
+.backendList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0 40px;
+  padding: 0 !important;
+  list-style: none;
+}
+
+.backendList li {
+  margin: 0 !important;
+  padding: 20px 0;
+  border-top: 1px solid var(--c-line-100);
+}
+
+.backendList h3 {
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.backendList p {
+  margin-top: 6px;
+}
+
+.backendList dl {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.backendList dl div {
+  display: flex;
+  gap: 12px;
+}
+
+.backendList dt {
+  flex: 0 0 120px;
+  color: var(--subtle);
+}
+
+.external {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+.codeBlock {
+  margin-top: 16px;
+  border: 1px solid var(--c-line-100);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.codeHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--c-line-100);
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}
+
+.codeHead button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-ink-1300);
+}
+
+.codeHead button:hover {
+  color: var(--ink);
+}
+
+.codeBlock pre {
+  max-height: 520px;
+  margin: 0;
+  padding: 16px 20px;
+  overflow: auto;
+  color: var(--c-ink-1600);
+  font-size: var(--fs-fine);
+  line-height: 1.6;
+}
+
+.codeBlock pre code {
+  font-size: inherit;
+}
+
+.notice {
+  padding: 14px 18px;
+  border: 1px solid var(--c-line-300);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-fine);
+}
+
+.downloads {
+  display: grid;
+  gap: 12px;
+  padding: 0 !important;
+  list-style: none;
+}
+
+.downloads li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  margin: 0 !important;
+}
+
+.downloads a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+}
+
+.downloads span {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+}
+
+.snippet + .snippet {
+  margin-top: 12px;
+}
+
+@media (max-width: 767px) {
+  .page {
+    padding-block: 28px 72px;
+  }
+
+  .tabs {
+    margin-top: 32px;
+  }
+
+  /* Four metrics with their units do not fit one pill on a phone. They wrap
+     as a block of rounded buttons across the width instead. */
+  .metricSwitch {
+    display: flex;
+    inline-size: 100%;
+    border-radius: var(--r-md);
+  }
+
+  .metricSwitch button {
+    flex: 1 1 auto;
+    border-radius: var(--r-sm);
+  }
+}
+
+/* Which numbers the Performance tab shows: the simulator's grid or every
+   measured row. Two wide choices, each saying how much is behind it. */
+.viewBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin-bottom: 20px;
+}
+
+.viewSwitch {
+  display: inline-flex;
+  border: 1px solid var(--c-line-200);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.viewSwitch button {
+  display: grid;
+  gap: 2px;
+  padding: 10px 20px;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  font-weight: 500;
+  text-align: left;
+}
+
+.viewSwitch button + button {
+  border-left: 1px solid var(--c-line-200);
+}
+
+.viewSwitch button span {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.viewSwitch button:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.viewSwitch button[aria-checked="true"] {
+  color: var(--ink);
+  background: var(--c-line-100);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.viewSwitch button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.viewSwitch button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.viewNote {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}

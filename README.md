@@ -35,6 +35,16 @@ npm run deploy:cse -- --dry-run # build, then list what would change
 The sync deletes server files that are not in the build, so put anything the
 server needs, such as an `.htaccess`, in `public/`.
 
+The Models and Kernels pages read ServingStudio Sim's read-only public API at
+`/api/public/v1` on the site's own origin. On the CSE site, `public/.htaccess`
+proxies that path to the service on cayenne (`10.158.48.50:5220`); if it is not
+running, both pages say the data service is not reachable. In development, point
+Vite at a running service:
+
+```bash
+PUBLIC_API_PROXY_TARGET=http://127.0.0.1:<port> npm run dev
+```
+
 The old address, https://syfi-servingstudio.github.io/ServingStudioIntro/, now
 serves only redirects. On every push to `main`, the GitHub Actions workflow
 checks the build, runs `scripts/build-github-redirects.mjs` to write one
