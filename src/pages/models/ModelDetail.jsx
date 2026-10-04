@@ -91,15 +91,6 @@ function Explorer({ catalog, checkpoint, preset }) {
   // The batch a reader built, kept across members.
   const [batch, setBatch] = useState(null);
 
-  const siblings = catalog.checkpoints.filter(
-    (c) => c.family === checkpoint.family && c.presets.length,
-  );
-  // Another checkpoint opens on the same arch when it has one.
-  const openCheckpoint = (other) => {
-    const same = other.presets.find((p) => p.arch === preset.arch);
-    const target = same ?? other.presets[0];
-    pick(memberFromUrl(target, member.params).member.params, target.id);
-  };
   const workload = preset.axes.find((axis) => axis.rows);
 
   return (
@@ -114,42 +105,12 @@ function Explorer({ catalog, checkpoint, preset }) {
         className={`${detail.controls} ${s.picker}`}
         aria-label="Parameter set"
       >
-        {siblings.length > 1 && (
-          <div
-            className={`${picker.level} ${s.wrapLevel}`}
-            role="group"
-            aria-label="Model"
-          >
-            <span className={picker.levelName}>Model</span>
-            <div className={picker.choices}>
-              {siblings.map((c) => (
-                <ToggleTag
-                  key={c.checkpoint}
-                  type="family"
-                  value={checkpoint.family}
-                  pressed={c === checkpoint}
-                  title={c.checkpoint}
-                  onClick={() => openCheckpoint(c)}
-                >
-                  {c.name ?? c.checkpoint}
-                </ToggleTag>
-              ))}
-            </div>
-          </div>
-        )}
         <div
           className={`${picker.level} ${s.wrapLevel}`}
           role="group"
           aria-label="Deployment"
         >
-          <span className={picker.levelName}>
-            Deployment
-            <span className={picker.levelCount}>
-              {checkpoint.presets.length === 1
-                ? "one public preset"
-                : `${checkpoint.presets.length} public presets`}
-            </span>
-          </span>
+          <span className={picker.levelName}>Deployment</span>
           <div className={picker.choices}>
             {checkpoint.presets.map((p) => (
               <ToggleTag
