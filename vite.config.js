@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { blogContent } from "./scripts/blog-content.mjs";
+import { servingStudioUi } from "./scripts/servingstudio-ui.mjs";
 import { sitemap } from "./scripts/sitemap.mjs";
 
 /* The Models and Kernels pages read ServingStudio Sim's read-only public API.
@@ -22,6 +23,10 @@ export default defineConfig(({ mode }) => {
        needs this value changed. */
     base: "/",
     plugins: [
+      servingStudioUi({
+        uiDir: env.SERVINGSTUDIO_UI_DIR,
+        allowMissing: env.ALLOW_NO_READ_MORE === "1",
+      }),
       react(),
       blogContent(),
       // Submit https://servingstudio.cs.washington.edu/sitemap.xml in Google
