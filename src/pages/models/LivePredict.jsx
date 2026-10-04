@@ -376,9 +376,8 @@ function requestCount(group) {
 }
 
 /* Times `body` whenever it changes, 150 ms after the last edit; a newer
-   edit cancels the request still in flight. Every node's time goes to
-   `onTimes`: { section: node_ms }, a section's layers summed when it has
-   several. */
+   edit cancels the request still in flight. Each section's tree, as the
+   Analyzer gives it, goes to `onTimes`: { section: nodes }. */
 function usePrediction(body, onTimes) {
   const [state, setState] = useState({});
   const [attempt, setAttempt] = useState(0);
@@ -395,13 +394,12 @@ function usePrediction(body, onTimes) {
       try {
         const answer = await predict(JSON.parse(text), controller.signal);
         const sections = answer.cases[0].sections;
-        const times = {};
-        for (const { section, node_ms: nodes } of sections)
-          times[section] = times[section]
-            ? times[section].map((value, i) => value + nodes[i])
-            : nodes.slice();
         setState({ result: { sections } });
-        onTimes(times);
+        onTimes(
+          Object.fromEntries(
+            sections.map(({ section, nodes }) => [section, nodes]),
+          ),
+        );
       } catch (error) {
         if (controller.signal.aborted) return;
         setState({ failure: error });

@@ -113,142 +113,31 @@ export const CONTRACTS = {
 
 /* ---------- The cost tree ---------- */
 
-/* A section's flat nodes as a nested tree. Node `id` is the flat index, the
-   index a prediction's `node_ms` uses; a leaf keeps its slot's index too. A
-   composite's `path` is the dotted role every leaf under it shares. */
-function commonPath(paths) {
-  const split = paths.filter(Boolean).map((p) => p.split("."));
-  if (!split.length) return null;
-  const common = [];
-  for (let i = 0; i < Math.min(...split.map((p) => p.length)); i += 1) {
-    if (split.some((p) => p[i] !== split[0][i])) break;
-    common.push(split[0][i]);
-  }
-  return common.join(".") || null;
-}
+/* A predicted section's tree is the Analyzer's (`nodes`: root first, in
+   display order, each with its `depth`); the page only folds it. A row is a
+   parent when the next row is deeper. */
+const isParent = (nodes, index) => nodes[index + 1]?.depth > nodes[index].depth;
 
-export function nestSection({ nodes, slots }) {
-  const build = (id) => {
-    const node = nodes[id];
-    if (node.kind === "leaf") {
-      const slot = { index: node.slot, ...slots[node.slot] };
-      return { id, kind: "leaf", label: node.label, slot, path: slot.name };
-    }
-    const children = node.children.map(build);
-    return {
-      id,
-      kind: node.kind,
-      label: node.label,
-      n: node.n,
-      overlap: node.overlap,
-      children,
-      path: commonPath(children.map((child) => child.path)),
-    };
-  };
-  return build(0);
-}
-
-/* Cost-tree nodes, from the nested form to rows the tree draws.
-
-   A composite's name is its role relative to its parent (`attention` under
-   `unified.body.dense_full_index`); Rust's composite line, when there is one,
-   becomes the note beside it. A leaf is named the same way. */
-const relative = (path, parent) => {
-  if (!path) return null;
-  if (parent && path.startsWith(`${parent}.`)) return path.slice(parent.length + 1);
-  return path.split(".").at(-1);
-};
-
-// Rust's composite line reads "<path> (<Worklet>) [<partition>]" or a free
-// description ("layers 0..2: dense + full index (3 layers)").
-function splitLabel(label, path) {
-  if (!label) return { title: null, note: null };
-  if (path && label.startsWith(path)) {
-    const rest = label.slice(path.length).trim();
-    return { title: null, note: rest || null };
-  }
-  if (label.startsWith("unified") || label.startsWith("afd")) {
-    const space = label.indexOf(" ");
-    return { title: null, note: space < 0 ? null : label.slice(space + 1) };
-  }
-  return { title: label, note: null };
-}
-
-/* Two subtrees are alike when they compose the same kernels the same way: the
-   rank copies under a Max usually are, and one of them stands for all. */
-function signature(node) {
-  if (node.kind === "leaf") return `L:${node.slot.kernel}:${node.slot.config}`;
-  const own =
-    node.kind === "scale" ? node.n : node.kind === "max" ? node.overlap : "";
-  return `${node.kind}${own}(${node.children.map(signature).join(",")})`;
-}
-
-/* The tree as nodes the view walks: each with its display name, note, depth,
-   and for a Max whose children are alike, how many there are (`copies`) with
-   only the first kept. Leaves count every kernel they stand for. */
-export function prepareTree(root) {
-  // `repeated`: inside a Scale, where a node's time is one repeat's.
-  const walk = (node, parentPath, depth, repeated = false) => {
-    const { title, note } = splitLabel(node.label, node.path);
-    const base = {
-      id: node.id,
-      kind: node.kind,
-      depth,
-      name: title ?? relative(node.path, parentPath) ?? node.kind,
-      path: node.path,
-      note,
-      repeated,
-    };
-    if (node.kind === "leaf") return { ...base, slot: node.slot, leaves: 1 };
-    let children = node.children;
-    let copies = null;
-    if (
-      node.kind === "max" &&
-      children.length > 1 &&
-      children.every((child) => signature(child) === signature(children[0]))
-    ) {
-      copies = children.length;
-      children = [children[0]];
-    }
-    const next = node.path ?? parentPath;
-    const inner = repeated || node.kind === "scale";
-    const kids = children.map((child) => walk(child, next, depth + 1, inner));
-    return {
-      ...base,
-      n: node.n,
-      overlap: node.overlap,
-      copies,
-      width: node.children.length,
-      children: kids,
-      // Every kernel call the node stands for, the copies not shown included.
-      leaves: (copies ?? 1) * kids.reduce((sum, kid) => sum + kid.leaves, 0),
-    };
-  };
-  return walk(root, null, 0);
-}
-
-export function* visible(node, open) {
-  yield node;
-  if (node.children && open.has(node.id))
-    for (const child of node.children) yield* visible(child, open);
-}
-
-export function allIds(node, out = []) {
-  if (node.children) {
-    out.push(node.id);
-    node.children.forEach((child) => allIds(child, out));
-  }
-  return out;
+/* The rows a reader sees, each parent marked, with only the parents in
+   `open` (by `node`) expanded. */
+export function visibleRows(nodes, open) {
+  const rows = [];
+  let folded = Infinity;
+  nodes.forEach((node, index) => {
+    if (node.depth > folded) return;
+    folded = Infinity;
+    const parent = isParent(nodes, index);
+    rows.push({ ...node, parent });
+    if (parent && !open.has(node.node)) folded = node.depth;
+  });
+  return rows;
 }
 
 // Open to this depth at first: the model, its sections and their blocks.
-export function initiallyOpen(node, depth = 2, out = new Set()) {
-  if (node.children && node.depth < depth) {
-    out.add(node.id);
-    node.children.forEach((child) => initiallyOpen(child, depth, out));
-  }
-  return out;
-}
+export const parents = (nodes, depth = Infinity) =>
+  nodes
+    .filter((node, index) => node.depth < depth && isParent(nodes, index))
+    .map((node) => node.node);
 
 /* The kernel page for a leaf, open on the simulator grid at the leaf's
    config: `config` is the id /kernels/{kind}/configs/{id} answers. Only

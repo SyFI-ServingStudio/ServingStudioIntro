@@ -1,17 +1,14 @@
-import { ArrowUpRight, CircleCheck, CircleDashed } from "lucide-react";
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { TreeRows, backendLabels } from "../../components/CostTree";
+import { ArrowUpRight } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
+import { TreeRows } from "../../components/CostTree";
 import { formatValue } from "../kernels/kernelData";
 import {
-  allIds,
   formatMs,
-  initiallyOpen,
   kernelLink,
-  nestSection,
   paramValue,
-  prepareTree,
+  parents,
   shortReference,
-  visible,
+  visibleRows,
 } from "./modelData";
 import detail from "../kernels/KernelDetail.module.css";
 import s from "./Models.module.css";
@@ -20,12 +17,12 @@ const KIND = { sum: "Sum", max: "Max", scale: "Scale", leaf: "Leaf" };
 // Past this many, a leaf's shape reads "…"; the kernel page has the rest.
 const SHAPE_ARGS = 5;
 
-/* One member's cost tree, as /models/.../tree gives it: how the simulator
-   puts an iteration's time together from kernel calls. A leaf says which
-   kernel it calls and the config it reads rows with. `times`, once Live
-   predict has timed a batch, puts a time on every node: { section: time per
-   node }, indexed by the tree's node ids. `kernels` maps a kind to its
-   catalog entry, for the leaf's title and link. */
+/* One member's cost tree: how the simulator puts an iteration's time
+   together from kernel calls. `tree` (/models/.../tree) names each section's
+   kernel calls, their kernels and configs. `times` is the Analyzer's tree of
+   the batch Live predict last timed, { section: nodes }: every node's time
+   for one call and its share of the section, after its repeats. `kernels`
+   maps a kind to its catalog entry, for the leaf's title and link. */
 export function CostTreeExplorer({ tree, error, kernels, times }) {
   if (error)
     return (
@@ -84,10 +81,15 @@ function BuiltWith({ arch }) {
 function Tree({ tree, kernels, times }) {
   const [sectionIndex, setSection] = useState(0);
   const section = tree.sections[Math.min(sectionIndex, tree.sections.length - 1)];
-  const root = useMemo(() => prepareTree(nestSection(section)), [section]);
-  const timed = times?.[section.section] ?? null;
-  const [open, setOpen] = useState(() => initiallyOpen(root));
-  useEffect(() => setOpen(initiallyOpen(root)), [root]);
+  const nodes = times?.[section.section] ?? null;
+  const [open, setOpen] = useState(() => new Set(nodes ? parents(nodes, 2) : []));
+  // A new tree opens to its blocks; a new time on the same tree keeps the
+  // reader's folding.
+  const shape =
+    nodes && JSON.stringify(nodes.map((node) => [node.node, node.depth]));
+  useEffect(() => {
+    if (nodes) setOpen(new Set(parents(nodes, 2)));
+  }, [shape]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = (id) =>
     setOpen((current) => {
       const next = new Set(current);
@@ -96,15 +98,17 @@ function Tree({ tree, kernels, times }) {
       return next;
     });
 
-  const rows = [...visible(root, open)].map((node) => {
-    const time = timed && <NodeTime ms={timed[node.id]} repeated={node.repeated} />;
-    return node.kind === "leaf"
-      ? leafRow(tree, kernels, node, time)
-      : compositeRow(node, open, toggle, time);
-  });
+  const total = nodes?.[0].total_ms;
+  const rows = nodes
+    ? visibleRows(nodes, open).map((node) => {
+        const time = <NodeTime node={node} />;
+        return node.kind === "leaf"
+          ? leafRow(tree, section, kernels, node, time)
+          : compositeRow(node, open, toggle, time);
+      })
+    : [];
   const calls = tree.sections.reduce((sum, item) => sum + item.slots.length, 0);
   const configs = Object.keys(tree.configs).length;
-  const lacking = Object.values(tree.missing ?? {}).reduce((a, b) => a + b, 0);
 
   return (
     <section className={s.treePanel} aria-labelledby="tree-title">
@@ -119,12 +123,12 @@ function Tree({ tree, kernels, times }) {
             <dt>Kernel configs</dt>
             <dd>{configs.toLocaleString("en-US")}</dd>
           </div>
-          <div>
-            <dt>Rows lacking</dt>
-            <dd>
-              {tree.missing == null ? "unchecked" : lacking.toLocaleString("en-US")}
-            </dd>
-          </div>
+          {nodes && (
+            <div>
+              <dt>Critical path</dt>
+              <dd>{formatMs(total)} ms</dd>
+            </div>
+          )}
           <div>
             <dt>GPUs per replica</dt>
             <dd>{tree.gpus_per_replica ?? "unknown"}</dd>
@@ -152,7 +156,10 @@ function Tree({ tree, kernels, times }) {
           <span />
         )}
         <div className={s.treeActions}>
-          <button type="button" onClick={() => setOpen(new Set(allIds(root)))}>
+          <button
+            type="button"
+            onClick={() => setOpen(new Set(parents(nodes ?? [])))}
+          >
             Expand all
           </button>
           <button type="button" onClick={() => setOpen(new Set())}>
@@ -162,7 +169,13 @@ function Tree({ tree, kernels, times }) {
       </div>
 
       <div className={s.treeScroll}>
-        <TreeRows rows={rows} className={s.tree} label="Cost tree nodes" />
+        {nodes ? (
+          <TreeRows rows={rows} className={s.tree} label="Cost tree nodes" />
+        ) : (
+          <p role="status" className={s.treeLoading}>
+            The tree appears once Live predict has timed a batch.
+          </p>
+        )}
       </div>
     </section>
   );
@@ -183,50 +196,48 @@ const breakable = (name) =>
       ))
     : name;
 
-/* A node's predicted time. Inside a Scale it is one repeat's: the Scale
-   row holds the repeats' total. */
-function NodeTime({ ms, repeated }) {
-  if (ms == null) return null;
+const percent = (pct) => (pct > 0 && pct < 0.1 ? "<0.1%" : `${pct.toFixed(1)}%`);
+
+/* A node's time for one call, then its share of the section once its
+   repeats are counted. */
+function NodeTime({ node }) {
   return (
-    <span className={s.nodeTime}>
-      {formatMs(ms)} ms
-      {repeated && <small> per repeat</small>}
+    <span
+      className={s.nodeTime}
+      title={`One call ${formatMs(node.ms)} ms; ${formatMs(node.total_ms)} ms with its repeats`}
+    >
+      {formatMs(node.ms)} ms <small>{percent(node.pct)}</small>
     </span>
   );
 }
 
 function compositeRow(node, open, toggle, time) {
-  const after =
-    node.kind === "scale" ? (
-      <span className={s.times}>×{node.n.toLocaleString("en-US")}</span>
-    ) : node.kind === "max" ? (
-      <span className={s.ranks}>
-        {node.copies
-          ? `${node.copies} alike, one shown`
-          : `slowest of ${node.width}`}
-        {node.overlap !== 1 && `, ÷ ${node.overlap}`}
-      </span>
-    ) : null;
   return {
-    id: node.id,
+    id: node.node,
     kind: KIND[node.kind],
     depth: node.depth,
-    name: breakable(node.name),
-    note: node.note,
-    toggle: () => toggle(node.id),
-    open: open.has(node.id),
-    after,
-    meta: (
-      <>
-        {time}
-        <span className={s.nodeCount}>
-          {node.leaves.toLocaleString("en-US")}{" "}
-          {node.leaves === 1 ? "call" : "calls"}
-        </span>
-      </>
-    ),
+    name: breakable(node.label),
+    toggle: node.parent ? () => toggle(node.node) : undefined,
+    open: open.has(node.node),
+    after: copiesText(node),
+    meta: time,
   };
 }
+
+// Identical siblings show once; the row says how many it stands for.
+const copiesText = (node) =>
+  node.copies ? (
+    <span
+      className={s.ranks}
+      title={
+        node.avg_total_ms == null
+          ? undefined
+          : `The slowest of ${node.copies} is shown; their average is ${formatMs(node.avg_total_ms)} ms`
+      }
+    >
+      ×{node.copies}
+    </span>
+  ) : null;
 
 /* A config's scalar identity, the first few fields. */
 function shapeText(config) {
@@ -239,20 +250,17 @@ function shapeText(config) {
   return parts.join(", ");
 }
 
-function leafRow(tree, kernels, node, time) {
-  const { slot } = node;
+function leafRow(tree, section, kernels, node, time) {
+  const slot = section.slots[node.slot];
   const kernel = kernels.get(slot.kernel);
   const href = kernelLink(kernel, slot, tree);
   const title = kernel?.title ?? slot.kernel;
-  // The rows this member asks of the leaf's config that profile.db lacks:
-  // 0 when every one is measured, null when unchecked.
-  const lacking = tree.configs[slot.config]?.missing;
-  const checked = lacking != null;
   return {
-    id: node.id,
+    id: node.node,
     kind: "Leaf",
     depth: node.depth,
-    name: breakable(node.name),
+    name: breakable(node.label),
+    after: copiesText(node),
     note: shapeText(tree.configs[slot.config]),
     meta: (
       <>
@@ -267,28 +275,6 @@ function leafRow(tree, kernels, node, time) {
             {title}
           </span>
         )}
-        <span
-          className={s.coverage}
-          data-state={checked ? (lacking ? "unmeasured" : "measured") : undefined}
-          title={
-            lacking
-              ? `profile.db lacks ${lacking.toLocaleString("en-US")} of the rows this parameter set reads of this config; the kernel page shows its cells`
-              : checked
-                ? "Every row this parameter set reads of this config is measured"
-                : undefined
-          }
-        >
-          {checked &&
-            (lacking ? (
-              <CircleDashed size={14} aria-hidden="true" />
-            ) : (
-              <CircleCheck size={14} aria-hidden="true" />
-            ))}
-          {lacking ? "Lacks rows" : checked ? "Measured" : null}
-          <span className={s.backends}>
-            {slot.backends.map((b) => backendLabels[b] || b).join(", ")}
-          </span>
-        </span>
       </>
     ),
   };
