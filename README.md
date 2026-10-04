@@ -15,10 +15,30 @@ The development server listens on all interfaces by default.
 ## Production build
 
 ```bash
-npm run build
+SERVINGSTUDIO_UI_DIR=/path/to/ServingStudioUI npm run build
 ```
 
 Vite writes the deployable site to `dist/`.
+
+### Read more
+
+A live prediction on the Models page has a "Read more" button that opens
+ServingStudio UI's own result pages for it. Those pages are compiled into this
+site from a ServingStudioUI checkout (`app/src/embed`, on a branch that ships
+the embedded viewer), named by `SERVINGSTUDIO_UI_DIR`; see
+`scripts/servingstudio-ui.mjs`.
+
+- `npm run dev` without `SERVINGSTUDIO_UI_DIR` runs without Read more and says
+  so in its log.
+- `npm run build` without it stops, so a deploy does not drop Read more by
+  accident. `ALLOW_NO_READ_MORE=1 npm run build` builds the site without the
+  button; the GitHub Actions check sets it.
+- `npm run deploy:cse` runs a plain `npm run build`, so set one of the two
+  before it: `SERVINGSTUDIO_UI_DIR=… npm run deploy:cse` for the full site.
+
+The viewer reads the prediction through the public API's forwarded Analyzer
+routes (`/api/public/v1/analyzer/predictions/…`); `src/pages/models/ReadMore.jsx`
+answers any other read it makes with a 404 and logs it.
 
 ## Deployment
 

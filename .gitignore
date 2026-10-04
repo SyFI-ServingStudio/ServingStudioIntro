@@ -11,8 +11,10 @@ dist-redirect/
 /vibesim_intro (1).md
 /Roofline-Guided Agent for Optimzing LLM Inference.txt
 
-# Local verification scripts, captures and agent task briefs.
+# Local verification scripts, captures and agent task briefs, and the logs
+# and screenshots of local runs.
 .refactor/
+logs/
 design-briefs/
 agent-trace/
 
