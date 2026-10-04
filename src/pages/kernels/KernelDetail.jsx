@@ -128,10 +128,10 @@ export function KernelDetail({ catalog, entry }) {
 
 /* Views of one kernel's numbers. A kind whose Sim doc declares a chart over
    several configs (kernel.view) opens on it: one line per config of one
-   deployment's leaf. "Simulator grid" (the default otherwise, when the
-   simulator registered configs for this kind) plots each config on the cache
-   axes it interpolates over, per GPU and model. "Measurements" is a table of
-   every profile.db row, whoever asked for it, to sort and filter. */
+   parameter set's leaf. "Simulator grid" (the default otherwise, when a public
+   deployment reads this kind) plots each config on the cache axes it
+   interpolates over, per GPU and model. "Measurements" is a table of every
+   profile.db row, whoever asked for it, to sort and filter. */
 function Performance({ kernel, records, catalog, query }) {
   const [list, setList] = useState(null);
   const [error, setError] = useState(null);
@@ -185,12 +185,12 @@ function Performance({ kernel, records, catalog, query }) {
           {error
             ? `The kernel configs did not load (${error.message}).`
             : !hasGrid
-              ? "No simulator config reads this kernel's rows yet."
+              ? "No public deployment reads this kernel's rows yet."
               : view === "series"
-                ? `One chart per deployment and ${kernel.view.workload.label.toLowerCase()}, one line per ${kernel.view.series.label.toLowerCase()}.`
+                ? `One chart per parameter set and layer, one line per ${kernel.view.series.label.toLowerCase()}.`
                 : view === "grid"
                   ? "The cells the simulator reads for each kernel config, on its own cache axes."
-                  : "Every measured row for this kernel, including shapes no supported deployment reads."}
+                  : "Every measured row for this kernel, including shapes no public deployment reads."}
         </p>
       </div>
       {view === "series" ? (
@@ -221,11 +221,6 @@ function Performance({ kernel, records, catalog, query }) {
   );
 }
 
-const ROLE_LABELS = {
-  sweep: "Varies with the batch",
-  config: "Fixed by the model",
-};
-
 const sortValues = (values) =>
   [...values].sort((a, b) =>
     typeof a === "number" && typeof b === "number"
@@ -255,7 +250,6 @@ function About({ kernel }) {
           <thead>
             <tr>
               <th scope="col">Name</th>
-              <th scope="col">Role</th>
               <th scope="col">Unit</th>
               <th scope="col">Meaning</th>
             </tr>
@@ -266,7 +260,6 @@ function About({ kernel }) {
                 <th scope="row" className={s.code}>
                   {arg.name}
                 </th>
-                <td>{ROLE_LABELS[arg.role] ?? "Not run by a listed model yet"}</td>
                 <td>{arg.unit || "–"}</td>
                 <td>{arg.doc}</td>
               </tr>
@@ -459,9 +452,7 @@ function DataAndApi({ kernel, records, catalog, query }) {
             <Download size={18} aria-hidden="true" />
             Catalog of all {catalog.kernels.length} kernels, JSON
           </a>
-          <span>
-            Coverage per GPU and backend, and the models that use each kernel
-          </span>
+          <span>Coverage per GPU, backend and precision</span>
         </li>
       </ul>
 

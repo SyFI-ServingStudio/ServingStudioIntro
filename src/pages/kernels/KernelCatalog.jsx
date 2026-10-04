@@ -3,6 +3,9 @@ import { useEffect, useSyncExternalStore } from "react";
 import { PageHero } from "../../components/PageHero";
 import {
   groupModels,
+  presetArch,
+  presetCheckpoint,
+  usedModels,
   readQuery,
   setQuery,
   shortGpu,
@@ -37,7 +40,7 @@ function matcher(query, catalog) {
   };
   const matches = (k, over = {}) => {
     const m = over.models ?? models;
-    if (m.size && !k.used_by.some((stem) => m.has(stem))) return false;
+    if (m.size && !usedModels(k).some((key) => m.has(key))) return false;
     if (!covered(k, over).length) return false;
     if (!needle) return true;
     return [
@@ -46,7 +49,7 @@ function matcher(query, catalog) {
       categoryOf(k),
       k.subcategory ?? "",
       ...k.used_by,
-      ...groupModels(k.used_by, catalog.models).flatMap((g) => [
+      ...groupModels(usedModels(k), catalog.models).flatMap((g) => [
         g.family,
         ...g.names,
       ]),
@@ -76,10 +79,9 @@ export function KernelCatalog({ catalog, unknownKind }) {
   const update = (patch) => setQuery({ ...query, ...patch });
   const m = matcher(query, catalog);
 
-  const families = groupModels(
-    catalog.models.map((model) => model.model_config),
-    catalog.models,
-  );
+  // The models some kernel is used by: every other one would match nothing.
+  const usedBy = [...new Set(catalog.kernels.flatMap(usedModels))];
+  const families = groupModels(usedBy, catalog.models);
   const gpuNames = catalog.gpus.map((g) => shortGpu(g.name));
   // The count on a choice is how many kernels have it, given the other
   // columns' filters. Choices in its own column don't move it, so picking FP8
@@ -105,7 +107,8 @@ export function KernelCatalog({ catalog, unknownKind }) {
     (k) => (!cat || categoryOf(k) === cat) && (!sub || k.subcategory === sub),
   );
   const order = (a, b) =>
-    b.used_by.length - a.used_by.length || titleOf(a).localeCompare(titleOf(b));
+    usedModels(b).length - usedModels(a).length ||
+    titleOf(a).localeCompare(titleOf(b));
   const groups = categories
     .map((category) => [
       category,
@@ -215,7 +218,7 @@ export function KernelCatalog({ catalog, unknownKind }) {
             <div className={s.filterCell}>
               <span className={s.columnName}>Used by</span>
               <div className={s.choices}>
-                {families.map(({ family, stems, names }) => {
+                {families.map(({ family, keys: stems, names }) => {
                   const picked = stems.filter((n) => m.models.has(n));
                   const state =
                     picked.length === 0
@@ -240,10 +243,10 @@ export function KernelCatalog({ catalog, unknownKind }) {
               </div>
               {families
                 .filter(
-                  ({ stems }) =>
-                    stems.length > 1 && stems.some((n) => m.models.has(n)),
+                  ({ keys }) =>
+                    keys.length > 1 && keys.some((n) => m.models.has(n)),
                 )
-                .map(({ family, stems, names }) => (
+                .map(({ family, keys: stems, names }) => (
                   <div
                     key={family}
                     className={s.variants}
@@ -362,6 +365,7 @@ export function KernelCatalog({ catalog, unknownKind }) {
                         kernel={kernel}
                         catalog={catalog}
                         coverage={m.covered(kernel)}
+                        usedBy={usedBy.length}
                       />
                     )),
                   ])}
@@ -375,10 +379,18 @@ export function KernelCatalog({ catalog, unknownKind }) {
   );
 }
 
+/* The deployments (archs) of one model that build a config of a kernel. */
+const deployments = (kernel, key) =>
+  kernel.used_by
+    .filter((preset) => presetCheckpoint(preset) === key)
+    .map(presetArch)
+    .join(", ");
+
 /* The precision and GPU cells follow the filters: with B200 picked, the
    precision cell lists what was measured on B200, and the other way round. */
-function KernelRow({ kernel, catalog, coverage }) {
+function KernelRow({ kernel, catalog, coverage, usedBy }) {
   const models = catalog.models;
+  const used = usedModels(kernel);
   const precisions = catalog.precisions.filter((p) =>
     coverage.some((c) => c.precision === p),
   );
@@ -417,22 +429,24 @@ function KernelRow({ kernel, catalog, coverage }) {
         {kernel.title && <code>{kernel.kind}</code>}
       </th>
       <td data-label="Used by">
-        {models.length > 1 && kernel.used_by.length === models.length ? (
+        {usedBy > 1 && used.length === usedBy ? (
           <Tag
             type="family"
             value="all"
-            title="Every modeled architecture uses this kernel"
+            title="Every model with a public deployment uses this kernel"
           >
             All models
           </Tag>
-        ) : kernel.used_by.length ? (
+        ) : used.length ? (
           <TagList label="Used by">
-            {groupModels(kernel.used_by, models).map(({ family, names }) => (
+            {groupModels(used, models).map(({ family, keys, names }) => (
               <Tag
                 key={family}
                 type="family"
                 value={family}
-                title={names.join(", ")}
+                title={keys
+                  .map((key, i) => `${names[i]}: ${deployments(kernel, key)}`)
+                  .join("\n")}
               />
             ))}
           </TagList>
