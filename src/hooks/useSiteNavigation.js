@@ -33,8 +33,8 @@ export function preparePage(page, search = "") {
     return Promise.all([
       hero,
       import("../pages/models/Models"),
-      import("../pages/models/modelData").then(({ loadArchs }) =>
-        loadArchs().catch(() => {}),
+      import("../pages/models/modelData").then(({ loadModels }) =>
+        loadModels().catch(() => {}),
       ),
     ]);
   if (page === "kernels")
