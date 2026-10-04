@@ -51,7 +51,7 @@ export function MemberPicker({
               const reason = blocked(target);
               const title = [
                 valueTitle(axis, value),
-                !exact && "No member pairs it with the other values picked",
+                !exact && "No configuration pairs it with the other values picked",
                 reason,
               ]
                 .filter(Boolean)

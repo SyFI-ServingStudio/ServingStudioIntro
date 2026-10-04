@@ -565,12 +565,12 @@ function LinesView({
               <dd className={g.stack}>
                 <span className={s.muted}>{view.workload.doc}</span>
                 <span className={s.muted}>
-                  The parameter set below reads one; its preset names it.
+                  The configuration below reads one; its deployment names it.
                 </span>
               </dd>
             </div>
             <div>
-              <dt>Parameter set</dt>
+              <dt>Configuration</dt>
               <dd>
                 <a
                   className={g.use}
@@ -588,7 +588,7 @@ function LinesView({
               </dd>
             </div>
             <div>
-              <dt>Fixed profile.db args</dt>
+              <dt>Fixed arguments</dt>
               <dd>
                 {Object.entries(first.fixed).map(([key, v]) => (
                   <span key={key} className={g.fact}>

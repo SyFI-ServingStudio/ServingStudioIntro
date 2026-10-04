@@ -187,7 +187,7 @@ function Performance({ kernel, records, catalog, query }) {
             : !hasGrid
               ? "No public deployment reads this kernel's rows yet."
               : view === "series"
-                ? `One chart per parameter set and layer, one line per ${kernel.view.series.label.toLowerCase()}.`
+                ? `One chart per configuration and layer, one line per ${kernel.view.series.label.toLowerCase()}.`
                 : view === "grid"
                   ? "The cells the simulator reads for each kernel config, on its own cache axes."
                   : "Every measured row for this kernel, including shapes no public deployment reads."}

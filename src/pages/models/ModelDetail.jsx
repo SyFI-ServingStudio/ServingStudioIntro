@@ -97,13 +97,13 @@ function Explorer({ catalog, checkpoint, preset }) {
     <>
       {unmatched && (
         <p className={s.notice} role="status">
-          The link named values no parameter set of this deployment has, so the
+          The link named values no configuration of this deployment has, so the
           closest one is shown.
         </p>
       )}
       <section
         className={`${detail.controls} ${s.picker}`}
-        aria-label="Parameter set"
+        aria-label="Configuration"
       >
         <div
           className={`${picker.level} ${s.wrapLevel}`}
@@ -181,10 +181,10 @@ function Explorer({ catalog, checkpoint, preset }) {
 
 /* Why a member cannot be predicted, or null when it can. */
 function blockedReason(member) {
-  if (member.error) return `Does not build: ${member.error}`;
-  if (member.missing == null) return "Not checked against profile.db";
+  if (member.error) return `The simulator cannot build it: ${member.error}`;
+  if (member.missing == null) return "Its measurements are not checked yet";
   if (Object.keys(member.missing).length)
-    return `Not predictable: profile.db lacks rows of ${missingText(member.missing)}`;
+    return `Cannot be timed yet; measurements missing for ${missingText(member.missing)}`;
   return null;
 }
 
@@ -209,16 +209,17 @@ function MemberStatus({ member, workload }) {
       )}
       <p>
         {member.error ? (
-          <>The simulator could not build this parameter set: {member.error}</>
+          <>The simulator could not build this configuration: {member.error}</>
         ) : (
           <>
             {member.leaves.toLocaleString("en-US")} kernel calls over{" "}
             {member.configs.toLocaleString("en-US")} kernel configs on{" "}
             {member.gpus_per_replica}{" "}
-            {member.gpus_per_replica === 1 ? "GPU" : "GPUs"}.{" "}
-            {reason ? (
+            {member.gpus_per_replica === 1 ? "GPU" : "GPUs"}.
+            {reason && (
               <>
-                <b>Not predictable:</b> profile.db lacks measured rows of{" "}
+                {" "}
+                <b>Cannot be timed yet:</b> measurements missing for{" "}
                 {Object.entries(member.missing ?? {}).map(
                   ([kind, count], index) => (
                     <span key={kind}>
@@ -227,10 +228,8 @@ function MemberStatus({ member, workload }) {
                     </span>
                   ),
                 )}
-                {member.missing == null && "kinds not yet checked"}.
+                {member.missing == null && "kernels not yet checked"}.
               </>
-            ) : (
-              "Every row its kernels read is measured, so Live predict below can time it."
             )}
           </>
         )}
@@ -309,8 +308,8 @@ function Legend() {
         ))}
       </dl>
       <p className={s.legendNote}>
-        <CircleDashed size={14} aria-hidden="true" /> marks a parameter set, or a
-        kernel config in the tree, that profile.db lacks rows for.
+        <CircleDashed size={14} aria-hidden="true" /> marks a configuration that
+        cannot be timed yet, because some of its kernel measurements are missing.
       </p>
     </section>
   );

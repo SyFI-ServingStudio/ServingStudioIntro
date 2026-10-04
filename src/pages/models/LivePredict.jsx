@@ -41,14 +41,17 @@ export function LivePredict({
 
   let blocked = null;
   if (member.error)
-    blocked = ["This parameter set does not build", <p key="m">{member.error}</p>];
+    blocked = [
+      "The simulator cannot build this configuration",
+      <p key="m">{member.error}</p>,
+    ];
   else if (!predictable(member))
     blocked = [
-      "This parameter set cannot be predicted yet",
+      "This configuration cannot be timed yet",
       <p key="m">
-        Predictions read measured rows only, and profile.db lacks rows of{" "}
-        {missingText(member.missing ?? {}) || "kinds not yet checked"}. Pick a
-        parameter set without the dashed mark above.
+        Predictions use measurements only, and these kernels lack some:{" "}
+        {missingText(member.missing ?? {}) || "not yet checked"}. Pick a
+        configuration without the dashed mark above.
       </p>,
     ];
   else if (shape?.problem)
@@ -64,7 +67,7 @@ export function LivePredict({
       </div>
       <p className={s.predictIntro}>
         Add requests to one iteration&apos;s batch. The data service runs Sim&apos;s
-        timing-predict on the measured kernel rows of the parameter set above and
+        timing-predict on the kernel measurements of the configuration above and
         times every node of its cost tree.
       </p>
       {blocked ? (
@@ -118,7 +121,7 @@ function editorShape(info, caseFields) {
   if (decode.name === "decode_requests" && info.query_width == null)
     return {
       problem:
-        "The member names no verify width, so its decode requests have no shape.",
+        "This configuration names no verify width, so its decode requests have no shape.",
     };
   return { mode: "requests", fields: { prefill, decode } };
 }
@@ -497,7 +500,7 @@ function GroupEditor({ group, onChange, limit, fields, label }) {
           Add decodes
         </button>
       </fieldset>
-      <div className={s.presets} aria-label="Batch presets" role="group">
+      <div className={s.presets} aria-label="Example batches" role="group">
         <span>Start from</span>
         {batches(limit).map(([name, preset]) => (
           <button key={name} type="button" onClick={() => onChange(preset)}>
@@ -767,13 +770,13 @@ function Failure({ failure, retry, preset, member, onPick }) {
         <TriangleAlert size={18} aria-hidden="true" />
         <div>
           <p className={s.predictStatusTitle}>
-            A request is longer than this parameter set&apos;s{" "}
+            A request is longer than this configuration&apos;s{" "}
             <code>max_model_len</code> {paramValue(limit)}
           </p>
           <p className={s.failureText}>{reason}</p>
           {larger.length ? (
             <>
-              <p>Pick a parameter set that goes further, or shorten the request:</p>
+              <p>Pick a configuration that goes further, or shorten the request:</p>
               <div className={s.suggestions}>
                 {larger.map((m) => (
                   <button
@@ -783,7 +786,7 @@ function Failure({ failure, retry, preset, member, onPick }) {
                   >
                     <code>max_model_len</code> {paramValue(m.params.max_model_len)}
                     {!predictable(m) && (
-                      <span className={s.soft}> (not predictable)</span>
+                      <span className={s.soft}> (cannot be timed yet)</span>
                     )}
                   </button>
                 ))}
@@ -791,7 +794,7 @@ function Failure({ failure, retry, preset, member, onPick }) {
             </>
           ) : (
             <p>
-              No parameter set of this deployment has a larger{" "}
+              No configuration of this deployment has a larger{" "}
               <code>max_model_len</code>; shorten the request.
             </p>
           )}
@@ -803,7 +806,7 @@ function Failure({ failure, retry, preset, member, onPick }) {
     failure.status === 400
       ? "The simulator rejected this batch"
       : failure.status === 409
-        ? "This parameter set cannot be predicted"
+        ? "This configuration cannot be timed yet"
         : "The prediction failed";
   return (
     <div className={s.predictStatus} data-tone="warn" role="alert">

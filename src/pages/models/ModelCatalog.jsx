@@ -123,7 +123,7 @@ function CheckpointRow({ checkpoint }) {
                 </span>
               ))
             ) : (
-              <span className={s.contract}>No public preset yet</span>
+              <span className={s.contract}>None yet</span>
             )}
           </span>
         </span>
@@ -139,7 +139,7 @@ function CheckpointRow({ checkpoint }) {
         )}
         {members.length > 0 && (
           <span className={s.fact}>
-            <span className={s.factName}>Parameter sets</span>
+            <span className={s.factName}>Configurations</span>
             <span className={s.factValue}>
               <span className={s.figure}>{members.length}</span>
               <span className={s.contract}>{ready} predictable</span>

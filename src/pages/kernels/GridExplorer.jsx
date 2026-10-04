@@ -78,7 +78,7 @@ function membersText(d, members) {
         subset.axes.map((name, i) => `${name} ${formatValue(tuple[i])}`).join(", "),
       )
       .join("; ");
-  return `${members.length} of ${all.length} members`;
+  return `${members.length} of ${all.length} configurations`;
 }
 
 /* A preset as its chips read it: the arch, then each axis its members move,
@@ -704,7 +704,7 @@ function ConfigFacts({ kernel, catalog, detail, entry }) {
       <h2>This config</h2>
       <dl>
         <div>
-          <dt>Fixed profile.db args</dt>
+          <dt>Fixed arguments</dt>
           <dd>
             {fixed.map(([key, v]) => (
               <span key={key} className={s.fact}>
