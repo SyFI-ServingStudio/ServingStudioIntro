@@ -78,6 +78,12 @@ export function useSiteNavigation(mainRef) {
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (document.startViewTransition && !reduced) {
         transitionRef.current = document.startViewTransition(update);
+        // A navigation that starts before this one's animation ends skips it,
+        // and skipTransition() rejects `ready` with an AbortError. Any other
+        // rejection is a real failure and stays uncaught.
+        transitionRef.current.ready.catch((error) => {
+          if (error?.name !== "AbortError") throw error;
+        });
       } else {
         update();
         if (!reduced)
