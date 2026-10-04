@@ -114,13 +114,13 @@ function CheckpointRow({ checkpoint }) {
           <span className={s.factValue}>
             {presets.length ? (
               presets.map((p) => (
-                <code
+                <span
                   key={p.id}
-                  className={s.archTag}
-                  title={CONTRACTS[p.contract] ?? undefined}
+                  className={s.deploymentName}
+                  title={[p.arch, CONTRACTS[p.contract]].filter(Boolean).join("\n")}
                 >
-                  {p.arch}
-                </code>
+                  {p.arch_name ?? p.arch}
+                </span>
               ))
             ) : (
               <span className={s.contract}>No public preset yet</span>

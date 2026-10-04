@@ -9,6 +9,7 @@ import {
   predictable,
   sameValue,
 } from "./modelData";
+import { presetCheckpoint } from "../kernels/kernelData";
 import { ReadMoreButton, ResultOverlay } from "./ReadMore";
 import cost from "../../components/CostTree.module.css";
 import s from "./Models.module.css";
@@ -658,7 +659,7 @@ function Result({
             {batchText(groups, groupCount, tokens)}
             <br />
             {tree.gpus_per_replica ?? "?"} × {tree.gpu.replace(/^NVIDIA /, "")} ·{" "}
-            <code>{preset.arch}</code>
+            <span title={preset.arch}>{preset.arch_name ?? preset.arch}</span>
           </p>
         )}
       </div>
@@ -690,7 +691,13 @@ function Result({
       {sections && !busy && (
         <PredictReadMore
           body={body}
-          name={[preset.id, paramsText(member.params)].filter(Boolean).join(" · ")}
+          name={[
+            presetCheckpoint(preset.id),
+            preset.arch_name ?? preset.arch,
+            paramsText(member.params),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         />
       )}
     </div>

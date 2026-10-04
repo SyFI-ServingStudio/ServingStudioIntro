@@ -251,6 +251,11 @@ export const readQuery = () =>
 export const checkpointKey = (checkpoint) => checkpoint.split("/").at(-1);
 export const presetCheckpoint = (preset) => preset.split("/")[0];
 export const presetArch = (preset) => preset.split("/").slice(1).join("/");
+/* How a reader knows a preset's deployment ("vLLM, TP and EP"): its
+   `arch_name` from /models, which the Kernels page loads beside the catalog
+   (`catalog.archNames`); the arch tag when /models did not load. */
+export const archName = (catalog, preset) =>
+  catalog.archNames?.get(preset) ?? presetArch(preset);
 export const modelEntry = (models, key) =>
   models.find((m) => checkpointKey(m.checkpoint) === key);
 export const modelName = (models, key) => modelEntry(models, key)?.name ?? key;

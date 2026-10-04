@@ -2,8 +2,8 @@ import { Search, X } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { PageHero } from "../../components/PageHero";
 import {
+  archName,
   groupModels,
-  presetArch,
   presetCheckpoint,
   usedModels,
   readQuery,
@@ -380,11 +380,11 @@ export function KernelCatalog({ catalog, unknownKind }) {
 }
 
 /* The deployments (archs) of one model that build a config of a kernel. */
-const deployments = (kernel, key) =>
+const deployments = (catalog, kernel, key) =>
   kernel.used_by
     .filter((preset) => presetCheckpoint(preset) === key)
-    .map(presetArch)
-    .join(", ");
+    .map((preset) => archName(catalog, preset))
+    .join("; ");
 
 /* The precision and GPU cells follow the filters: with B200 picked, the
    precision cell lists what was measured on B200, and the other way round. */
@@ -445,7 +445,9 @@ function KernelRow({ kernel, catalog, coverage, usedBy }) {
                 type="family"
                 value={family}
                 title={keys
-                  .map((key, i) => `${names[i]}: ${deployments(kernel, key)}`)
+                  .map(
+                    (key, i) => `${names[i]}: ${deployments(catalog, kernel, key)}`,
+                  )
                   .join("\n")}
               />
             ))}

@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { loadModels } from "../models/modelData";
 import { loadCatalog, readQuery, setQuery, subscribeUrl } from "./kernelData";
 import { KernelCatalog } from "./KernelCatalog";
 import { KernelDetail } from "./KernelDetail";
@@ -10,7 +11,19 @@ export default function Kernels() {
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
-    loadCatalog().then(setCatalog, setError);
+    // /models names each deployment; without it the pages show arch tags.
+    Promise.all([loadCatalog(), loadModels().catch(() => null)]).then(
+      ([kernels, models]) =>
+        setCatalog({
+          ...kernels,
+          archNames: new Map(
+            (models?.checkpoints ?? []).flatMap((c) =>
+              c.presets.map((p) => [p.id, p.arch_name ?? p.arch]),
+            ),
+          ),
+        }),
+      setError,
+    );
   }, []);
 
   if (error)

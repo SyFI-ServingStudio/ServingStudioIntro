@@ -118,12 +118,14 @@ function Explorer({ catalog, checkpoint, preset }) {
                 type="choice"
                 value={p.arch}
                 pressed={p === preset}
-                title={`${CONTRACTS[p.contract] ?? p.contract ?? ""}\npresets/public/${p.id}.yaml`}
+                title={[p.arch, CONTRACTS[p.contract] ?? p.contract]
+                  .filter(Boolean)
+                  .join("\n")}
                 onClick={() =>
                   pick(memberFromUrl(p, member.params).member.params, p.id)
                 }
               >
-                <span className={s.axisName}>{p.arch}</span>
+                {p.arch_name ?? p.arch}
               </ToggleTag>
             ))}
           </div>

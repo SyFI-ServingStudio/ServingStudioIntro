@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ChartBar } from "./ChartBar";
 import { Level, presetAxes } from "./GridExplorer";
 import {
+  archName,
   argUnit,
   formatNumber,
   formatValue,
@@ -258,11 +259,12 @@ export function SeriesExplorer({ kernel, catalog, list, query, update }) {
                 type="choice"
                 value={id}
                 pressed={id === depId}
+                title={presetArch(id)}
                 onClick={() =>
                   update({ ...cleared, cgpu: gpu, cmodel: stem, dep: id, leaf: "" })
                 }
               >
-                <span className={s.code}>{presetArch(id)}</span>
+                {archName(catalog, id)}
               </ToggleTag>
             ))}
           </Level>
@@ -533,7 +535,7 @@ function LinesView({
                     `${formatNumber(p.y)}× · ${formatNumber(p.abs)} ${metric.unit}`
                 : undefined
             }
-            describe={`${yLabel} of ${kernel.kind} over ${xName}, one line per ${view.series.label.toLowerCase()} of ${count}, ${backend}, ${preset} ${paramsText(params)}.`}
+            describe={`${yLabel} of ${kernel.kind} over ${xName}, one line per ${view.series.label.toLowerCase()} of ${count}, ${backend}, ${archName(catalog, preset)} ${paramsText(params)}.`}
             note={
               relative
                 ? `Each line is one config's grid for ${backend}, divided cell by cell by ${reference}'s, which leads the order and so lies flat at 1; a cell ${reference} did not measure is left out. The ticks along the bottom are its cells.`
@@ -570,8 +572,15 @@ function LinesView({
             <div>
               <dt>Parameter set</dt>
               <dd>
-                <a className={g.use} href={memberHref(preset, params)}>
-                  <code>{preset}</code>
+                <a
+                  className={g.use}
+                  href={memberHref(preset, params)}
+                  title={preset}
+                >
+                  <strong>
+                    {modelName(catalog.models, presetCheckpoint(preset))} ·{" "}
+                    {archName(catalog, preset)}
+                  </strong>
                   {Object.keys(params).length > 0 && (
                     <span>{paramsText(params)}</span>
                   )}

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChartBar } from "./ChartBar";
 import {
   apiUrl,
+  archName,
   argUnit,
   downloadText,
   formatNumber,
@@ -82,21 +83,20 @@ function membersText(d, members) {
 
 /* A preset as its chips read it: the arch, then each axis its members move,
    with the values they take. */
-export const presetLabel = (d) =>
-  [
-    presetArch(d.preset),
-    ...presetAxes(d.members)
-      .filter((axis) => axis.values.length > 1)
-      .map(
-        (axis) =>
-          `${axis.name} ${axis.values.map((v) => formatValue(v)).join(" · ")}`,
-      ),
-  ].join(", ");
+export const presetLabel = (d) => {
+  const axes = presetAxes(d.members)
+    .filter((axis) => axis.values.length > 1)
+    .map(
+      (axis) =>
+        `${axis.name} ${axis.values.map((v) => formatValue(v)).join(" · ")}`,
+    );
+  return axes.length ? `${d.name} (${axes.join("; ")})` : d.name;
+};
 
 /* configs → GPU → model → preset → the configs its members read, each with
    the roles that read it and which members ask. A preset knows its members
    by the ones that read this kind. */
-function buildIndex(list) {
+function buildIndex(list, catalog) {
   const gpus = new Map();
   for (const config of list.configs) {
     if (!gpus.has(config.gpu)) gpus.set(config.gpu, new Map());
@@ -108,6 +108,7 @@ function buildIndex(list) {
       if (!presets.has(use.preset))
         presets.set(use.preset, {
           preset: use.preset,
+          name: archName(catalog, use.preset),
           members: new Map(),
           entries: new Map(),
         });
@@ -184,7 +185,7 @@ function distinguishing(configs) {
 }
 
 export function GridExplorer({ kernel, catalog, list, query, update }) {
-  const index = useMemo(() => buildIndex(list), [list]);
+  const index = useMemo(() => buildIndex(list, catalog), [list, catalog]);
   const models = catalog.models;
   const rank = (stem) => {
     const i = models.findIndex((m) => m.checkpoint.split("/").at(-1) === stem);
@@ -364,7 +365,9 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
               <ul className={s.deployments}>
                 {group.presets.map((d) => (
                   <li key={d.preset}>
-                    <span className={s.deployment}>{presetLabel(d)}</span>
+                    <span className={s.deployment} title={presetArch(d.preset)}>
+                      {presetLabel(d)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -631,7 +634,12 @@ function GridView({ kernel, catalog, detail, entry, query, update }) {
       </div>
 
       <div className={k.rowsColumn}>
-        <ConfigFacts kernel={kernel} detail={detail} entry={entry} />
+        <ConfigFacts
+          kernel={kernel}
+          catalog={catalog}
+          detail={detail}
+          entry={entry}
+        />
         <CellTable
           kernel={kernel}
           detail={detail}
@@ -685,7 +693,7 @@ function FoldedList({ items, render }) {
   );
 }
 
-function ConfigFacts({ kernel, detail, entry }) {
+function ConfigFacts({ kernel, catalog, detail, entry }) {
   const fixed = Object.entries(detail.fixed);
   const own = Object.entries(detail.identity).filter(
     ([key]) => !(key in detail.fixed) && !detail.structured.includes(key),
@@ -741,9 +749,12 @@ function ConfigFacts({ kernel, detail, entry }) {
                 key={memberKey([use.preset, use.params])}
                 className={s.use}
                 href={memberHref(use.preset, use.params)}
-                title={use.roles.join("\n")}
+                title={[use.preset, ...use.roles].join("\n")}
               >
-                <code>{use.preset}</code>
+                <strong>
+                  {modelName(catalog.models, presetCheckpoint(use.preset))} ·{" "}
+                  {archName(catalog, use.preset)}
+                </strong>
                 {Object.keys(use.params).length > 0 && (
                   <span>{paramsText(use.params)}</span>
                 )}

@@ -168,9 +168,9 @@
   font-size: var(--fs-fine);
 }
 
-.use code {
+.use strong {
   color: inherit;
-  font-family: var(--font-code);
+  font-weight: 500;
 }
 
 .use span {

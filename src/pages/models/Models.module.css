@@ -125,6 +125,11 @@
   font-size: var(--fs-fine);
 }
 
+.deploymentName {
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+}
+
 .archArrow {
   color: var(--subtle);
   transition:
