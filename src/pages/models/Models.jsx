@@ -1,19 +1,20 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { readQuery, setQuery, subscribeUrl } from "../kernels/kernelData";
-import { loadArchs } from "./modelData";
+import { loadModels } from "./modelData";
 import { ModelCatalog } from "./ModelCatalog";
 import { ModelDetail } from "./ModelDetail";
 
 const search = () => window.location.search;
 
-/* The Models page: the list of archs, or one arch (`?arch=`) with a supported
-   parameter set picked and its cost tree. */
+/* The Models page: the list of checkpoints, or one public preset
+   (`?preset=<checkpoint>/<arch>`) with one member picked by its axis values,
+   its cost tree and Live predict. */
 export default function Models() {
   const query = useSyncExternalStore(subscribeUrl, search);
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
-    loadArchs().then(setCatalog, setError);
+    loadModels().then(setCatalog, setError);
   }, []);
 
   if (error)
@@ -29,12 +30,18 @@ export default function Models() {
         Loading models…
       </p>
     );
-  const { arch } = readQuery(query);
-  const entry = arch && catalog.archs.find((a) => a.arch === arch);
-  return entry ? (
-    <ModelDetail key={arch} catalog={catalog} entry={entry} />
+  const { preset: id } = readQuery(query);
+  const checkpoint =
+    id && catalog.checkpoints.find((c) => c.presets.some((p) => p.id === id));
+  return checkpoint ? (
+    <ModelDetail
+      key={checkpoint.checkpoint}
+      catalog={catalog}
+      checkpoint={checkpoint}
+      preset={checkpoint.presets.find((p) => p.id === id)}
+    />
   ) : (
-    <ModelCatalog catalog={catalog} unknownArch={arch && !entry ? arch : null} />
+    <ModelCatalog catalog={catalog} unknownPreset={id && !checkpoint ? id : null} />
   );
 }
 
@@ -45,9 +52,4 @@ export function openModel(event, params) {
   event.preventDefault();
   setQuery(params, { push: true });
   window.scrollTo({ top: 0, behavior: "instant" });
-}
-
-export function modelHref(params) {
-  const text = new URLSearchParams(params).toString();
-  return `${import.meta.env.BASE_URL}models.html${text ? `?${text}` : ""}`;
 }

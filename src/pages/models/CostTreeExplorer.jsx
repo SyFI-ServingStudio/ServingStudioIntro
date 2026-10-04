@@ -1,16 +1,16 @@
-import { ArrowUpRight, CircleCheck, CircleDashed, CircleDot } from "lucide-react";
+import { ArrowUpRight, CircleCheck, CircleDashed } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { TreeRows, backendLabels } from "../../components/CostTree";
 import { formatValue } from "../kernels/kernelData";
 import {
   allIds,
-  coverage,
+  formatMs,
   initiallyOpen,
   kernelLink,
+  nestSection,
   paramValue,
   prepareTree,
-  routingText,
-  sourceText,
+  shortReference,
   visible,
 } from "./modelData";
 import detail from "../kernels/KernelDetail.module.css";
@@ -20,11 +20,13 @@ const KIND = { sum: "Sum", max: "Max", scale: "Scale", leaf: "Leaf" };
 // Past this many, a leaf's shape reads "…"; the kernel page has the rest.
 const SHAPE_ARGS = 5;
 
-/* One parameter set's cost tree, as ModelDetail loaded it: how the simulator
-   puts an iteration's time together from kernel calls. It carries no times; a
-   leaf says which kernel it calls, the shape it asks for and whether
-   profile.db measures that shape. */
-export function CostTreeExplorer({ tree, error }) {
+/* One member's cost tree, as /models/.../tree gives it: how the simulator
+   puts an iteration's time together from kernel calls. A leaf says which
+   kernel it calls and the config it reads rows with. `times`, once Live
+   predict has timed a batch, puts a time on every node: { section: time per
+   node }, indexed by the tree's node ids. `kernels` maps a kind to its
+   catalog entry, for the leaf's title and link. */
+export function CostTreeExplorer({ tree, error, kernels, times }) {
   if (error)
     return (
       <section className={s.treePanel}>
@@ -45,98 +47,45 @@ export function CostTreeExplorer({ tree, error }) {
         <p role="alert">The simulator could not build this tree: {tree.error}</p>
       </section>
     );
-  return <Tree key={JSON.stringify(tree.run?.query ?? tree.query)} tree={tree} />;
+  return (
+    <Tree
+      key={JSON.stringify([tree.preset, tree.params])}
+      tree={tree}
+      kernels={kernels ?? new Map()}
+      times={times}
+    />
+  );
 }
 
-const HIDDEN = ["num_layers", "sim_num_layers"];
+// Params every tree has and no reader picks.
+const HIDDEN = ["type", "model_config", "num_layers", "sim_num_layers"];
 
-/* "Built as in <source>: <params>." for a tree built as a registered run,
-   then the other sources that recorded the same run. */
-function BuiltAs({ run, defaults }) {
-  // Sources named alike (two prediction configs of one name on another
-  // machine) read once, with how many there are.
-  const named = new Map();
-  for (const source of run.sources) {
-    const text = sourceText(source);
-    named.set(text, { source, count: (named.get(text)?.count ?? 0) + 1 });
-  }
-  const [first, ...others] = [...named.values()];
-  const routingKeys = new Set(
-    run.pickers.find((p) => p.name === "routing")?.keys ?? [],
-  );
-  const routing = Object.fromEntries(
-    Object.entries(run.params).filter(([name]) => routingKeys.has(name)),
-  );
-  const params = Object.entries(run.params).filter(
-    ([name]) => !routingKeys.has(name) && !HIDDEN.includes(name),
-  );
-  const items = [
-    ...params.map(([name, value]) => [name, paramValue(value), name in defaults]),
-    ...(routingKeys.size
-      ? [["routing", routingText(routing, run.routing), false]]
-      : []),
-  ].sort(([a], [b]) => order(a) - order(b));
+/* The arch block the preset builds this member with, every param filled. */
+function BuiltWith({ arch }) {
+  const items = Object.entries(arch).filter(([name]) => !HIDDEN.includes(name));
+  if (!items.length) return null;
   return (
     <p className={s.defaults}>
-      Built as in <SourceName {...first} />:{" "}
-      {items.map(([name, text, isDefault], index) => (
-        <span
-          key={name}
-          title={name === "routing" ? run.routing?.label : undefined}
-        >
+      Built with{" "}
+      {items.map(([name, value], index) => (
+        <span key={name} title={typeof value === "string" ? value : undefined}>
           {index > 0 && ", "}
-          <code>{name}</code> <span className={s.runValue}>{text}</span>
-          {isDefault && <span className={s.soft}> (default)</span>}
+          <code>{name}</code>{" "}
+          <span className={s.runValue}>
+            {typeof value === "string" ? shortReference(value) : paramValue(value)}
+          </span>
         </span>
       ))}
       .
-      {others.length > 0 && (
-        <>
-          {" "}
-          The same run was also recorded by{" "}
-          {others.map((entry, index) => (
-            <Fragment key={entry.source.id}>
-              {index > 0 && (index === others.length - 1 ? " and " : ", ")}
-              <SourceName {...entry} />
-            </Fragment>
-          ))}
-          .
-        </>
-      )}
-      {run.skipped.length > 0 && (
-        <>
-          {" "}
-          <span className={s.soft}>
-            {run.skipped.length} more registered{" "}
-            {run.skipped.length === 1 ? "run is" : "runs are"} not offered:{" "}
-            {[...new Set(run.skipped.map((skip) => skip.error))].join("; ")}.
-          </span>
-        </>
-      )}
     </p>
   );
 }
 
-function SourceName({ source, count }) {
-  return (
-    <span
-      className={s.source}
-      title={source.cases?.length ? source.cases.join(", ") : undefined}
-    >
-      {sourceText(source)}
-      {count > 1 && <span className={s.soft}> ({count} of them)</span>}
-    </span>
-  );
-}
-
-// The params a reader looks for first lead the line.
-const LEAD = ["max_model_len", "routing", "draft_tokens", "mtp_mode"];
-const order = (name) => (LEAD.includes(name) ? LEAD.indexOf(name) : LEAD.length);
-
-function Tree({ tree }) {
+function Tree({ tree, kernels, times }) {
   const [sectionIndex, setSection] = useState(0);
   const section = tree.sections[Math.min(sectionIndex, tree.sections.length - 1)];
-  const root = useMemo(() => prepareTree(section.root), [section]);
+  const root = useMemo(() => prepareTree(nestSection(section)), [section]);
+  const timed = times?.[section.section] ?? null;
   const [open, setOpen] = useState(() => initiallyOpen(root));
   useEffect(() => setOpen(initiallyOpen(root)), [root]);
   const toggle = (id) =>
@@ -147,16 +96,15 @@ function Tree({ tree }) {
       return next;
     });
 
-  const rows = [...visible(root, open)].map((node) =>
-    node.kind === "leaf" ? leafRow(tree, node) : compositeRow(node, open, toggle),
-  );
-  const { counts } = tree;
-  const registry = tree.run?.basis === "registry";
-  const defaults = Object.entries(tree.defaults).filter(
-    ([name]) => !HIDDEN.includes(name),
-  );
-  // Params the schema marks as traffic (MoE routing): no default stands in.
-  const predicting = tree.set_when_predicting ?? [];
+  const rows = [...visible(root, open)].map((node) => {
+    const time = timed && <NodeTime ms={timed[node.id]} repeated={node.repeated} />;
+    return node.kind === "leaf"
+      ? leafRow(tree, kernels, node, time)
+      : compositeRow(node, open, toggle, time);
+  });
+  const calls = tree.sections.reduce((sum, item) => sum + item.slots.length, 0);
+  const configs = Object.keys(tree.configs).length;
+  const lacking = Object.values(tree.missing ?? {}).reduce((a, b) => a + b, 0);
 
   return (
     <section className={s.treePanel} aria-labelledby="tree-title">
@@ -165,17 +113,16 @@ function Tree({ tree }) {
         <dl className={s.stats}>
           <div>
             <dt>Kernel calls</dt>
-            <dd>{counts.leaves.toLocaleString("en-US")}</dd>
+            <dd>{calls.toLocaleString("en-US")}</dd>
           </div>
           <div>
-            <dt>Distinct shapes</dt>
-            <dd>{counts.configs.toLocaleString("en-US")}</dd>
+            <dt>Kernel configs</dt>
+            <dd>{configs.toLocaleString("en-US")}</dd>
           </div>
           <div>
-            <dt>Shapes measured</dt>
+            <dt>Rows lacking</dt>
             <dd>
-              {counts.measured}
-              <span> of {counts.configs}</span>
+              {tree.missing == null ? "unchecked" : lacking.toLocaleString("en-US")}
             </dd>
           </div>
           <div>
@@ -183,37 +130,7 @@ function Tree({ tree }) {
             <dd>{tree.gpus_per_replica ?? "unknown"}</dd>
           </div>
         </dl>
-        {registry && <BuiltAs run={tree.run} defaults={tree.defaults} />}
-        {!registry && (defaults.length > 0 || predicting.length > 0) && (
-          <p className={s.defaults}>
-            No registered run matches this set, so it is built at the schema
-            defaults.{" "}
-            {defaults.length > 0 && (
-              <>
-                The other params:{" "}
-                {defaults.map(([name, value], index) => (
-                  <span key={name}>
-                    {index > 0 && ", "}
-                    <code>{name}</code> {paramValue(value)}
-                  </span>
-                ))}
-                .{predicting.length > 0 && " "}
-              </>
-            )}
-            {predicting.length > 0 && (
-              <>
-                {predicting.map((name, index) => (
-                  <span key={name}>
-                    {index > 0 &&
-                      (index === predicting.length - 1 ? " and " : ", ")}
-                    <code>{name}</code>
-                  </span>
-                ))}{" "}
-                {predicting.length > 1 ? "are" : "is"} set when predicting.
-              </>
-            )}
-          </p>
-        )}
+        <BuiltWith arch={tree.arch} />
       </div>
 
       <div className={s.treeBar}>
@@ -266,7 +183,19 @@ const breakable = (name) =>
       ))
     : name;
 
-function compositeRow(node, open, toggle) {
+/* A node's predicted time. Inside a Scale it is one repeat's: the Scale
+   row holds the repeats' total. */
+function NodeTime({ ms, repeated }) {
+  if (ms == null) return null;
+  return (
+    <span className={s.nodeTime}>
+      {formatMs(ms)} ms
+      {repeated && <small> per repeat</small>}
+    </span>
+  );
+}
+
+function compositeRow(node, open, toggle, time) {
   const after =
     node.kind === "scale" ? (
       <span className={s.times}>×{node.n.toLocaleString("en-US")}</span>
@@ -288,52 +217,46 @@ function compositeRow(node, open, toggle) {
     open: open.has(node.id),
     after,
     meta: (
-      <span className={s.nodeCount}>
-        {node.leaves.toLocaleString("en-US")} {node.leaves === 1 ? "call" : "calls"}
-      </span>
+      <>
+        {time}
+        <span className={s.nodeCount}>
+          {node.leaves.toLocaleString("en-US")}{" "}
+          {node.leaves === 1 ? "call" : "calls"}
+        </span>
+      </>
     ),
   };
 }
 
+/* A config's scalar identity, the first few fields. */
 function shapeText(config) {
   if (!config) return null;
-  const entries = Object.entries(config.args);
+  const entries = Object.entries(config.identity);
   const parts = entries
     .slice(0, SHAPE_ARGS)
     .map(([name, value]) => `${name} ${formatValue(value)}`);
-  if (entries.length > SHAPE_ARGS) parts.push("…");
+  if (entries.length > SHAPE_ARGS || config.structured.length) parts.push("…");
   return parts.join(", ");
 }
 
-const COVERAGE = {
-  measured: [CircleCheck, "Measured"],
-  partial: [CircleDot, "Partly measured"],
-  unmeasured: [CircleDashed, "Not yet measured"],
-  unregistered: [CircleDashed, "Not yet measured"],
-};
-
-function leafRow(tree, node) {
+function leafRow(tree, kernels, node, time) {
   const { slot } = node;
-  const config = tree.configs[slot.config_key];
-  const kernel = tree.kernels[slot.kind];
-  const href = kernelLink(tree, slot);
-  const cov = coverage(config);
-  const [Icon, text] = COVERAGE[cov.state];
-  const detailText =
-    cov.state === "partial"
-      ? `${text}, ${cov.best} of ${cov.runnable} grid cells`
-      : cov.state === "unregistered"
-        ? `${text}: no simulator grid is registered for this shape`
-        : text;
-  const title = kernel?.title ?? slot.kind;
+  const kernel = kernels.get(slot.kernel);
+  const href = kernelLink(kernel, slot, tree);
+  const title = kernel?.title ?? slot.kernel;
+  // The rows this member asks of the leaf's config that profile.db lacks:
+  // 0 when every one is measured, null when unchecked.
+  const lacking = tree.configs[slot.config]?.missing;
+  const checked = lacking != null;
   return {
     id: node.id,
     kind: "Leaf",
     depth: node.depth,
     name: breakable(node.name),
-    note: shapeText(config),
+    note: shapeText(tree.configs[slot.config]),
     meta: (
       <>
+        {time}
         {href ? (
           <a className={s.kernelLink} href={href}>
             {title}
@@ -344,9 +267,24 @@ function leafRow(tree, node) {
             {title}
           </span>
         )}
-        <span className={s.coverage} data-state={cov.state} title={detailText}>
-          <Icon size={14} aria-hidden="true" />
-          {cov.state === "partial" ? `${cov.best}/${cov.runnable}` : text}
+        <span
+          className={s.coverage}
+          data-state={checked ? (lacking ? "unmeasured" : "measured") : undefined}
+          title={
+            lacking
+              ? `profile.db lacks ${lacking.toLocaleString("en-US")} of the rows this parameter set reads of this config; the kernel page shows its cells`
+              : checked
+                ? "Every row this parameter set reads of this config is measured"
+                : undefined
+          }
+        >
+          {checked &&
+            (lacking ? (
+              <CircleDashed size={14} aria-hidden="true" />
+            ) : (
+              <CircleCheck size={14} aria-hidden="true" />
+            ))}
+          {lacking ? "Lacks rows" : checked ? "Measured" : null}
           <span className={s.backends}>
             {slot.backends.map((b) => backendLabels[b] || b).join(", ")}
           </span>

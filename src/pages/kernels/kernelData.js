@@ -19,20 +19,7 @@ export function load(path) {
     cache.set(
       path,
       fetch(`${API_BASE}/${path}`).then(async (response) => {
-        if (!response.ok) {
-          const detail = await response.json().then(
-            (body) => body.detail,
-            () => null,
-          );
-          const message =
-            typeof detail === "object" && detail ? detail.message : detail;
-          const error = new Error(
-            `${API_BASE}/${path}: ${message ?? `HTTP ${response.status}`}`,
-          );
-          error.status = response.status;
-          error.detail = detail;
-          throw error;
-        }
+        if (!response.ok) throw await responseError(path, response);
         return response.json();
       }),
     );
@@ -40,21 +27,34 @@ export function load(path) {
   return cache.get(path);
 }
 
+/* The error a failed response stands for, as load() rejects with it. */
+export async function responseError(path, response) {
+  const detail = await response.json().then(
+    (body) => body.detail,
+    () => null,
+  );
+  const message = typeof detail === "object" && detail ? detail.message : detail;
+  const error = new Error(
+    `${API_BASE}/${path}: ${message ?? `HTTP ${response.status}`}`,
+  );
+  error.status = response.status;
+  error.detail = detail;
+  // The service's own words, for a page that shows them inline.
+  error.reason = message ?? `HTTP ${response.status}`;
+  return error;
+}
+
 export const loadCatalog = () => load("kernels");
 export const loadKernel = (kind) => load(`kernels/${kind}`);
 export const loadRows = (kind) => load(`kernels/${kind}/rows`);
-// The kernel configs the simulator registered as reading this kind's rows,
-// and one config's grid on its cache axes.
+// The kernel configs public deployments read this kind's rows with, and one
+// config's grid on its cache axes, by the config's id.
 export const loadConfigs = (kind) => load(`kernels/${kind}/configs`);
-export const loadConfig = (kind, hash, gpu) =>
-  load(`kernels/${kind}/configs/${hash}?gpu=${encodeURIComponent(gpu)}`);
+export const loadConfig = (kind, id) => load(`kernels/${kind}/configs/${id}`);
 
-/* A kernel's arguments, in profile.db column order, and the role a supported
-   model gives each: "sweep" (varies with the batch), "config" (fixed by the
-   model) or null when no supported model runs the kernel yet. */
+/* A kernel's arguments, in profile.db column order. */
 export const argNames = (kernel) => kernel.args.map((arg) => arg.name);
 const argInfo = (kernel, name) => kernel.args.find((arg) => arg.name === name);
-export const argRole = (kernel, name) => argInfo(kernel, name)?.role ?? null;
 // What one step of a numeric argument counts: tokens, bytes, GPUs, ...
 export const argUnit = (kernel, name) => argInfo(kernel, name)?.unit ?? null;
 // "dtype", "number", "list" or "label", from the argument's declared type.
@@ -245,28 +245,38 @@ export function setQuery(params, { push = false } = {}) {
 export const readQuery = () =>
   Object.fromEntries(new URLSearchParams(window.location.search));
 
-/* A model is keyed by its model config (the file stem Sim names it by); the
-   catalog gives most of them a name and a family. One it does not name reads
-   as its model config and stands in a family of its own. */
-export const modelEntry = (models, stem) =>
-  models.find((m) => m.model_config === stem);
-export const modelName = (models, stem) => modelEntry(models, stem)?.name ?? stem;
-export const modelFamily = (models, stem) =>
-  modelEntry(models, stem)?.family ?? modelName(models, stem);
+/* A model is a checkpoint of the model catalog ("zai-org/GLM-5.2"). A public
+   preset's id starts with the checkpoint's repository name ("GLM-5.2/<arch>"),
+   which keys it here; the catalog gives each a name and a family. */
+export const checkpointKey = (checkpoint) => checkpoint.split("/").at(-1);
+export const presetCheckpoint = (preset) => preset.split("/")[0];
+export const presetArch = (preset) => preset.split("/").slice(1).join("/");
+export const modelEntry = (models, key) =>
+  models.find((m) => checkpointKey(m.checkpoint) === key);
+export const modelName = (models, key) => modelEntry(models, key)?.name ?? key;
+export const modelFamily = (models, key) =>
+  modelEntry(models, key)?.family ?? modelName(models, key);
 
-/* The models a kernel is used by, grouped by family in catalog order:
-   [{ family: "Qwen", stems: [...], names: ["Qwen3 235B-A22B", ...] }, ...]. */
-export function groupModels(usedBy, models) {
+/* The models whose public presets build a config of a kernel (`used_by`
+   names the presets), by checkpoint key. */
+export const usedModels = (kernel) => [
+  ...new Set(kernel.used_by.map(presetCheckpoint)),
+];
+
+/* Models by checkpoint key, grouped by family in catalog order:
+   [{ family: "Qwen", keys: [...], names: ["Qwen3 235B-A22B", ...] }, ...]. */
+export function groupModels(keys, models) {
   const groups = [];
-  for (const { model_config: stem } of models) {
-    if (!usedBy.includes(stem)) continue;
-    const family = modelFamily(models, stem);
-    const name = modelName(models, stem);
+  for (const { checkpoint } of models) {
+    const key = checkpointKey(checkpoint);
+    if (!keys.includes(key)) continue;
+    const family = modelFamily(models, key);
+    const name = modelName(models, key);
     const group = groups.find((g) => g.family === family);
     if (group) {
-      group.stems.push(stem);
+      group.keys.push(key);
       group.names.push(name);
-    } else groups.push({ family, stems: [stem], names: [name] });
+    } else groups.push({ family, keys: [key], names: [name] });
   }
   return groups;
 }

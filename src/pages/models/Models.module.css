@@ -88,21 +88,6 @@
   overflow-wrap: anywhere;
 }
 
-.archSummary code,
-.prose code {
-  color: var(--c-ink-1300);
-  font-family: var(--font-code);
-  font-size: 0.92em;
-}
-
-.archSummary {
-  max-width: 68ch;
-  color: var(--muted);
-  font-size: var(--fs-fine);
-  line-height: 1.55;
-  text-wrap: pretty;
-}
-
 .archFacts {
   display: grid;
   gap: 10px;
@@ -156,6 +141,7 @@
 
 .detailBody {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 28px;
   padding-top: 32px;
 }
@@ -163,28 +149,83 @@
 .picker {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 18px 40px;
 }
 
-.setLevel {
+/* A long arch or value wraps inside its chip on a phone. */
+.wrapLevel {
+  max-width: 100%;
+}
+
+.wrapLevel button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+
+/* One level per axis of the preset, together on their own line. */
+.axes {
+  display: flex;
   flex-basis: 100%;
-}
-
-/* A set's chip names its params in code and their values as figures. */
-.setChip {
-  display: inline-flex;
   flex-wrap: wrap;
-  gap: 0 14px;
-  font-family: var(--font-code);
+  gap: 18px 40px;
+  min-width: 0;
 }
 
-.setChip b {
-  font-family: Geist, sans-serif;
-  font-weight: 500;
+/* An axis name reads as code; a preset's arch too. */
+.axisName {
+  color: var(--c-ink-1300);
+  font-family: var(--font-code);
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+/* A value, then the mark of a member profile.db lacks rows for. */
+.axisChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-variant-numeric: tabular-nums;
 }
 
-.fixed,
+.axisChip svg {
+  color: var(--cost-max-ink);
+}
+
+/* What the picked member is, and whether Live predict can time it. */
+.memberStatus {
+  display: grid;
+  flex-basis: 100%;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.memberStatus > svg {
+  margin-top: 3px;
+  color: var(--accent);
+}
+
+.memberStatus[data-state="blocked"] > svg {
+  color: var(--cost-max-ink);
+}
+
+.memberStatus b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.memberStatus code {
+  color: var(--c-ink-1300);
+  font-family: var(--font-code);
+}
+
 .defaults {
   flex-basis: 100%;
   min-width: 0;
@@ -194,47 +235,13 @@
   line-height: 1.6;
 }
 
-.fixed code,
 .defaults code {
   color: var(--c-ink-1100);
   font-family: var(--font-code);
 }
 
-/* A run param's name reads as code, as a set's params do. */
-.runName {
-  color: var(--c-ink-1300);
-  font-family: var(--font-code);
-  font-weight: 400;
-}
-
-/* A routing's file can outrun a phone's width: its chip wraps instead. */
-.runLevel {
-  max-width: 100%;
-}
-
-.runLevel button {
-  max-width: 100%;
-  white-space: normal;
-  text-align: left;
-}
-
-/* A run value, then how many of that run's shapes are measured. */
-.runChip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.runChip small {
-  color: var(--subtle);
-  font-size: var(--fs-fine);
-}
-
-/* Where the run was recorded, and a routing's file: paths that may break
+/* A param's value in the built-with line: a capture's path may break
    anywhere on a narrow screen. */
-.source,
 .runValue {
   color: var(--c-ink-1300);
   overflow-wrap: anywhere;
@@ -244,8 +251,8 @@
   color: var(--subtle);
 }
 
-/* The tree takes the width; the legend and the prediction to come sit beside
-   it on a wide screen and under it otherwise. */
+/* The tree takes the width; the legend sits beside it on a wide screen and
+   under it otherwise. Live predict spans the page below both. */
 .treeLayout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
@@ -278,7 +285,7 @@
 
 .treeHead h2,
 .legend h2,
-.predict h2 {
+.livePredict h2 {
   font-size: var(--fs-xl);
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -327,8 +334,7 @@
   gap: 8px;
 }
 
-.treeActions button,
-.predictActions button {
+.treeActions button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -455,10 +461,22 @@
   color: var(--c-ink-100);
 }
 
+/* A node's predicted time leads its metrics, in the accent the landing
+   tree gives times. */
+.nodeTime {
+  color: var(--accent);
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nodeTime small {
+  color: var(--subtle);
+}
+
 /* ---------- Beside the tree ---------- */
 
-.legend,
-.predict {
+.legend {
   display: grid;
   gap: 14px;
   padding: 20px 22px;
@@ -467,8 +485,7 @@
   background: var(--surface);
 }
 
-.legend h2,
-.predict h2 {
+.legend h2 {
   font-size: var(--fs-sm);
 }
 
@@ -488,6 +505,18 @@
   color: var(--muted);
   font-size: var(--fs-fine);
   line-height: 1.5;
+}
+
+.legendNote {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  line-height: 1.5;
+}
+
+.legendNote svg {
+  display: inline-block;
+  color: var(--cost-max-ink);
+  vertical-align: -2px;
 }
 
 /* The composition badges, in the landing tree's colours. */
@@ -523,91 +552,357 @@
   color: var(--accent);
 }
 
-/* The prediction to come: laid out as it will work, switched off, and said
-   so in words as well as by its dimmed controls. */
-.predict {
-  border-style: dashed;
-  background: none;
+/* ---------- Live predict ---------- */
+
+/* Full width under the tree: the batch on the left, its answer beside it
+   on a wide screen and under it otherwise. */
+.livePredict {
+  display: grid;
+  gap: 16px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
 }
 
 .predictHead {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 8px 16px;
 }
 
-.soon {
-  padding: 1px 8px;
-  border: 1px solid var(--c-line-300);
-  border-radius: var(--r-xs);
-  color: var(--c-ink-1100);
-  font-size: var(--fs-fine);
-}
-
-.predict > p {
+.predictIntro {
+  max-width: 72ch;
   color: var(--muted);
   font-size: var(--fs-fine);
   line-height: 1.55;
 }
 
-.predictForm {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
+.predictQuiet {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
 }
 
-.predictForm label {
+/* A state that is not an answer: loading, or why there is none. */
+.predictStatus {
   display: grid;
-  gap: 6px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  max-width: 80ch;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  line-height: 1.55;
+  background: var(--surface);
+}
+
+.predictStatus > svg {
+  margin-top: 3px;
+}
+
+.predictStatus[data-tone="warn"] > svg {
+  color: var(--cost-max-ink);
+}
+
+.predictStatus > div {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.predictStatus code {
+  color: var(--c-ink-1300);
+  font-family: var(--font-code);
+}
+
+.predictStatusTitle {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.failureText {
+  font-family: var(--font-code);
+  white-space: pre-wrap;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.predictBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 40px;
+  align-items: start;
+}
+
+.batch {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.batchHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 24px;
+}
+
+.batchFacts {
+  color: var(--c-ink-1100);
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+}
+
+.batchFacts code {
+  font-family: var(--font-code);
+
+  /* A source's path is one word as long as a phone's width. */
+  overflow-wrap: anywhere;
+}
+
+.mirror {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-ink-1100);
+  font-size: var(--fs-fine);
+  cursor: pointer;
+}
+
+.mirror input {
+  accent-color: var(--accent);
+}
+
+/* One chip per DP group, when each has its own batch. */
+.groupTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.groupTabs button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 12px;
+  border: 1px solid var(--c-line-200);
+  border-radius: var(--r-pill);
   color: var(--c-ink-1100);
   font-size: var(--fs-fine);
 }
 
-.predictForm input {
+.groupTabs button small {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+}
+
+.groupTabs button[aria-checked="true"] {
+  border-color: var(--c-line-accent-100);
+  color: var(--ink);
+  background: var(--c-surface-300);
+}
+
+.groupEditor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px 28px;
+}
+
+.requests {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.requests legend {
+  padding-inline: 6px;
+  color: var(--ink);
+  font-size: var(--fs-fine);
+  font-weight: 500;
+}
+
+.requestRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px;
+  gap: 10px;
+  align-items: end;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--c-ink-1100);
+  font-size: var(--fs-fine);
+}
+
+.field span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field input {
   width: 100%;
   min-width: 0;
-  padding: 7px 10px;
+  padding: 6px 10px;
   border: 1px solid var(--c-line-200);
   border-radius: var(--r-sm);
   color: var(--ink);
   font: inherit;
+  font-variant-numeric: tabular-nums;
   background: var(--bg);
 }
 
-.predictForm:disabled label,
-.predictForm:disabled button {
-  opacity: 0.55;
-  cursor: not-allowed;
+.field input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
-.predictActions {
+.field input[aria-invalid="true"] {
+  border-color: var(--cost-max-border);
+}
+
+.removeButton {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 36px;
+  border: 1px solid var(--c-line-200);
+  border-radius: var(--r-sm);
+  color: var(--subtle);
+}
+
+.removeButton:hover {
+  border-color: var(--c-line-500);
+  color: var(--ink);
+}
+
+.addButton,
+.presets button,
+.suggestions button {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--c-line-200);
+  border-radius: var(--r-sm);
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+  transition:
+    border-color 160ms ease-out,
+    color 160ms ease-out;
+}
+
+.addButton:hover,
+.presets button:hover,
+.suggestions button:hover {
+  border-color: var(--c-line-500);
+  color: var(--ink);
+}
+
+.addButton:focus-visible,
+.presets button:focus-visible,
+.suggestions button:focus-visible,
+.removeButton:focus-visible,
+.groupTabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.suggestions button {
+  border-color: var(--c-line-accent-100);
+  color: var(--accent);
+}
+
+.suggestions button code {
+  color: inherit;
+}
+
+.presets,
+.suggestions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  margin-top: 4px;
 }
 
-.primary {
-  border-color: var(--c-line-accent-100) !important;
-  color: var(--accent) !important;
+.presets {
+  grid-column: 1 / -1;
+}
+
+.presets > span {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+}
+
+.answer {
+  position: sticky;
+  top: 108px;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* A layer-wise side's blocks, one time each. */
+.sectionTimes {
+  display: grid;
+  gap: 6px;
+  margin-block: 10px 16px;
+}
+
+.sectionTimes div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.sectionTimes dt {
+  color: var(--c-ink-1100);
+  font-size: var(--fs-fine);
+}
+
+.sectionTimes dt small {
+  color: var(--subtle);
+}
+
+.sectionTimes dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.sectionTimes dd span {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
 }
 
 .predictNote {
-  color: var(--subtle) !important;
-}
-
-.visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  line-height: 1.55;
 }
 
 @media (max-width: 1199px) {
@@ -618,6 +913,15 @@
   .aside {
     position: static;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+
+  .predictBody {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .answer {
+    position: static;
   }
 }
 
@@ -677,7 +981,38 @@
 @media (prefers-reduced-motion: reduce) {
   .archRow,
   .archArrow,
-  .treeActions button {
+  .treeActions button,
+  .addButton,
+  .presets button,
+  .suggestions button {
     transition: none;
   }
+
+  .spin {
+    animation: none;
+  }
+}
+
+/* Read more: ServingStudio UI's result pages over the whole page. What they
+   draw is styled inside their shadow root; this is only the frame. */
+.readMore {
+  position: fixed;
+  inset: 0 auto 0 0;
+
+  /* The page keeps a scrollbar gutter (base.css), which inset alone leaves
+     uncovered. */
+  width: 100vw;
+  z-index: calc(var(--nav-layer) + 10);
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.readMore:focus {
+  outline: none;
+}
+
+.readMoreHost {
+  height: 100%;
 }

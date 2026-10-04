@@ -1,39 +1,41 @@
-import { ArrowLeft } from "lucide-react";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { readQuery, setQuery, shortGpu, subscribeUrl } from "../kernels/kernelData";
+import { ArrowLeft, CircleCheck, CircleDashed } from "lucide-react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  loadCatalog,
+  readQuery,
+  setQuery,
+  shortGpu,
+  subscribeUrl,
+} from "../kernels/kernelData";
 import { Tag, ToggleTag } from "../kernels/Tag";
 import {
   CONTRACTS,
-  loadArch,
-  loadCostTree,
-  memberFromUrl,
-  paramValue,
-  routingText,
+  loadTree,
+  memberMatches,
+  missingText,
+  modelHref,
+  predictable,
+  shortReference,
 } from "./modelData";
-import { modelHref, openModel } from "./Models";
+import { openModel } from "./Models";
 import { CostTreeExplorer } from "./CostTreeExplorer";
-import { PredictPlaceholder } from "./PredictPlaceholder";
-import { Prose } from "./Prose";
+import { LivePredict } from "./LivePredict";
+import { MemberPicker } from "./MemberPicker";
 import detail from "../kernels/KernelDetail.module.css";
 import picker from "../kernels/ConfigPicker.module.css";
 import s from "./Models.module.css";
 
 const search = () => window.location.search;
 
-/* One arch: pick a model, a GPU and one of the parameter sets its
-   #[supported] rows allow, then read that set's cost tree. */
-export function ModelDetail({ catalog, entry }) {
+/* One checkpoint: pick one of its public presets and a value per axis of the
+   preset, then read that member's cost tree and time a batch on it. */
+export function ModelDetail({ catalog, checkpoint, preset }) {
   useSyncExternalStore(subscribeUrl, search);
-  const [arch, setArch] = useState(null);
-  const [error, setError] = useState(null);
-  useEffect(() => {
-    loadArch(entry.arch).then(setArch, setError);
-  }, [entry.arch]);
-  const title = entry.name ?? entry.arch;
+  const title = checkpoint.name ?? checkpoint.checkpoint;
   useEffect(() => {
     document.title = `${title} | Models | ServingStudio`;
   }, [title]);
-  const family = entry.families[0];
+  const family = checkpoint.family;
 
   return (
     <div className={detail.page}>
@@ -48,334 +50,277 @@ export function ModelDetail({ catalog, entry }) {
         </a>
         <h1>{title}</h1>
         <p className={detail.identity}>
-          <code>{entry.arch}</code>
+          <code>{checkpoint.checkpoint}</code>
           {family && <Tag type="family" value={family} />}
-          <Tag type="category" value={CONTRACTS[entry.contract]}>
-            {CONTRACTS[entry.contract] ?? entry.contract}
+          <Tag type="category" value={CONTRACTS[preset.contract]}>
+            {CONTRACTS[preset.contract] ?? preset.contract ?? "Does not build"}
           </Tag>
         </p>
-        {entry.summary && (
-          <p className={`${detail.summary} ${s.prose}`}>
-            <Prose text={entry.summary} />
-          </p>
-        )}
       </header>
 
       <div className={`wrap ${s.detailBody}`}>
-        {error ? (
-          <p role="alert">
-            This model&apos;s parameters did not load ({error.message}). Reload the
-            page to try again.
-          </p>
-        ) : !arch ? (
-          <p role="status" className={detail.loading}>
-            Loading parameter sets…
-          </p>
-        ) : arch.param_sets.length === 0 ? (
-          <p className={s.notice}>
-            No #[supported] row names a parameter set for this arch yet, so there is
-            no cost tree to show.
-          </p>
-        ) : (
-          <Explorer arch={arch} catalog={catalog} family={family} />
-        )}
+        <Explorer catalog={catalog} checkpoint={checkpoint} preset={preset} />
       </div>
     </div>
   );
 }
 
-/* The params that tell `members` apart; all of them when nothing does. */
-function distinguishing(members, names) {
-  const differ = names.filter(
-    (name) =>
-      new Set(members.map(({ member }) => String(member.query[name]))).size > 1,
-  );
-  return differ.length ? differ : names;
+/* The member the link names; one it does not fully name opens on the first
+   predictable member that has the values it gives, and says so. */
+function memberFromUrl(preset, url) {
+  const names = preset.axes.map((axis) => axis.name);
+  const named = preset.members.find((m) => memberMatches(m, url, names));
+  if (named) return { member: named };
+  const given = names.filter((name) => url[name] != null);
+  const fits = preset.members.filter((m) => memberMatches(m, url, given));
+  const pool = fits.length ? fits : preset.members;
+  return {
+    member: pool.find(predictable) ?? pool[0],
+    unmatched: given.length > 0,
+  };
 }
 
-function Explorer({ arch, family }) {
+function Explorer({ catalog, checkpoint, preset }) {
   const url = readQuery();
-  const members = useMemo(
-    () =>
-      arch.param_sets.flatMap((set) =>
-        set.members.map((member) => ({ set, member })),
-      ),
-    [arch],
-  );
-  const named = memberFromUrl(arch, url);
-  const asked = arch.query.some((name) => url[name] != null);
-  // A link that names no supported set opens on the first one the model and
-  // GPU it names allow, and says so.
-  const current =
-    named ??
-    members.find(
-      ({ member }) =>
-        (!url.model || member.query.model === url.model) &&
-        (!url.gpu || member.query.gpu === url.gpu),
-    ) ??
-    members[0];
-  const { model, gpu } = current.member.query;
-  const pick = (next) => setQuery({ arch: arch.arch, ...next.member.query });
-  // Every other key in the link picks one of the set's registered runs.
-  const runQuery = Object.fromEntries(
-    Object.entries(url).filter(
-      ([key]) => key !== "arch" && !arch.query.includes(key),
-    ),
-  );
-  const tree = useTree(arch.arch, current.member.query, runQuery);
+  const { member, unmatched } = memberFromUrl(preset, url);
+  const pick = (params, id = preset.id) => setQuery({ preset: id, ...params });
+  const tree = useTree(preset.id, member);
+  const kernels = useKernelCatalog();
+  // Live predict's time per node of the tree, once it has costed a batch.
+  const [times, setTimes] = useState(null);
+  // The batch a reader built, kept across members.
+  const [batch, setBatch] = useState(null);
 
-  const models = arch.models.filter((m) =>
-    members.some(({ member }) => member.query.model === m.model_config),
+  const siblings = catalog.checkpoints.filter(
+    (c) => c.family === checkpoint.family && c.presets.length,
   );
-  const gpus = [
-    ...new Set(
-      members
-        .filter(({ member }) => member.query.model === model)
-        .map((m) => m.member.query.gpu),
-    ),
-  ];
-  const here = members.filter(
-    ({ member }) => member.query.model === model && member.query.gpu === gpu,
-  );
-  const params = arch.query.filter((name) => name !== "gpu" && name !== "model");
-  const shown = distinguishing(here, params);
-  const docs = new Map(arch.params.map((p) => [p.name, p]));
+  // Another checkpoint opens on the same arch when it has one.
+  const openCheckpoint = (other) => {
+    const same = other.presets.find((p) => p.arch === preset.arch);
+    const target = same ?? other.presets[0];
+    pick(memberFromUrl(target, member.params).member.params, target.id);
+  };
+  const workload = preset.axes.find((axis) => axis.rows);
 
   return (
     <>
-      {asked && !named && (
+      {unmatched && (
         <p className={s.notice} role="status">
-          The link named a parameter set this arch does not support, so the first
-          supported one is shown.
+          The link named values no parameter set of this deployment has, so the
+          closest one is shown.
         </p>
       )}
       <section
         className={`${detail.controls} ${s.picker}`}
         aria-label="Parameter set"
       >
-        <div className={picker.level}>
-          <span className={picker.levelName}>Model</span>
-          <div className={picker.choices}>
-            {models.map((m) => (
-              <ToggleTag
-                key={m.model_config}
-                type="family"
-                value={family}
-                pressed={m.model_config === model}
-                title={m.checkpoint ?? undefined}
-                onClick={() =>
-                  pick(
-                    members.find(
-                      ({ member }) => member.query.model === m.model_config,
-                    ),
-                  )
-                }
-              >
-                {m.name ?? m.model_config}
-              </ToggleTag>
-            ))}
+        {siblings.length > 1 && (
+          <div
+            className={`${picker.level} ${s.wrapLevel}`}
+            role="group"
+            aria-label="Model"
+          >
+            <span className={picker.levelName}>Model</span>
+            <div className={picker.choices}>
+              {siblings.map((c) => (
+                <ToggleTag
+                  key={c.checkpoint}
+                  type="family"
+                  value={checkpoint.family}
+                  pressed={c === checkpoint}
+                  title={c.checkpoint}
+                  onClick={() => openCheckpoint(c)}
+                >
+                  {c.name ?? c.checkpoint}
+                </ToggleTag>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className={picker.level}>
-          <span className={picker.levelName}>GPU</span>
-          <div className={picker.choices}>
-            {gpus.map((name) => (
-              <ToggleTag
-                key={name}
-                type="gpu"
-                value={shortGpu(name)}
-                pressed={name === gpu}
-                onClick={() =>
-                  pick(
-                    members.find(
-                      ({ member }) =>
-                        member.query.model === model && member.query.gpu === name,
-                    ),
-                  )
-                }
-              />
-            ))}
-          </div>
-        </div>
-        <div className={`${picker.level} ${s.setLevel}`}>
+        )}
+        <div
+          className={`${picker.level} ${s.wrapLevel}`}
+          role="group"
+          aria-label="Deployment"
+        >
           <span className={picker.levelName}>
-            Parameter set
+            Deployment
             <span className={picker.levelCount}>
-              {here.length} supported
-              {shown.length < params.length && `, told apart by ${listed(shown)}`}
+              {checkpoint.presets.length === 1
+                ? "one public preset"
+                : `${checkpoint.presets.length} public presets`}
             </span>
           </span>
           <div className={picker.choices}>
-            {here.map((choice) => (
+            {checkpoint.presets.map((p) => (
               <ToggleTag
-                key={choice.member.label}
+                key={p.id}
                 type="choice"
-                value={choice.member.label}
-                pressed={choice.member === current.member}
-                title={choice.member.label}
-                onClick={() => pick(choice)}
+                value={p.arch}
+                pressed={p === preset}
+                title={`${CONTRACTS[p.contract] ?? p.contract ?? ""}\npresets/public/${p.id}.yaml`}
+                onClick={() =>
+                  pick(memberFromUrl(p, member.params).member.params, p.id)
+                }
               >
-                <span className={s.setChip}>
-                  {shown.map((name) => (
-                    <span key={name}>
-                      {name} <b>{paramValue(choice.member.query[name])}</b>
-                    </span>
-                  ))}
-                  {!shown.length && "Default parameters"}
-                </span>
+                <span className={s.axisName}>{p.arch}</span>
               </ToggleTag>
             ))}
           </div>
         </div>
-        {shown.length < params.length && (
-          <p className={s.fixed}>
-            Same in every set here:{" "}
-            {params
-              .filter((name) => !shown.includes(name))
-              .map((name, index) => (
-                <span key={name} title={docs.get(name)?.description || undefined}>
-                  {index > 0 && ", "}
-                  <code>{name}</code> {paramValue(current.member.query[name])}
-                </span>
-              ))}
-          </p>
+        <div className={picker.level} role="group" aria-label="GPU">
+          <span className={picker.levelName}>GPU</span>
+          <div className={picker.choices}>
+            <Tag type="gpu" value={shortGpu(preset.gpu)} />
+          </div>
+        </div>
+        {preset.axes.length > 0 && (
+          <div className={s.axes}>
+            <MemberPicker
+              axes={preset.axes}
+              members={preset.members}
+              current={member.params}
+              onPick={(params) => pick(params)}
+              blocked={blockedReason}
+              valueTitle={(axis, value) =>
+                axis.rows ? routingTitle(axis.rows[value]) : undefined
+              }
+            />
+          </div>
         )}
+        <MemberStatus member={member} workload={workload} />
       </section>
 
-      {tree.stale && (
-        <p className={s.notice} role="status">
-          No registered run of this set used the run configuration the link named,
-          so the best-measured run is shown.
-        </p>
-      )}
-      {tree.data?.run?.basis === "registry" && (
-        <RunPicker
-          run={tree.data.run}
-          onPick={(params) =>
-            setQuery({ arch: arch.arch, ...current.member.query, ...params })
-          }
-        />
-      )}
-
       <div className={s.treeLayout}>
-        <CostTreeExplorer tree={tree.data} error={tree.error} />
+        <CostTreeExplorer
+          tree={tree.data}
+          error={tree.error}
+          kernels={kernels}
+          times={times}
+        />
         <aside className={s.aside}>
           <Legend />
-          <PredictPlaceholder />
         </aside>
       </div>
+
+      <LivePredict
+        preset={preset}
+        member={member}
+        tree={tree.data}
+        caseFields={catalog.case_fields}
+        batch={batch}
+        setBatch={setBatch}
+        onPick={(params) => pick(params)}
+        onTimes={setTimes}
+      />
     </>
   );
 }
 
-/* The set's cost tree for the run the link names. A link naming run params
-   no registered run used opens on the best-measured run instead, and says so. */
-function useTree(archName, setQuery, runQuery) {
-  const key = JSON.stringify([archName, setQuery, runQuery]);
+/* Why a member cannot be predicted, or null when it can. */
+function blockedReason(member) {
+  if (member.error) return `Does not build: ${member.error}`;
+  if (member.missing == null) return "Not checked against profile.db";
+  if (Object.keys(member.missing).length)
+    return `Not predictable: profile.db lacks rows of ${missingText(member.missing)}`;
+  return null;
+}
+
+/* A workload row binds the routing and the capture it reads. */
+const routingTitle = (row) =>
+  row &&
+  Object.entries(row)
+    .map(([name, value]) => `${name}: ${shortReference(value)}`)
+    .join("\n");
+
+/* What the picked member is: its size, and whether Live predict can time it.
+   One that cannot is still shown, with the reason. */
+function MemberStatus({ member, workload }) {
+  const reason = blockedReason(member);
+  const routing = workload && workload.rows[member.params[workload.name]];
+  return (
+    <div className={s.memberStatus} data-state={reason ? "blocked" : "ready"}>
+      {reason ? (
+        <CircleDashed size={16} aria-hidden="true" />
+      ) : (
+        <CircleCheck size={16} aria-hidden="true" />
+      )}
+      <p>
+        {member.error ? (
+          <>The simulator could not build this parameter set: {member.error}</>
+        ) : (
+          <>
+            {member.leaves.toLocaleString("en-US")} kernel calls over{" "}
+            {member.configs.toLocaleString("en-US")} kernel configs on{" "}
+            {member.gpus_per_replica}{" "}
+            {member.gpus_per_replica === 1 ? "GPU" : "GPUs"}.{" "}
+            {reason ? (
+              <>
+                <b>Not predictable:</b> profile.db lacks measured rows of{" "}
+                {Object.entries(member.missing ?? {}).map(
+                  ([kind, count], index) => (
+                    <span key={kind}>
+                      {index > 0 && ", "}
+                      <code>{kind}</code> ({count.toLocaleString("en-US")})
+                    </span>
+                  ),
+                )}
+                {member.missing == null && "kinds not yet checked"}.
+              </>
+            ) : (
+              "Every row its kernels read is measured, so Live predict below can time it."
+            )}
+          </>
+        )}
+        {routing && (
+          <>
+            {" "}
+            Routing: {routing.routing}
+            {Object.entries(routing)
+              .filter(([name]) => name !== "routing")
+              .map(([name, value]) => (
+                <span key={name} title={String(value)}>
+                  , <code>{shortReference(value)}</code>
+                </span>
+              ))}
+            .
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
+/* The member's cost tree. */
+function useTree(presetId, member) {
+  const key = JSON.stringify([presetId, member.params]);
   const [state, setState] = useState({ key: null });
   useEffect(() => {
     let live = true;
-    const hasRun = Object.keys(runQuery).length > 0;
-    loadCostTree(archName, { ...setQuery, ...runQuery })
-      .catch((error) => {
-        if (!hasRun || error.status !== 404) throw error;
-        return loadCostTree(archName, setQuery).then((data) => ({
-          data,
-          stale: true,
-        }));
-      })
-      .then(
-        (result) =>
-          live &&
-          setState(result.stale ? { key, ...result } : { key, data: result }),
-        (error) => live && setState({ key, error }),
-      );
+    loadTree(presetId, member.params).then(
+      (data) => live && setState({ key, data }),
+      (error) => live && setState({ key, error }),
+    );
     return () => {
       live = false;
     };
-    // `key` stands for the three inputs.
+    // `key` stands for the preset and the member's params.
   }, [key]);
   return state.key === key ? state : {};
 }
 
-/* The params the set leaves open, as its registered runs set them: one picker
-   per param that the runs set differently, the rest as text. A value no run
-   pairs with the current others is dimmed; picking it moves to the best run
-   that has it. */
-function RunPicker({ run, onPick }) {
-  const open = run.pickers.filter((p) => !p.fixed);
-  const fixed = run.pickers.filter((p) => p.fixed);
-  const pickOption = (picker, option) => {
-    if (!option.compatible) return onPick(option.value);
-    const rest = Object.fromEntries(
-      Object.entries(run.params).filter(([name]) => !picker.keys.includes(name)),
+/* The kernel catalog names each leaf's kind and says which have a page. A
+   catalog that fails to load leaves the leaves unlinked. */
+function useKernelCatalog() {
+  const [kernels, setKernels] = useState(null);
+  useEffect(() => {
+    loadCatalog().then(
+      (catalog) =>
+        setKernels(new Map(catalog.kernels.map((kernel) => [kernel.kind, kernel]))),
+      () => setKernels(new Map()),
     );
-    onPick({ ...rest, ...option.value });
-  };
-  return (
-    <section
-      className={`${detail.controls} ${s.picker}`}
-      aria-label="Run configuration"
-    >
-      <div className={`${picker.level} ${s.setLevel}`}>
-        <span className={picker.levelName}>
-          Run configuration
-          <span className={picker.levelCount}>
-            {run.combinations} registered{" "}
-            {run.combinations === 1 ? "run uses" : "runs use"} this set
-          </span>
-        </span>
-      </div>
-      {open.map((p) => (
-        <div key={p.name} className={`${picker.level} ${s.runLevel}`}>
-          <span className={picker.levelName}>
-            <code className={s.runName}>{p.name}</code>
-          </span>
-          <div className={picker.choices}>
-            {p.options.map((option) => (
-              <ToggleTag
-                key={JSON.stringify(option.value)}
-                type="choice"
-                value={optionText(p, option)}
-                pressed={option.selected}
-                faint={!option.compatible}
-                title={optionTitle(option)}
-                onClick={() => pickOption(p, option)}
-              >
-                <span className={s.runChip}>
-                  {optionText(p, option)}
-                  <small>
-                    {option.counts.measured}/{option.counts.configs}
-                  </small>
-                </span>
-              </ToggleTag>
-            ))}
-          </div>
-        </div>
-      ))}
-      {fixed.length > 0 && (
-        <p className={s.fixed}>
-          Same in every run here:{" "}
-          {fixed.map((p, index) => (
-            <span key={p.name}>
-              {index > 0 && ", "}
-              <code>{p.name}</code> {optionText(p, p.options[0])}
-            </span>
-          ))}
-        </p>
-      )}
-    </section>
-  );
+  }, []);
+  return kernels;
 }
-
-const optionText = (p, option) =>
-  p.name === "routing"
-    ? routingText(option.value, option.routing)
-    : paramValue(option.value[p.name]);
-
-const optionTitle = (option) =>
-  `${option.counts.measured} of ${option.counts.configs} shapes measured` +
-  (option.compatible ? "" : "; picking it changes the other run params too");
 
 const LEGEND = [
   ["Sum", "Children run one after another. Their times add."],
@@ -400,12 +345,10 @@ function Legend() {
           </div>
         ))}
       </dl>
+      <p className={s.legendNote}>
+        <CircleDashed size={14} aria-hidden="true" /> marks a parameter set, or a
+        kernel config in the tree, that profile.db lacks rows for.
+      </p>
     </section>
   );
 }
-
-// "a", "a and b", "a, b and c".
-const listed = (names) =>
-  names.length < 3
-    ? names.join(" and ")
-    : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
