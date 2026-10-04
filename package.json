@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "node --test scripts/blog-content.test.mjs scripts/sitemap.test.mjs scripts/github-redirects.test.mjs scripts/servingstudio-ui.test.mjs",
+    "test": "node --test scripts/blog-content.test.mjs scripts/sitemap.test.mjs scripts/github-redirects.test.mjs scripts/servingstudio-ui.test.mjs scripts/member-subset.test.mjs",
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "build:single": "node scripts/build-single-file.mjs",

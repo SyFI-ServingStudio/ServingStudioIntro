@@ -18,6 +18,7 @@ import {
   shortGpu,
 } from "./kernelData";
 import { memberHref, paramsText } from "../models/modelData";
+import { memberSubset } from "./memberSubset";
 import { PerfChart, seriesColor } from "./PerfChart";
 import { Tag, ToggleTag, tagColor } from "./Tag";
 import picker from "./ConfigPicker.module.css";
@@ -54,20 +55,29 @@ export function presetAxes(members) {
   }));
 }
 
-/* Which members of a preset something covers: "max_model_len 524,288", or
-   each member spelled out when they differ in more than one axis. */
+/* Which members of a preset something covers, by the axes that decide it:
+   "ep_size 4", or its few combinations of those axes, else a count. */
+const MAX_COMBINATIONS = 4;
 function membersText(d, members) {
-  const varies = presetAxes(d.members).filter((axis) => axis.values.length > 1);
-  const params = members.map((key) => d.members.get(key));
-  if (varies.length === 1) {
-    const [{ name }] = varies;
-    return `${name} ${params.map((p) => formatValue(p[name])).join(" · ")}`;
-  }
-  return params
-    .map((p) =>
-      varies.map(({ name }) => `${name} ${formatValue(p[name])}`).join(", "),
-    )
-    .join("; ");
+  const all = [...d.members.entries()];
+  const subset = memberSubset(
+    all.map(([, params]) => params),
+    all.map(([key]) => members.includes(key)),
+  );
+  if (subset?.values)
+    return subset.axes
+      .map(
+        (name, i) =>
+          `${name} ${subset.values[i].map((v) => formatValue(v)).join(" · ")}`,
+      )
+      .join(", ");
+  if (subset && subset.tuples.length <= MAX_COMBINATIONS)
+    return subset.tuples
+      .map((tuple) =>
+        subset.axes.map((name, i) => `${name} ${formatValue(tuple[i])}`).join(", "),
+      )
+      .join("; ");
+  return `${members.length} of ${all.length} members`;
 }
 
 /* A preset as its chips read it: the arch, then each axis its members move,
