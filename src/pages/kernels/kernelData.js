@@ -221,29 +221,8 @@ export function downloadText(filename, text, type) {
 }
 
 /* The kernel library keeps its own state in the query string so every view can
-   be shared. The site router only knows the path, so these helpers notify
-   listeners themselves. */
-const listeners = new Set();
-export function subscribeUrl(listener) {
-  listeners.add(listener);
-  window.addEventListener("popstate", listener);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener("popstate", listener);
-  };
-}
-export function setQuery(params, { push = false } = {}) {
-  const url = new URL(window.location.href);
-  url.search = "";
-  for (const [key, value] of Object.entries(params)) {
-    if (value != null && value !== "") url.searchParams.set(key, value);
-  }
-  if (url.href === window.location.href) return;
-  window.history[push ? "pushState" : "replaceState"](null, "", url);
-  listeners.forEach((listener) => listener());
-}
-export const readQuery = () =>
-  Object.fromEntries(new URLSearchParams(window.location.search));
+   be shared; src/url.js holds the helpers, which the site router notifies. */
+export { readQuery, setQuery, subscribeUrl } from "../../url";
 
 /* A model is a checkpoint of the model catalog ("zai-org/GLM-5.2"). A public
    preset's id starts with the checkpoint's repository name ("GLM-5.2/<arch>"),

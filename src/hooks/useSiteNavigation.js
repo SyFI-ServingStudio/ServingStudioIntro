@@ -1,6 +1,7 @@
 import { prepareHero } from "../heroImages";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { notifyUrl } from "../url";
 
 const base = import.meta.env.BASE_URL;
 const pages = new Map([
@@ -62,7 +63,12 @@ export function useSiteNavigation(mainRef) {
       transitionRef.current?.skipTransition();
       const update = () => {
         if (push) window.history.pushState(null, "", url);
-        flushSync(() => setPage(currentPage()));
+        // A link to the page already shown changes only its query: the
+        // page's URL subscribers re-read it in the same commit.
+        flushSync(() => {
+          setPage(currentPage());
+          if (push) notifyUrl();
+        });
         const hash = url.hash.slice(1);
         const target = hash ? document.getElementById(hash) : null;
         if (target) target.scrollIntoView({ behavior: "instant" });
