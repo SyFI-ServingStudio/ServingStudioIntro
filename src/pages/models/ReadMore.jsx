@@ -5,12 +5,13 @@ import ui from "virtual:servingstudio-ui";
 import { API_BASE } from "../kernels/kernelData";
 import s from "./Models.module.css";
 
-/* "Read more": a live prediction in ServingStudio UI's own result pages, over
-   the whole page. The pages are the UI's (scripts/servingstudio-ui.mjs),
-   rendered here in a shadow root, so this site's styles stay out and theirs
-   stay in. The data service analyzed the prediction (POST /predict with
-   `analyze`) and forwards the Analyzer's prediction routes under
-   /analyzer/predictions; the viewer's reads go there. */
+/* "Read more": a live prediction or a simulation's run in ServingStudio UI's
+   own result pages, over the whole page. The pages are the UI's
+   (scripts/servingstudio-ui.mjs), rendered here in a shadow root, so this
+   site's styles stay out and theirs stay in. The data service analyzed the
+   prediction (POST /predict with `analyze`) or the run, and forwards the
+   Analyzer's routes for one prediction or run under /analyzer/predictions and
+   /analyzer/runs; the viewer's reads go there. */
 
 const ResultViewer = lazy(() =>
   import("@servingstudio/ui/embed").then((module) => ({
@@ -23,23 +24,24 @@ const LOADING = { margin: 0, padding: "48px 16px", textAlign: "center" };
 /* Whether this build has the viewer, and why not. */
 export const READ_MORE = ui;
 
-/* The Analyzer's prediction routes, as the viewer asks for them, and where
-   the data service forwards them. Nothing else is forwarded: any other read
-   fails with a message naming it, and is logged, so a gap shows. */
-const ANALYZER = "/api/analyzer/v1/predictions/";
-const FORWARDED = `${API_BASE}/analyzer/predictions/`;
+/* The Analyzer's routes for one prediction or run, as the viewer asks for
+   them, and where the data service forwards them. Nothing else is forwarded:
+   any other read fails with a message naming it, and is logged, so a gap
+   shows. */
+const ANALYZER = /^\/api\/analyzer\/v1\/(predictions|runs)\/(.+)$/;
 
 export async function forwardedFetch(url, { signal } = {}) {
   const address = new URL(url, window.location.origin);
-  if (!address.pathname.startsWith(ANALYZER)) {
-    const detail = `The public site does not serve ${address.pathname}${address.search}: only the Analyzer's prediction routes are forwarded.`;
+  const route = address.pathname.match(ANALYZER);
+  if (!route) {
+    const detail = `The public site does not serve ${address.pathname}${address.search}: only the Analyzer's routes for one prediction or run are forwarded.`;
     console.error(`[read more] ${detail}`);
     return new Response(JSON.stringify({ detail }), {
       status: 404,
       headers: { "Content-Type": "application/json" },
     });
   }
-  const path = FORWARDED + address.pathname.slice(ANALYZER.length);
+  const path = `${API_BASE}/analyzer/${route[1]}/${route[2]}`;
   return fetch(path + address.search, {
     signal,
     headers: { accept: "application/json" },
@@ -62,9 +64,10 @@ export function ReadMoreButton({ onClick, disabled, busy }) {
   );
 }
 
-/* The overlay for one analyzed prediction: `id` is its `prediction_id`;
-   `name` heads it, so the viewer reads no catalog of predictions. */
-export function ResultOverlay({ id, name, onClose }) {
+/* The overlay for one analyzed prediction or run: `id` is its
+   `prediction_id` or `run_id`; `name` heads it, so the viewer reads no
+   catalog. */
+export function ResultOverlay({ kind = "prediction", id, name, onClose }) {
   const overlay = useRef(null);
   const [container, setContainer] = useState(null);
 
@@ -98,7 +101,7 @@ export function ResultOverlay({ id, name, onClose }) {
       className={s.readMore}
       role="dialog"
       aria-modal="true"
-      aria-label="Timing prediction"
+      aria-label={kind === "run" ? "Simulation" : "Timing prediction"}
       tabIndex={-1}
       // The viewer's own dialogs take Escape first (MUI stops it there).
       onKeyDown={(event) => event.key === "Escape" && onClose()}
@@ -109,7 +112,7 @@ export function ResultOverlay({ id, name, onClose }) {
           // Inside the shadow root only inline styles apply.
           <Suspense fallback={<p style={LOADING}>Loading the analysis…</p>}>
             <ResultViewer
-              kind="prediction"
+              kind={kind}
               id={id}
               displayName={name}
               transport={forwardedFetch}

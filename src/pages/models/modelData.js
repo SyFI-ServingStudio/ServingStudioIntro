@@ -57,6 +57,21 @@ export const memberMatches = (member, params, names) =>
 export const predictable = (member) =>
   !member.error && member.missing != null && !Object.keys(member.missing).length;
 
+/* The member a link names; one it does not fully name opens on the first
+   `usable` member that has the values it gives, and says so (`unmatched`). */
+export function memberFromQuery(preset, query, usable) {
+  const names = preset.axes.map((axis) => axis.name);
+  const named = preset.members.find((m) => memberMatches(m, query, names));
+  if (named) return { member: named };
+  const given = names.filter((name) => query[name] != null);
+  const fits = preset.members.filter((m) => memberMatches(m, query, given));
+  const pool = fits.length ? fits : preset.members;
+  return {
+    member: pool.find(usable) ?? pool[0],
+    unmatched: given.length > 0,
+  };
+}
+
 /* The member a picked value moves to: of those that have it, the one that
    keeps the most of the other current values, earlier axes weighing more. */
 export function closestMember(members, names, current, name, value) {

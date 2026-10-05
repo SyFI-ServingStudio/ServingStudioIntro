@@ -17,7 +17,7 @@ import { Tag, ToggleTag } from "../kernels/Tag";
 import {
   CONTRACTS,
   loadTree,
-  memberMatches,
+  memberFromQuery,
   missingText,
   modelHref,
   predictable,
@@ -71,20 +71,7 @@ export function ModelDetail({ catalog, checkpoint, preset }) {
   );
 }
 
-/* The member the link names; one it does not fully name opens on the first
-   predictable member that has the values it gives, and says so. */
-function memberFromUrl(preset, url) {
-  const names = preset.axes.map((axis) => axis.name);
-  const named = preset.members.find((m) => memberMatches(m, url, names));
-  if (named) return { member: named };
-  const given = names.filter((name) => url[name] != null);
-  const fits = preset.members.filter((m) => memberMatches(m, url, given));
-  const pool = fits.length ? fits : preset.members;
-  return {
-    member: pool.find(predictable) ?? pool[0],
-    unmatched: given.length > 0,
-  };
-}
+const memberFromUrl = (preset, url) => memberFromQuery(preset, url, predictable);
 
 function Explorer({ catalog, checkpoint, preset }) {
   const url = readQuery();
