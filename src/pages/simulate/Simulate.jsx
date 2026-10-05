@@ -11,6 +11,7 @@ import {
   initialWorkload,
   numberProblem,
   parseAcceptance,
+  replays,
   routes,
   Setup,
   trafficFacts,
@@ -227,7 +228,7 @@ function useWorkload() {
    beside the run button. */
 function requestFor(preset, member, workload, workloads, limits) {
   const capture = captureOf(preset, workload, member);
-  const reason = blockedText(member, capture);
+  const reason = blockedText(member, capture, replays(workload));
   if (reason)
     return { blocked: `${reason}. Pick another configuration or recording.` };
   const body = { source: workload.source };

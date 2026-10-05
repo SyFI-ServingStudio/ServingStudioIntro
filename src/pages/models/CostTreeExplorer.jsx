@@ -72,6 +72,7 @@ export function CostTreeExplorer({
   return (
     <Tree
       key={JSON.stringify([tree.preset, tree.params])}
+      member={member}
       tree={tree}
       kernels={kernels ?? new Map()}
       times={times}
@@ -125,7 +126,17 @@ const VIEWS = [
   ["kinds", "By kernel type"],
 ];
 
-function Tree({ tree, kernels, times, share, pending, view, onView, aside }) {
+function Tree({
+  member,
+  tree,
+  kernels,
+  times,
+  share,
+  pending,
+  view,
+  onView,
+  aside,
+}) {
   const [sectionIndex, setSection] = useState(0);
   const section = tree.sections[Math.min(sectionIndex, tree.sections.length - 1)];
   const nodes = times?.[section.section] ?? null;

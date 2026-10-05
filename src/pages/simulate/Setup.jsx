@@ -39,14 +39,19 @@ export const routes = (preset) => preset.captures.some((c) => c.routing);
    the reader picks one, the first the member can run. */
 export const captureOf = (preset, workload, member) =>
   preset.captures.find((c) => c.name === workload.capture) ??
-  preset.captures.find((c) => !blockedText(member, c)) ??
+  preset.captures.find((c) => !blockedText(member, c, replays(workload))) ??
   preset.captures[0];
 
-/* Why a member cannot run with a capture, in a reader's words; null when it can. */
-export function blockedText(member, capture) {
+// Whether the run replays its capture's requests, not only its routing.
+export const replays = (workload) => workload.source === "capture";
+
+/* Why a member cannot run with a capture, in a reader's words; null when it
+   can. Requests too long for the member (a misfit) block only a replay: a
+   run of other requests still takes the capture's routing. */
+export function blockedText(member, capture, replayed) {
   if (member.error) return `The simulator cannot build it: ${member.error}`;
   const reason = capture && member.unavailable[capture.name];
-  if (!reason) return null;
+  if (!reason || (reason.misfit && !replayed)) return null;
   if (reason.misfit)
     return reason.misfit.requests != null
       ? `Too long here: ${count(reason.misfit.requests)} of ${count(reason.misfit.total)} requests need more than this configuration's ${count(reason.misfit.max_model_len)}-token context`
@@ -162,11 +167,16 @@ export function Setup({
                 members={preset.members}
                 current={member.params}
                 onPick={(params) => onPick(preset.id, params)}
-                blocked={(m) => blockedText(m, capture)}
+                blocked={(m) => blockedText(m, capture, replays(workload))}
               />
             </div>
           )}
-          <MemberLine preset={preset} member={member} capture={capture} />
+          <MemberLine
+            preset={preset}
+            member={member}
+            capture={capture}
+            replayed={replays(workload)}
+          />
         </div>
       </section>
 
@@ -188,8 +198,8 @@ export function Setup({
 }
 
 /* The GPUs the picked deployment takes, pool by pool, and whether it runs. */
-function MemberLine({ preset, member, capture }) {
-  const reason = blockedText(member, capture);
+function MemberLine({ preset, member, capture, replayed }) {
+  const reason = blockedText(member, capture, replayed);
   const pools = Object.entries(member.pools);
   const draft = draftTokens(member);
   return (
@@ -375,7 +385,7 @@ function Recordings({ preset, member, current, onPick }) {
     <>
       <div className={s.options} role="radiogroup" aria-label="Recording">
         {preset.captures.map((capture) => {
-          const reason = blockedText(member, capture);
+          const reason = blockedText(member, capture, true);
           return (
             <button
               key={capture.name}
