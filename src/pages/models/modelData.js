@@ -3,8 +3,9 @@
    Everything comes from ServingStudio Sim's read-only public API, through the
    same origin and proxy as the kernel library (kernelData.js):
    /models lists every checkpoint with its public presets, their axes and
-   members; /models/{checkpoint}/{arch}/tree gives one member's cost tree,
-   structure only; POST /predict times a reader's batch on one member. */
+   members; /models/{checkpoint}/{arch}/tree gives one member's kernels by
+   section and slot; POST /predict times a reader's batch on one member and
+   gives each section's cost tree. */
 
 import { API_BASE, load, responseError } from "../kernels/kernelData";
 
