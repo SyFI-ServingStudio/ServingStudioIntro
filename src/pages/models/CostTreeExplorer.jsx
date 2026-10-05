@@ -1,6 +1,8 @@
 import { ArrowUpRight } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { TreeRows } from "../../components/CostTree";
+import { KernelShare } from "./KernelShare";
+import { Pending, breakable } from "./TreeParts";
 import { formatValue } from "../kernels/kernelData";
 import {
   formatMs,
@@ -22,26 +24,47 @@ const SHAPE_ARGS = 5;
    kernel calls, their kernels and configs. `times` is the Analyzer's tree of
    the batch Live predict last timed, { section: nodes }: every node's time
    for one call and its share of the section, after its repeats. `kernels`
-   maps a kind to its catalog entry, for the leaf's title and link. */
-export function CostTreeExplorer({ tree, error, kernels, times }) {
+   maps a kind to its catalog entry, for the leaf's title and link. While
+   `pending`, a newer batch is being timed: the rows keep their place and
+   every time is a placeholder, never the last batch's number. `view` picks
+   the tree, or the Analyzer's ranking of the batch (`share`, KernelShare) by
+   kernel or by kernel type. `aside` (Live predict) sits beside the rows,
+   level with their top, under the panel's heading. */
+export function CostTreeExplorer({
+  tree,
+  error,
+  kernels,
+  times,
+  share,
+  pending,
+  view,
+  onView,
+  aside,
+}) {
   if (error)
     return (
       <section className={s.treePanel}>
-        <p role="alert">The cost tree did not load ({error.message}).</p>
+        <TreeLayout aside={aside}>
+          <p role="alert">The cost tree did not load ({error.message}).</p>
+        </TreeLayout>
       </section>
     );
   if (!tree)
     return (
       <section className={s.treePanel} aria-busy="true">
-        <p role="status" className={s.treeLoading}>
-          Loading the cost tree…
-        </p>
+        <TreeLayout aside={aside}>
+          <p role="status" className={s.treeLoading}>
+            Loading the cost tree…
+          </p>
+        </TreeLayout>
       </section>
     );
   if (tree.error)
     return (
       <section className={s.treePanel}>
-        <p role="alert">The simulator could not build this tree: {tree.error}</p>
+        <TreeLayout aside={aside}>
+          <p role="alert">The simulator could not build this tree: {tree.error}</p>
+        </TreeLayout>
       </section>
     );
   return (
@@ -50,7 +73,23 @@ export function CostTreeExplorer({ tree, error, kernels, times }) {
       tree={tree}
       kernels={kernels ?? new Map()}
       times={times}
+      share={share}
+      pending={pending}
+      view={view}
+      onView={onView}
+      aside={aside}
     />
+  );
+}
+
+/* The rows on the left, `aside` beside them on a wide screen and under them
+   otherwise; the row is as tall as the taller of the two. */
+function TreeLayout({ aside, children }) {
+  return (
+    <div className={s.treeLayout}>
+      <div className={s.treeBody}>{children}</div>
+      {aside}
+    </div>
   );
 }
 
@@ -78,7 +117,13 @@ function BuiltWith({ arch }) {
   );
 }
 
-function Tree({ tree, kernels, times }) {
+const VIEWS = [
+  ["tree", "Tree"],
+  ["kernels", "By kernel"],
+  ["kinds", "By kernel type"],
+];
+
+function Tree({ tree, kernels, times, share, pending, view, onView, aside }) {
   const [sectionIndex, setSection] = useState(0);
   const section = tree.sections[Math.min(sectionIndex, tree.sections.length - 1)];
   const nodes = times?.[section.section] ?? null;
@@ -101,7 +146,7 @@ function Tree({ tree, kernels, times }) {
   const total = nodes?.[0].total_ms;
   const rows = nodes
     ? visibleRows(nodes, open).map((node) => {
-        const time = <NodeTime node={node} />;
+        const time = <NodeTime node={node} pending={pending} />;
         return node.kind === "leaf"
           ? leafRow(tree, section, kernels, node, time)
           : compositeRow(node, open, toggle, time);
@@ -126,7 +171,13 @@ function Tree({ tree, kernels, times }) {
           {nodes && (
             <div>
               <dt>Critical path</dt>
-              <dd>{formatMs(total)} ms</dd>
+              <dd>
+                {pending ? (
+                  <Pending className={s.pendingStat} />
+                ) : (
+                  <>{formatMs(total)} ms</>
+                )}
+              </dd>
             </div>
           )}
           <div>
@@ -137,70 +188,99 @@ function Tree({ tree, kernels, times }) {
         <BuiltWith arch={tree.arch} />
       </div>
 
-      <div className={s.treeBar}>
-        {tree.sections.length > 1 ? (
-          <div className={detail.viewSwitch} role="radiogroup" aria-label="Section">
-            {tree.sections.map((item, index) => (
-              <button
-                key={item.section}
-                type="button"
-                role="radio"
-                aria-checked={item === section}
-                onClick={() => setSection(index)}
-              >
-                {item.section.replaceAll("_", " ")}
-              </button>
-            ))}
+      <TreeLayout aside={aside}>
+        <div className={s.treeBar}>
+          <div className={s.treeViews}>
+            <div className={detail.viewSwitch} role="radiogroup" aria-label="View">
+              {VIEWS.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={view === id}
+                  onClick={() => onView(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {view === "tree" && tree.sections.length > 1 && (
+              <SectionSwitch
+                sections={tree.sections}
+                section={section}
+                onPick={setSection}
+              />
+            )}
           </div>
-        ) : (
-          <span />
-        )}
-        <div className={s.treeActions}>
-          <button
-            type="button"
-            onClick={() => setOpen(new Set(parents(nodes ?? [])))}
-          >
-            Expand all
-          </button>
-          <button type="button" onClick={() => setOpen(new Set())}>
-            Collapse all
-          </button>
+          {view === "tree" && (
+            <div className={s.treeActions}>
+              <button
+                type="button"
+                onClick={() => setOpen(new Set(parents(nodes ?? [])))}
+              >
+                Expand all
+              </button>
+              <button type="button" onClick={() => setOpen(new Set())}>
+                Collapse all
+              </button>
+            </div>
+          )}
         </div>
-      </div>
 
-      <div className={s.treeScroll}>
-        {nodes ? (
-          <TreeRows rows={rows} className={s.tree} label="Cost tree nodes" />
+        {view !== "tree" ? (
+          <KernelShare
+            tree={tree}
+            kernels={kernels}
+            share={share}
+            pending={pending}
+            byKind={view === "kinds"}
+          />
         ) : (
-          <p role="status" className={s.treeLoading}>
-            The tree appears once Live predict has timed a batch.
-          </p>
+          <div className={s.treeScroll}>
+            {nodes ? (
+              <TreeRows rows={rows} className={s.tree} label="Cost tree nodes" />
+            ) : (
+              <p role="status" className={s.treeLoading}>
+                The tree appears once Live predict has timed a batch.
+              </p>
+            )}
+          </div>
         )}
-      </div>
+      </TreeLayout>
     </section>
   );
 }
 
-// A dotted name may break after a dot on a narrow screen, not mid-word.
-const breakable = (name) =>
-  name.includes(".")
-    ? name.split(".").map((part, index) => (
-        <Fragment key={index}>
-          {index > 0 && (
-            <>
-              .<wbr />
-            </>
-          )}
-          {part}
-        </Fragment>
-      ))
-    : name;
+function SectionSwitch({ sections, section, onPick }) {
+  return (
+    <div className={detail.viewSwitch} role="radiogroup" aria-label="Section">
+      {sections.map((item, index) => (
+        <button
+          key={item.section}
+          type="button"
+          role="radio"
+          aria-checked={item === section}
+          onClick={() => onPick(index)}
+        >
+          {item.section.replaceAll("_", " ")}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const percent = (pct) => (pct > 0 && pct < 0.1 ? "<0.1%" : `${pct.toFixed(1)}%`);
 
 /* A node's time for one call, then its share of the section once its
    repeats are counted. */
-function NodeTime({ node }) {
+
+function NodeTime({ node, pending }) {
+  if (pending)
+    return (
+      <span className={s.nodeTime}>
+        <Pending className={s.pendingNode} />
+      </span>
+    );
   return (
     <span
       className={s.nodeTime}

@@ -11,10 +11,11 @@ import {
 } from "./modelData";
 import { presetCheckpoint } from "../kernels/kernelData";
 import { ReadMoreButton, ResultOverlay } from "./ReadMore";
+import { Pending } from "./TreeParts";
 import cost from "../../components/CostTree.module.css";
 import s from "./Models.module.css";
 
-/* Live predict: a batch of requests for the member the cost tree above
+/* Live predict: a batch of requests for the member the cost tree beside it
    shows, timed by the data service (POST /predict, Sim's timing-predict on
    the measured rows) a moment after each edit. The answer is here; every
    node's time goes onto the tree through `onTimes`.
@@ -31,9 +32,13 @@ export function LivePredict({
   setBatch,
   onPick,
   onTimes,
+  onPending,
 }) {
   const key = JSON.stringify([preset.id, member.params]);
-  useEffect(() => onTimes(null), [key, onTimes]);
+  useEffect(() => {
+    onTimes(null);
+    onPending(false);
+  }, [key, onTimes, onPending]);
   const shape = useMemo(
     () => member.predict && editorShape(member.predict, caseFields),
     [member.predict, caseFields],
@@ -65,11 +70,6 @@ export function LivePredict({
       <div className={s.predictHead}>
         <h2 id="predict-title">Live predict</h2>
       </div>
-      <p className={s.predictIntro}>
-        Add requests to one iteration&apos;s batch. The data service runs Sim&apos;s
-        timing-predict on the kernel measurements of the configuration above and
-        times every node of its cost tree.
-      </p>
       {blocked ? (
         <div className={s.predictStatus} data-tone="warn" role="alert">
           <TriangleAlert size={18} aria-hidden="true" />
@@ -79,7 +79,7 @@ export function LivePredict({
           </div>
         </div>
       ) : !tree || tree.error ? (
-        <p className={s.predictQuiet}>Waiting for the cost tree above.</p>
+        <p className={s.predictQuiet}>Waiting for the cost tree.</p>
       ) : (
         <Workbench
           key={key}
@@ -91,6 +91,7 @@ export function LivePredict({
           setBatch={setBatch}
           onPick={onPick}
           onTimes={onTimes}
+          onPending={onPending}
         />
       )}
     </section>
@@ -227,6 +228,7 @@ function Workbench({
   setBatch,
   onPick,
   onTimes,
+  onPending,
 }) {
   const info = member.predict;
   const groupCount = Math.max(1, info.groups ?? 1);
@@ -257,7 +259,7 @@ function Workbench({
   const body = shaped.case
     ? { preset: preset.id, params: member.params, cases: [shaped.case] }
     : null;
-  const { result, failure, busy, retry } = usePrediction(body, onTimes);
+  const { result, failure, busy, retry } = usePrediction(body, onTimes, onPending);
   const tokens = shape.mode === "tokens";
 
   return (
@@ -377,8 +379,11 @@ function requestCount(group) {
 
 /* Times `body` whenever it changes, 150 ms after the last edit; a newer
    edit cancels the request still in flight. Each section's tree, as the
-   Analyzer gives it, goes to `onTimes`: { section: nodes }. */
-function usePrediction(body, onTimes) {
+   Analyzer gives it, goes to `onTimes`: { section: nodes }, with the
+   Analyzer's kernel ranking of the batch (`kernel_time_share`). From the edit
+   until the answer the old answer is dropped and `onPending` says the
+   tree's times are stale. */
+function usePrediction(body, onTimes, onPending) {
   const [state, setState] = useState({});
   const [attempt, setAttempt] = useState(0);
   const text = body ? JSON.stringify(body) : null;
@@ -386,10 +391,12 @@ function usePrediction(body, onTimes) {
     if (!text) {
       setState({});
       onTimes(null);
+      onPending(false);
       return undefined;
     }
     const controller = new AbortController();
-    setState((previous) => ({ ...previous, busy: true }));
+    setState({ busy: true });
+    onPending(true);
     const timer = setTimeout(async () => {
       try {
         const answer = await predict(JSON.parse(text), controller.signal);
@@ -399,18 +406,21 @@ function usePrediction(body, onTimes) {
           Object.fromEntries(
             sections.map(({ section, nodes }) => [section, nodes]),
           ),
+          answer.kernel_time_share,
         );
+        onPending(false);
       } catch (error) {
         if (controller.signal.aborted) return;
         setState({ failure: error });
         onTimes(null);
+        onPending(false);
       }
     }, 150);
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [text, attempt, onTimes]);
+  }, [text, attempt, onTimes, onPending]);
   return { ...state, retry: () => setAttempt((n) => n + 1) };
 }
 
@@ -624,8 +634,20 @@ function Result({
   return (
     <div className={s.answer} aria-live="polite">
       <div className={cost.result}>
-        <p>{HEADLINE[selector] ?? "Predicted time per block"}</p>
-        {sections && !single ? (
+        <p className={s.answerHead}>
+          {HEADLINE[selector] ?? "Predicted time per block"}
+          {busy && !shaped.problem && (
+            <span className={s.computing} role="status">
+              <LoaderCircle size={14} className={s.spin} aria-hidden="true" />
+              Computing
+            </span>
+          )}
+        </p>
+        {busy && !shaped.problem ? (
+          <strong>
+            <Pending className={s.pendingHeadline} />
+          </strong>
+        ) : sections && !single ? (
           <dl className={s.sectionTimes}>
             {sections.map((item) => (
               <div key={`${item.section}:${item.layer}`}>
@@ -664,12 +686,6 @@ function Result({
           </p>
         )}
       </div>
-      {busy && !shaped.problem && (
-        <p className={s.predictQuiet} role="status">
-          <LoaderCircle size={14} className={s.spin} aria-hidden="true" /> Timing
-          the batch…
-        </p>
-      )}
       {failure && !shaped.problem && (
         <Failure
           failure={failure}
@@ -679,14 +695,13 @@ function Result({
           onPick={onPick}
         />
       )}
-      {sections && (
+      {sections && (!single || extrapolated > 0) && (
         <p className={s.predictNote}>
-          The cost tree above shows this batch&apos;s time on every node. Under a
-          Scale the rows show one repeat; the Scale row is their total.
           {!single &&
-            " Each block is timed once: a middle layer stands for every layer but the last."}
+            "Each block is timed once: a middle layer stands for every layer but the last."}
+          {!single && extrapolated > 0 && " "}
           {extrapolated > 0 &&
-            ` ${extrapolated} kernel ${extrapolated === 1 ? "call reads" : "calls read"} past the measured grid and ${extrapolated === 1 ? "is" : "are"} extrapolated.`}
+            `${extrapolated} kernel ${extrapolated === 1 ? "call reads" : "calls read"} past the measured grid and ${extrapolated === 1 ? "is" : "are"} extrapolated.`}
         </p>
       )}
       {sections && !busy && (

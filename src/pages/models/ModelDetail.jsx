@@ -1,5 +1,11 @@
 import { ArrowLeft, CircleCheck, CircleDashed } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   loadCatalog,
   readQuery,
@@ -86,12 +92,22 @@ function Explorer({ catalog, checkpoint, preset }) {
   const pick = (params, id = preset.id) => setQuery({ preset: id, ...params });
   const tree = useTree(preset.id, member);
   const kernels = useKernelCatalog();
-  // Live predict's time per node of the tree, once it has costed a batch.
-  const [times, setTimes] = useState(null);
+  // Live predict's time per node of the tree, once it has costed a batch,
+  // the Analyzer's kernel ranking of that batch, and whether a newer batch
+  // is being timed (its old times are stale).
+  const [timed, setTimed] = useState({ times: null, share: null });
+  const onTimes = useCallback(
+    (times, share = null) => setTimed({ times, share }),
+    [],
+  );
+  const [pending, setPending] = useState(false);
+  // Which view of the costed batch the tree panel shows.
+  const [view, setView] = useState("tree");
   // The batch a reader built, kept across members.
   const [batch, setBatch] = useState(null);
 
   const workload = preset.axes.find((axis) => axis.rows);
+  const aside = useStickyTop();
 
   return (
     <>
@@ -153,27 +169,32 @@ function Explorer({ catalog, checkpoint, preset }) {
         <MemberStatus member={member} workload={workload} />
       </section>
 
-      <div className={s.treeLayout}>
-        <CostTreeExplorer
-          tree={tree.data}
-          error={tree.error}
-          kernels={kernels}
-          times={times}
-        />
-        <aside className={s.aside}>
-          <Legend />
-        </aside>
-      </div>
+      <Legend />
 
-      <LivePredict
-        preset={preset}
-        member={member}
+      <CostTreeExplorer
         tree={tree.data}
-        caseFields={catalog.case_fields}
-        batch={batch}
-        setBatch={setBatch}
-        onPick={(params) => pick(params)}
-        onTimes={setTimes}
+        error={tree.error}
+        kernels={kernels}
+        times={timed.times}
+        share={timed.share}
+        pending={pending}
+        view={view}
+        onView={setView}
+        aside={
+          <aside className={s.aside} ref={aside}>
+            <LivePredict
+              preset={preset}
+              member={member}
+              tree={tree.data}
+              caseFields={catalog.case_fields}
+              batch={batch}
+              setBatch={setBatch}
+              onPick={(params) => pick(params)}
+              onTimes={onTimes}
+              onPending={setPending}
+            />
+          </aside>
+        }
       />
     </>
   );
@@ -250,6 +271,35 @@ function MemberStatus({ member, workload }) {
       </p>
     </div>
   );
+}
+
+/* Where a sticky panel sticks: under the nav when it fits in the window,
+   otherwise by its bottom, so its last line stays reachable. */
+const NAV_CLEARANCE = 108;
+const BOTTOM_GAP = 24;
+
+function useStickyTop() {
+  const release = useRef(null);
+  // A callback ref: the panel remounts with the tree panel around it.
+  return useCallback((node) => {
+    release.current?.();
+    release.current = null;
+    if (!node) return;
+    const place = () => {
+      const top = Math.min(
+        NAV_CLEARANCE,
+        window.innerHeight - node.offsetHeight - BOTTOM_GAP,
+      );
+      node.style.setProperty("--stick-top", `${top}px`);
+    };
+    const observer = new ResizeObserver(place);
+    observer.observe(node);
+    window.addEventListener("resize", place);
+    release.current = () => {
+      observer.disconnect();
+      window.removeEventListener("resize", place);
+    };
+  }, []);
 }
 
 /* The member's cost tree. */
