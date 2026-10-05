@@ -35,7 +35,11 @@ jobs:
       - run: npm ci
       - run: npm run lint:css
       - run: npm test
+      # The check has no UI checkout for Read more; the published redirects
+      # do not need it.
       - run: npm run build
+        env:
+          ALLOW_NO_READ_MORE: "1"
       - run: npm run build:github-redirects
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

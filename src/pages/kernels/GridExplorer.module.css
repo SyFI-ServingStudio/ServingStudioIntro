@@ -11,8 +11,16 @@
   padding-top: 18px;
 }
 
-/* A config group names each deployment that uses it, one per line: the
-   #[supported] row. */
+/* A chip names what tells its config apart, which can run past a phone's
+   width (a fused MoE's every field): it wraps instead. */
+.configs button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+
+/* A config group names each public preset that uses it, one per line, with
+   the values its configurations take. */
 .deployments {
   display: grid;
   gap: 4px;
@@ -144,12 +152,33 @@
   margin-top: 4px;
 }
 
-/* What registered the chips below it, when that is what tells them apart. */
+/* The configurations that read the chips below it, when only some do. */
 .caption {
   display: grid;
   color: var(--muted);
   font-size: var(--fs-fine);
   overflow-wrap: anywhere;
+}
+
+/* A preset member that reads the config, linking to it on the Models page. */
+.use {
+  display: grid;
+  gap: 1px;
+  color: var(--accent);
+  font-size: var(--fs-fine);
+}
+
+.use strong {
+  color: inherit;
+  font-weight: 500;
+}
+
+.use span {
+  color: var(--muted);
+}
+
+.use:hover span {
+  color: var(--ink);
 }
 
 .moreSources {

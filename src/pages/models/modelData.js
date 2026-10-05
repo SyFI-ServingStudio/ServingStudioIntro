@@ -1,40 +1,128 @@
 /* Data access for the Models page.
 
-   Everything comes from ServingStudio Sim's read-only public API, through the
+   Everything comes from ServingStudio Sim's public API, through the
    same origin and proxy as the kernel library (kernelData.js):
-   /archs lists the archs, /archs/{arch} gives one arch's params and the
-   parameter sets its #[supported] rows allow, and /archs/{arch}/cost-tree
-   gives one set's cost tree. A tree is structure only: no timings. */
+   /models lists every checkpoint with its public presets, their axes and
+   members; /models/{checkpoint}/{arch}/tree gives one member's kernels by
+   section and slot; POST /predict times a reader's batch on one member and
+   gives each section's cost tree. */
 
-import { load } from "../kernels/kernelData";
+import { load, presetCheckpoint, send } from "../kernels/kernelData";
+import { pageHref } from "../../url";
 
-export const loadArchs = () => load("archs");
-export const loadArch = (arch) => load(`archs/${encodeURIComponent(arch)}`);
+export const loadModels = () => load("models");
 
-// A set's query names it exactly: the GPU, the model and every param the
-// arch's rows choose. The service rejects anything it would have to guess.
-export const queryString = (query) =>
-  new URLSearchParams(
-    Object.entries(query).map(([key, value]) => [key, String(value)]),
-  ).toString();
-export const loadCostTree = (arch, query) =>
-  load(`archs/${encodeURIComponent(arch)}/cost-tree?${queryString(query)}`);
-
-/* The page keeps its own state in the query string: `arch`, then the set's
-   query under the same names the API uses. A value arrives as text; a set's
-   query holds numbers and booleans, so they are compared as text. */
-export function memberFromUrl(arch, url) {
-  const members = arch.param_sets.flatMap((set) =>
-    set.members.map((member) => ({ set, member })),
+/* A public preset as a reader names its deployment ("vLLM, TP and EP"): the
+   arch's `arch_name`, else its arch tag. `archNames` maps every preset of
+   /models (absent: none) to it, by id. */
+export const archLabel = (preset) => preset.arch_name ?? preset.arch;
+export const archNames = (models) =>
+  new Map(
+    (models?.checkpoints ?? []).flatMap((c) =>
+      c.presets.map((p) => [p.id, archLabel(p)]),
+    ),
   );
-  return (
-    members.find(({ member }) =>
-      Object.entries(member.query).every(
-        ([key, value]) => url[key] === String(value),
-      ),
-    ) ?? null
+
+/* A member is named by its preset's id ("<checkpoint>/<arch>") and one value
+   per axis of the preset. The service rejects anything it would have to guess. */
+const queryString = (params) =>
+  new URLSearchParams(
+    Object.entries(params).map(([key, value]) => [key, String(value)]),
+  ).toString();
+const presetPath = (preset) => preset.split("/").map(encodeURIComponent).join("/");
+export const loadTree = (preset, params) => {
+  const query = queryString(params);
+  return load(`models/${presetPath(preset)}/tree${query ? `?${query}` : ""}`);
+};
+
+/* The Models page at a member: the preset's id, then a value per axis. A
+   plain link, so the Kernels page can link here too. */
+export const memberHref = (preset, params) =>
+  pageHref("models", { preset, ...params });
+
+/* Each case's time on one member. Not cached: a reader edits the batch.
+   `signal` cancels a request a newer edit made stale. */
+export const predict = (body, signal) =>
+  send("predict", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+/* ---------- Members ---------- */
+
+/* Axis values arrive from the URL as text; a member's params hold numbers
+   and booleans, so they are compared as text, as the service compares them. */
+export const sameValue = (a, b) => String(a) === String(b);
+
+export const memberMatches = (member, params, names) =>
+  names.every((name) => sameValue(member.params[name], params[name]));
+
+/* What the service says blocks a configuration, in a reader's words: its
+   build's `error`, or the measurements it lacks (`missing`, {kind: rows});
+   `notYet` begins the latter ("Cannot be timed yet"). The service's "not
+   checked", and a missing `missing`, mean the check has not run. Null when
+   nothing blocks. Models and Simulate both say it this way. */
+export function blockerText({ error, missing }, notYet) {
+  if (error === "not checked" || (!error && missing == null))
+    return "Its measurements are not checked yet";
+  if (error) return `The simulator cannot build it: ${error}`;
+  if (Object.keys(missing).length)
+    return `${notYet}; measurements missing for ${missingText(missing)}`;
+  return null;
+}
+
+/* Why a member cannot be predicted, or null when it can: the simulator
+   built it and every kernel it calls is measured. */
+export const blockedReason = (member) => blockerText(member, "Cannot be timed yet");
+export const predictable = (member) => !blockedReason(member);
+
+/* The member a link names; one it does not fully name opens on the first
+   `usable` member that has the values it gives, and says so (`unmatched`). */
+export function memberFromQuery(preset, query, usable) {
+  const names = preset.axes.map((axis) => axis.name);
+  const named = preset.members.find((m) => memberMatches(m, query, names));
+  if (named) return { member: named };
+  const given = names.filter((name) => query[name] != null);
+  const fits = preset.members.filter((m) => memberMatches(m, query, given));
+  const pool = fits.length ? fits : preset.members;
+  return {
+    member: pool.find(usable) ?? pool[0],
+    unmatched: given.length > 0,
+  };
+}
+
+/* The member a picked value moves to: of those that have it, the one that
+   keeps the most of the other current values, earlier axes weighing more. */
+export function closestMember(members, names, current, name, value) {
+  const score = (member) =>
+    names.reduce(
+      (sum, other, index) =>
+        other !== name && sameValue(member.params[other], current[other])
+          ? sum + 2 ** (names.length - index)
+          : sum,
+      0,
+    );
+  const candidates = members.filter((m) => sameValue(m.params[name], value));
+  return candidates.reduce(
+    (best, m) => (best == null || score(m) > score(best) ? m : best),
+    null,
   );
 }
+
+/* "ep_size 4, max_model_len 8,192, workload c32_long". */
+export const paramsText = (params) =>
+  Object.entries(params)
+    .map(([name, value]) => `${name} ${paramValue(value)}`)
+    .join(", ");
+
+/* "grouped_gemm 998, moe_finalize_routing 50": the rows a member lacks. */
+const missingText = (missing) =>
+  Object.entries(missing)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([kind, count]) => `${kind} ${count.toLocaleString("en-US")}`)
+    .join(", ");
 
 /* A param's value as a reader reads it: numbers grouped, booleans as words. */
 export const paramValue = (value) =>
@@ -46,36 +134,10 @@ export const paramValue = (value) =>
         : "off"
       : String(value);
 
-/* A routing as a reader reads it: its kind and, for a measured routing, the
-   file it was measured into. A hub reference keeps its repository and path
-   but shortens the commit, which the title gives whole. */
+/* A hub reference keeps its repository and path but shortens the commit,
+   which a title gives whole. */
 export const shortReference = (reference) =>
-  reference.replace(/@([0-9a-f]{7})[0-9a-f]+\//, "@$1/");
-
-export function routingText(value, routing) {
-  const kind = value.routing ?? "not recorded";
-  const file = Object.entries(value).find(
-    ([name]) => name !== "routing" && name !== "routing_seed",
-  )?.[1];
-  const seed = value.routing_seed != null ? `, seed ${value.routing_seed}` : "";
-  const label = routing?.label ?? file;
-  return label && label !== kind
-    ? `${kind} ${shortReference(label)}${seed}`
-    : `${kind}${seed}`;
-}
-
-/* How one registry source recorded a run: a preset, an alignment case of a
-   pack, or a prediction config. A path another machine had is named by its
-   file name only. */
-export function sourceText(source) {
-  const where = source.path ?? `${source.name} (recorded on another machine)`;
-  if (source.kind === "alignment") {
-    const cases = source.cases.map((name) => name.split("_")[0]).join(", ");
-    return `the alignment pack ${where}, ${source.variant}${cases ? `, cases ${cases}` : ""}`;
-  }
-  if (source.kind === "timing_predict") return `the prediction config ${where}`;
-  return where;
-}
+  String(reference).replace(/@([0-9a-f]{7})[0-9a-f]+\//, "@$1/");
 
 /* What each contract means for a reader. An iter-wise arch is one model that
    costs a whole iteration; the layer-wise pair is the two sides of an
@@ -86,138 +148,60 @@ export const CONTRACTS = {
   layer_wise_ffn: "Disaggregated FFN side",
 };
 
-/* Cost-tree nodes, from the API's nested form to rows the tree draws.
+/* ---------- The cost tree ---------- */
 
-   A composite's name is its role relative to its parent (`attention` under
-   `unified.body.dense_full_index`); Rust's composite line, when there is one,
-   becomes the note beside it. A leaf is named the same way. */
-const relative = (path, parent) => {
-  if (!path) return null;
-  if (parent && path.startsWith(`${parent}.`)) return path.slice(parent.length + 1);
-  return path.split(".").at(-1);
-};
+/* A predicted section's tree is the Analyzer's (`nodes`: root first, in
+   display order, each with its `depth`); the page only folds it. A row is a
+   parent when the next row is deeper. */
+const isParent = (nodes, index) => nodes[index + 1]?.depth > nodes[index].depth;
 
-// Rust's composite line reads "<path> (<Worklet>) [<partition>]" or a free
-// description ("layers 0..2: dense + full index (3 layers)").
-function splitLabel(label, path) {
-  if (!label) return { title: null, note: null };
-  if (path && label.startsWith(path)) {
-    const rest = label.slice(path.length).trim();
-    return { title: null, note: rest || null };
-  }
-  if (label.startsWith("unified") || label.startsWith("afd")) {
-    const space = label.indexOf(" ");
-    return { title: null, note: space < 0 ? null : label.slice(space + 1) };
-  }
-  return { title: label, note: null };
-}
-
-/* Two subtrees are alike when they compose the same kernels the same way: the
-   rank copies under a Max usually are, and one of them stands for all. */
-function signature(node) {
-  if (node.kind === "leaf") return `L:${node.slot.config_key}`;
-  const own =
-    node.kind === "scale" ? node.n : node.kind === "max" ? node.overlap : "";
-  return `${node.kind}${own}(${node.children.map(signature).join(",")})`;
-}
-
-/* The tree as nodes the view walks: each with its display name, note, depth,
-   and for a Max whose children are alike, how many there are (`copies`) with
-   only the first kept. Leaves count every kernel they stand for. */
-export function prepareTree(root) {
-  const walk = (node, parentPath, depth) => {
-    const path = node.kind === "leaf" ? node.slot.name : node.path;
-    const { title, note } = splitLabel(node.label, path);
-    const base = {
-      id: node.id,
-      kind: node.kind,
-      depth,
-      name: title ?? relative(path, parentPath) ?? node.kind,
-      path,
-      note,
-    };
-    if (node.kind === "leaf") return { ...base, slot: node.slot, leaves: 1 };
-    let children = node.children;
-    let copies = null;
-    if (
-      node.kind === "max" &&
-      children.length > 1 &&
-      children.every((child) => signature(child) === signature(children[0]))
-    ) {
-      copies = children.length;
-      children = [children[0]];
-    }
-    const next = path ?? parentPath;
-    const kids = children.map((child) => walk(child, next, depth + 1));
-    return {
-      ...base,
-      n: node.n,
-      overlap: node.overlap,
-      copies,
-      width: node.children.length,
-      children: kids,
-      // Every kernel call the node stands for, the copies not shown included.
-      leaves: (copies ?? 1) * kids.reduce((sum, kid) => sum + kid.leaves, 0),
-    };
-  };
-  return walk(root, null, 0);
-}
-
-export function* visible(node, open) {
-  yield node;
-  if (node.children && open.has(node.id))
-    for (const child of node.children) yield* visible(child, open);
-}
-
-export function allIds(node, out = []) {
-  if (node.children) {
-    out.push(node.id);
-    node.children.forEach((child) => allIds(child, out));
-  }
-  return out;
+/* The rows a reader sees, each parent marked, with only the parents in
+   `open` (by `node`) expanded. */
+export function visibleRows(nodes, open) {
+  const rows = [];
+  let folded = Infinity;
+  nodes.forEach((node, index) => {
+    if (node.depth > folded) return;
+    folded = Infinity;
+    const parent = isParent(nodes, index);
+    rows.push({ ...node, parent });
+    if (parent && !open.has(node.node)) folded = node.depth;
+  });
+  return rows;
 }
 
 // Open to this depth at first: the model, its sections and their blocks.
-export function initiallyOpen(node, depth = 2, out = new Set()) {
-  if (node.children && node.depth < depth) {
-    out.add(node.id);
-    node.children.forEach((child) => initiallyOpen(child, depth, out));
-  }
-  return out;
-}
+export const parents = (nodes, depth = Infinity) =>
+  nodes
+    .filter((node, index) => node.depth < depth && isParent(nodes, index))
+    .map((node) => node.node);
 
-/* A leaf's config: whether profile.db's registry holds it on this GPU and how
-   much of its grid is measured, by the best-covered backend. */
-export function coverage(config) {
-  const registry = config?.registry;
-  if (!registry) return { state: "unregistered" };
-  const runnable = registry.cells - registry.infeasible;
-  const best = Math.max(0, ...Object.values(registry.measured));
-  if (!best) return { state: "unmeasured", runnable };
-  return { state: best >= runnable ? "measured" : "partial", best, runnable };
-}
-
-/* The kernel page for a leaf, open on the simulator grid at the leaf's config
-   when the registry holds it there. Only documented kinds have a page. A tree
-   keys a config by `config_key` (kind and hash): two kinds of one shape share
-   a hash. */
-export function kernelLink(tree, slot) {
-  const kernel = tree.kernels[slot.kind];
+/* The kernel page for a leaf, open on the simulator grid at the leaf's
+   config: `config` is the id /kernels/{kind}/configs/{id} answers. Only
+   documented kinds have a page. */
+export function kernelLink(kernel, slot, tree) {
   if (!kernel?.documented) return null;
-  const params = new URLSearchParams({ kind: slot.kind });
-  if (tree.configs[slot.config_key]?.registry) {
-    params.set("view", "grid");
-    params.set("cgpu", tree.gpu);
-    params.set("cmodel", tree.model_config);
-    params.set("config", slot.config_hash);
-  }
-  return `${import.meta.env.BASE_URL}kernels.html?${params}`;
+  return pageHref("kernels", {
+    kind: slot.kernel,
+    view: "grid",
+    cgpu: tree.gpu,
+    cmodel: presetCheckpoint(tree.preset),
+    config: slot.config,
+  });
 }
 
-/* Prose from the catalog marks identifiers in backticks, as the Rust docs it
-   comes from do: `tp_size`. They read as code on the page. */
-export function withCode(text) {
-  return text
-    .split("`")
-    .map((part, index) => (index % 2 ? { code: part } : { text: part }));
-}
+/* A section of the cost tree as a reader reads its name ("lm_head" → "lm head"). */
+export const sectionName = (section) => section.replaceAll("_", " ");
+
+/* A share in percent as the page prints it. */
+export const formatPercent = (pct) =>
+  pct > 0 && pct < 0.1 ? "<0.1%" : `${pct.toFixed(1)}%`;
+
+/* A time in milliseconds as the page prints it. */
+export const formatMs = (ms) =>
+  ms > 0 && ms < 0.001
+    ? "<0.001"
+    : ms.toLocaleString("en-US", {
+        minimumFractionDigits: ms >= 100 ? 1 : 3,
+        maximumFractionDigits: ms >= 100 ? 1 : 3,
+      });

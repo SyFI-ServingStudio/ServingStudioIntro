@@ -1,17 +1,18 @@
-import { ArrowUpRight, CircleCheck, CircleDashed, CircleDot } from "lucide-react";
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { TreeRows, backendLabels } from "../../components/CostTree";
+import { ArrowUpRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { TreeRows } from "../../components/CostTree";
+import { KernelShare } from "./KernelShare";
+import { Pending, breakable } from "./TreeParts";
 import { formatValue } from "../kernels/kernelData";
 import {
-  allIds,
-  coverage,
-  initiallyOpen,
+  formatMs,
+  formatPercent,
   kernelLink,
   paramValue,
-  prepareTree,
-  routingText,
-  sourceText,
-  visible,
+  parents,
+  sectionName,
+  shortReference,
+  visibleRows,
 } from "./modelData";
 import detail from "../kernels/KernelDetail.module.css";
 import s from "./Models.module.css";
@@ -20,125 +21,134 @@ const KIND = { sum: "Sum", max: "Max", scale: "Scale", leaf: "Leaf" };
 // Past this many, a leaf's shape reads "…"; the kernel page has the rest.
 const SHAPE_ARGS = 5;
 
-/* One parameter set's cost tree, as ModelDetail loaded it: how the simulator
-   puts an iteration's time together from kernel calls. It carries no times; a
-   leaf says which kernel it calls, the shape it asks for and whether
-   profile.db measures that shape. */
-export function CostTreeExplorer({ tree, error }) {
+/* One member's cost tree: how the simulator puts an iteration's time
+   together from kernel calls. `tree` (/models/.../tree) names each section's
+   kernel calls, their kernels and configs; `member` (/models) counts them. `times` is the Analyzer's tree of
+   the batch Live predict last timed, { section: nodes }: every node's time
+   for one call and its share of the section, after its repeats. `kernels`
+   maps a kind to its catalog entry, for the leaf's title and link. While
+   `pending`, a newer batch is being timed: the rows keep their place and
+   every time is a placeholder, never the last batch's number. `view` picks
+   the tree, or the Analyzer's ranking of the batch (`share`, KernelShare) by
+   kernel or by kernel type. `aside` (Live predict) sits beside the rows,
+   level with their top, under the panel's heading. */
+export function CostTreeExplorer({
+  member,
+  tree,
+  error,
+  kernels,
+  times,
+  share,
+  pending,
+  view,
+  onView,
+  aside,
+}) {
   if (error)
     return (
       <section className={s.treePanel}>
-        <p role="alert">The cost tree did not load ({error.message}).</p>
+        <TreeLayout aside={aside}>
+          <p role="alert">The cost tree did not load ({error.message}).</p>
+        </TreeLayout>
       </section>
     );
   if (!tree)
     return (
       <section className={s.treePanel} aria-busy="true">
-        <p role="status" className={s.treeLoading}>
-          Loading the cost tree…
-        </p>
+        <TreeLayout aside={aside}>
+          <p role="status" className={s.treeLoading}>
+            Loading the cost tree…
+          </p>
+        </TreeLayout>
       </section>
     );
   if (tree.error)
     return (
       <section className={s.treePanel}>
-        <p role="alert">The simulator could not build this tree: {tree.error}</p>
+        <TreeLayout aside={aside}>
+          <p role="alert">The simulator could not build this tree: {tree.error}</p>
+        </TreeLayout>
       </section>
     );
-  return <Tree key={JSON.stringify(tree.run?.query ?? tree.query)} tree={tree} />;
+  return (
+    <Tree
+      key={JSON.stringify([tree.preset, tree.params])}
+      member={member}
+      tree={tree}
+      kernels={kernels ?? new Map()}
+      times={times}
+      share={share}
+      pending={pending}
+      view={view}
+      onView={onView}
+      aside={aside}
+    />
+  );
 }
 
-const HIDDEN = ["num_layers", "sim_num_layers"];
+/* The rows on the left, `aside` beside them on a wide screen and under them
+   otherwise; the row is as tall as the taller of the two. */
+function TreeLayout({ aside, children }) {
+  return (
+    <div className={s.treeLayout}>
+      <div className={s.treeBody}>{children}</div>
+      {aside}
+    </div>
+  );
+}
 
-/* "Built as in <source>: <params>." for a tree built as a registered run,
-   then the other sources that recorded the same run. */
-function BuiltAs({ run, defaults }) {
-  // Sources named alike (two prediction configs of one name on another
-  // machine) read once, with how many there are.
-  const named = new Map();
-  for (const source of run.sources) {
-    const text = sourceText(source);
-    named.set(text, { source, count: (named.get(text)?.count ?? 0) + 1 });
-  }
-  const [first, ...others] = [...named.values()];
-  const routingKeys = new Set(
-    run.pickers.find((p) => p.name === "routing")?.keys ?? [],
-  );
-  const routing = Object.fromEntries(
-    Object.entries(run.params).filter(([name]) => routingKeys.has(name)),
-  );
-  const params = Object.entries(run.params).filter(
-    ([name]) => !routingKeys.has(name) && !HIDDEN.includes(name),
-  );
-  const items = [
-    ...params.map(([name, value]) => [name, paramValue(value), name in defaults]),
-    ...(routingKeys.size
-      ? [["routing", routingText(routing, run.routing), false]]
-      : []),
-  ].sort(([a], [b]) => order(a) - order(b));
+// Params every tree has and no reader picks.
+const HIDDEN = ["type", "model_config", "num_layers", "sim_num_layers"];
+
+/* The arch block the preset builds this member with, every param filled. */
+function BuiltWith({ arch }) {
+  const items = Object.entries(arch).filter(([name]) => !HIDDEN.includes(name));
+  if (!items.length) return null;
   return (
     <p className={s.defaults}>
-      Built as in <SourceName {...first} />:{" "}
-      {items.map(([name, text, isDefault], index) => (
-        <span
-          key={name}
-          title={name === "routing" ? run.routing?.label : undefined}
-        >
+      Built with{" "}
+      {items.map(([name, value], index) => (
+        <span key={name} title={typeof value === "string" ? value : undefined}>
           {index > 0 && ", "}
-          <code>{name}</code> <span className={s.runValue}>{text}</span>
-          {isDefault && <span className={s.soft}> (default)</span>}
+          <code>{name}</code>{" "}
+          <span className={s.runValue}>
+            {typeof value === "string" ? shortReference(value) : paramValue(value)}
+          </span>
         </span>
       ))}
       .
-      {others.length > 0 && (
-        <>
-          {" "}
-          The same run was also recorded by{" "}
-          {others.map((entry, index) => (
-            <Fragment key={entry.source.id}>
-              {index > 0 && (index === others.length - 1 ? " and " : ", ")}
-              <SourceName {...entry} />
-            </Fragment>
-          ))}
-          .
-        </>
-      )}
-      {run.skipped.length > 0 && (
-        <>
-          {" "}
-          <span className={s.soft}>
-            {run.skipped.length} more registered{" "}
-            {run.skipped.length === 1 ? "run is" : "runs are"} not offered:{" "}
-            {[...new Set(run.skipped.map((skip) => skip.error))].join("; ")}.
-          </span>
-        </>
-      )}
     </p>
   );
 }
 
-function SourceName({ source, count }) {
-  return (
-    <span
-      className={s.source}
-      title={source.cases?.length ? source.cases.join(", ") : undefined}
-    >
-      {sourceText(source)}
-      {count > 1 && <span className={s.soft}> ({count} of them)</span>}
-    </span>
-  );
-}
+const VIEWS = [
+  ["tree", "Tree"],
+  ["kernels", "By kernel"],
+  ["kinds", "By kernel type"],
+];
 
-// The params a reader looks for first lead the line.
-const LEAD = ["max_model_len", "routing", "draft_tokens", "mtp_mode"];
-const order = (name) => (LEAD.includes(name) ? LEAD.indexOf(name) : LEAD.length);
-
-function Tree({ tree }) {
+function Tree({
+  member,
+  tree,
+  kernels,
+  times,
+  share,
+  pending,
+  view,
+  onView,
+  aside,
+}) {
   const [sectionIndex, setSection] = useState(0);
   const section = tree.sections[Math.min(sectionIndex, tree.sections.length - 1)];
-  const root = useMemo(() => prepareTree(section.root), [section]);
-  const [open, setOpen] = useState(() => initiallyOpen(root));
-  useEffect(() => setOpen(initiallyOpen(root)), [root]);
+  const nodes = times?.[section.section] ?? null;
+  const [open, setOpen] = useState(() => new Set(nodes ? parents(nodes, 2) : []));
+  // A new tree opens to its blocks; a new time on the same tree keeps the
+  // reader's folding.
+  const shape =
+    nodes && JSON.stringify(nodes.map((node) => [node.node, node.depth]));
+  useEffect(() => {
+    if (nodes) setOpen(new Set(parents(nodes, 2)));
+  }, [shape]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = (id) =>
     setOpen((current) => {
       const next = new Set(current);
@@ -147,16 +157,15 @@ function Tree({ tree }) {
       return next;
     });
 
-  const rows = [...visible(root, open)].map((node) =>
-    node.kind === "leaf" ? leafRow(tree, node) : compositeRow(node, open, toggle),
-  );
-  const { counts } = tree;
-  const registry = tree.run?.basis === "registry";
-  const defaults = Object.entries(tree.defaults).filter(
-    ([name]) => !HIDDEN.includes(name),
-  );
-  // Params the schema marks as traffic (MoE routing): no default stands in.
-  const predicting = tree.set_when_predicting ?? [];
+  const total = nodes?.[0].total_ms;
+  const rows = nodes
+    ? visibleRows(nodes, open).map((node) => {
+        const time = <NodeTime node={node} pending={pending} />;
+        return node.kind === "leaf"
+          ? leafRow(tree, section, kernels, node, time)
+          : compositeRow(node, open, toggle, time);
+      })
+    : [];
 
   return (
     <section className={s.treePanel} aria-labelledby="tree-title">
@@ -165,175 +174,187 @@ function Tree({ tree }) {
         <dl className={s.stats}>
           <div>
             <dt>Kernel calls</dt>
-            <dd>{counts.leaves.toLocaleString("en-US")}</dd>
+            <dd>{member.leaves.toLocaleString("en-US")}</dd>
           </div>
           <div>
-            <dt>Distinct shapes</dt>
-            <dd>{counts.configs.toLocaleString("en-US")}</dd>
+            <dt>Kernel configs</dt>
+            <dd>{member.configs.toLocaleString("en-US")}</dd>
           </div>
-          <div>
-            <dt>Shapes measured</dt>
-            <dd>
-              {counts.measured}
-              <span> of {counts.configs}</span>
-            </dd>
-          </div>
+          {nodes && (
+            <div>
+              <dt>Critical path</dt>
+              <dd>
+                {pending ? (
+                  <Pending className={s.pendingStat} />
+                ) : (
+                  <>{formatMs(total)} ms</>
+                )}
+              </dd>
+            </div>
+          )}
           <div>
             <dt>GPUs per replica</dt>
-            <dd>{tree.gpus_per_replica ?? "unknown"}</dd>
+            <dd>{member.gpus_per_replica}</dd>
           </div>
         </dl>
-        {registry && <BuiltAs run={tree.run} defaults={tree.defaults} />}
-        {!registry && (defaults.length > 0 || predicting.length > 0) && (
-          <p className={s.defaults}>
-            No registered run matches this set, so it is built at the schema
-            defaults.{" "}
-            {defaults.length > 0 && (
-              <>
-                The other params:{" "}
-                {defaults.map(([name, value], index) => (
-                  <span key={name}>
-                    {index > 0 && ", "}
-                    <code>{name}</code> {paramValue(value)}
-                  </span>
-                ))}
-                .{predicting.length > 0 && " "}
-              </>
-            )}
-            {predicting.length > 0 && (
-              <>
-                {predicting.map((name, index) => (
-                  <span key={name}>
-                    {index > 0 &&
-                      (index === predicting.length - 1 ? " and " : ", ")}
-                    <code>{name}</code>
-                  </span>
-                ))}{" "}
-                {predicting.length > 1 ? "are" : "is"} set when predicting.
-              </>
-            )}
-          </p>
-        )}
+        <BuiltWith arch={tree.arch} />
       </div>
 
-      <div className={s.treeBar}>
-        {tree.sections.length > 1 ? (
-          <div className={detail.viewSwitch} role="radiogroup" aria-label="Section">
-            {tree.sections.map((item, index) => (
-              <button
-                key={item.section}
-                type="button"
-                role="radio"
-                aria-checked={item === section}
-                onClick={() => setSection(index)}
-              >
-                {item.section.replaceAll("_", " ")}
-              </button>
-            ))}
+      <TreeLayout aside={aside}>
+        <div className={s.treeBar}>
+          <div className={s.treeViews}>
+            <div className={detail.viewSwitch} role="radiogroup" aria-label="View">
+              {VIEWS.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={view === id}
+                  onClick={() => onView(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {view === "tree" && tree.sections.length > 1 && (
+              <SectionSwitch
+                sections={tree.sections}
+                section={section}
+                onPick={setSection}
+              />
+            )}
           </div>
-        ) : (
-          <span />
-        )}
-        <div className={s.treeActions}>
-          <button type="button" onClick={() => setOpen(new Set(allIds(root)))}>
-            Expand all
-          </button>
-          <button type="button" onClick={() => setOpen(new Set())}>
-            Collapse all
-          </button>
+          {view === "tree" && (
+            <div className={s.treeActions}>
+              <button
+                type="button"
+                onClick={() => setOpen(new Set(parents(nodes ?? [])))}
+              >
+                Expand all
+              </button>
+              <button type="button" onClick={() => setOpen(new Set())}>
+                Collapse all
+              </button>
+            </div>
+          )}
         </div>
-      </div>
 
-      <div className={s.treeScroll}>
-        <TreeRows rows={rows} className={s.tree} label="Cost tree nodes" />
-      </div>
+        {view !== "tree" ? (
+          <KernelShare
+            tree={tree}
+            kernels={kernels}
+            share={share}
+            pending={pending}
+            byKind={view === "kinds"}
+          />
+        ) : (
+          <div className={s.treeScroll}>
+            {nodes ? (
+              <TreeRows rows={rows} className={s.tree} label="Cost tree nodes" />
+            ) : (
+              <p role="status" className={s.treeLoading}>
+                The tree appears once Live predict has timed a batch.
+              </p>
+            )}
+          </div>
+        )}
+      </TreeLayout>
     </section>
   );
 }
 
-// A dotted name may break after a dot on a narrow screen, not mid-word.
-const breakable = (name) =>
-  name.includes(".")
-    ? name.split(".").map((part, index) => (
-        <Fragment key={index}>
-          {index > 0 && (
-            <>
-              .<wbr />
-            </>
-          )}
-          {part}
-        </Fragment>
-      ))
-    : name;
+function SectionSwitch({ sections, section, onPick }) {
+  return (
+    <div className={detail.viewSwitch} role="radiogroup" aria-label="Section">
+      {sections.map((item, index) => (
+        <button
+          key={item.section}
+          type="button"
+          role="radio"
+          aria-checked={item === section}
+          onClick={() => onPick(index)}
+        >
+          {sectionName(item.section)}
+        </button>
+      ))}
+    </div>
+  );
+}
 
-function compositeRow(node, open, toggle) {
-  const after =
-    node.kind === "scale" ? (
-      <span className={s.times}>×{node.n.toLocaleString("en-US")}</span>
-    ) : node.kind === "max" ? (
-      <span className={s.ranks}>
-        {node.copies
-          ? `${node.copies} alike, one shown`
-          : `slowest of ${node.width}`}
-        {node.overlap !== 1 && `, ÷ ${node.overlap}`}
+/* A node's time for one call, then its share of the section once its
+   repeats are counted. */
+
+function NodeTime({ node, pending }) {
+  if (pending)
+    return (
+      <span className={s.nodeTime}>
+        <Pending className={s.pendingNode} />
       </span>
-    ) : null;
+    );
+  return (
+    <span
+      className={s.nodeTime}
+      title={`One call ${formatMs(node.ms)} ms; ${formatMs(node.total_ms)} ms with its repeats`}
+    >
+      {formatMs(node.ms)} ms <small>{formatPercent(node.pct)}</small>
+    </span>
+  );
+}
+
+function compositeRow(node, open, toggle, time) {
   return {
-    id: node.id,
+    id: node.node,
     kind: KIND[node.kind],
     depth: node.depth,
-    name: breakable(node.name),
-    note: node.note,
-    toggle: () => toggle(node.id),
-    open: open.has(node.id),
-    after,
-    meta: (
-      <span className={s.nodeCount}>
-        {node.leaves.toLocaleString("en-US")} {node.leaves === 1 ? "call" : "calls"}
-      </span>
-    ),
+    name: breakable(node.label),
+    toggle: node.parent ? () => toggle(node.node) : undefined,
+    open: open.has(node.node),
+    after: copiesText(node),
+    meta: time,
   };
 }
 
+// Identical siblings show once; the row says how many it stands for.
+const copiesText = (node) =>
+  node.copies ? (
+    <span
+      className={s.ranks}
+      title={
+        node.avg_total_ms == null
+          ? undefined
+          : `The slowest of ${node.copies} is shown; their average is ${formatMs(node.avg_total_ms)} ms`
+      }
+    >
+      ×{node.copies}
+    </span>
+  ) : null;
+
+/* A config's scalar identity, the first few fields. */
 function shapeText(config) {
   if (!config) return null;
-  const entries = Object.entries(config.args);
+  const entries = Object.entries(config.identity);
   const parts = entries
     .slice(0, SHAPE_ARGS)
     .map(([name, value]) => `${name} ${formatValue(value)}`);
-  if (entries.length > SHAPE_ARGS) parts.push("…");
+  if (entries.length > SHAPE_ARGS || config.structured.length) parts.push("…");
   return parts.join(", ");
 }
 
-const COVERAGE = {
-  measured: [CircleCheck, "Measured"],
-  partial: [CircleDot, "Partly measured"],
-  unmeasured: [CircleDashed, "Not yet measured"],
-  unregistered: [CircleDashed, "Not yet measured"],
-};
-
-function leafRow(tree, node) {
-  const { slot } = node;
-  const config = tree.configs[slot.config_key];
-  const kernel = tree.kernels[slot.kind];
-  const href = kernelLink(tree, slot);
-  const cov = coverage(config);
-  const [Icon, text] = COVERAGE[cov.state];
-  const detailText =
-    cov.state === "partial"
-      ? `${text}, ${cov.best} of ${cov.runnable} grid cells`
-      : cov.state === "unregistered"
-        ? `${text}: no simulator grid is registered for this shape`
-        : text;
-  const title = kernel?.title ?? slot.kind;
+function leafRow(tree, section, kernels, node, time) {
+  const slot = section.slots[node.slot];
+  const kernel = kernels.get(slot.kernel);
+  const href = kernelLink(kernel, slot, tree);
+  const title = kernel?.title ?? slot.kernel;
   return {
-    id: node.id,
+    id: node.node,
     kind: "Leaf",
     depth: node.depth,
-    name: breakable(node.name),
-    note: shapeText(config),
+    name: breakable(node.label),
+    after: copiesText(node),
+    note: shapeText(tree.configs[slot.config]),
     meta: (
       <>
+        {time}
         {href ? (
           <a className={s.kernelLink} href={href}>
             {title}
@@ -344,13 +365,6 @@ function leafRow(tree, node) {
             {title}
           </span>
         )}
-        <span className={s.coverage} data-state={cov.state} title={detailText}>
-          <Icon size={14} aria-hidden="true" />
-          {cov.state === "partial" ? `${cov.best}/${cov.runnable}` : text}
-          <span className={s.backends}>
-            {slot.backends.map((b) => backendLabels[b] || b).join(", ")}
-          </span>
-        </span>
       </>
     ),
   };

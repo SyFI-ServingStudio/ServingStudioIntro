@@ -1,6 +1,6 @@
 /* Data access for the kernel library.
 
-   Everything comes from ServingStudio Sim's read-only public API. Pages request
+   Everything comes from ServingStudio Sim's public API. Pages request
    it from their own origin; the server in front of the site forwards
    /api/public/v1 to the service (in development, Vite's proxy; see
    vite.config.js). VITE_PUBLIC_API_BASE overrides the path. */
@@ -19,20 +19,7 @@ export function load(path) {
     cache.set(
       path,
       fetch(`${API_BASE}/${path}`).then(async (response) => {
-        if (!response.ok) {
-          const detail = await response.json().then(
-            (body) => body.detail,
-            () => null,
-          );
-          const message =
-            typeof detail === "object" && detail ? detail.message : detail;
-          const error = new Error(
-            `${API_BASE}/${path}: ${message ?? `HTTP ${response.status}`}`,
-          );
-          error.status = response.status;
-          error.detail = detail;
-          throw error;
-        }
+        if (!response.ok) throw await responseError(path, response);
         return response.json();
       }),
     );
@@ -40,21 +27,46 @@ export function load(path) {
   return cache.get(path);
 }
 
+/* One uncached request: the answer's body, or the error its failure stands
+   for, with how long a refused one (429) asks to wait. */
+export async function send(path, init) {
+  const response = await fetch(`${API_BASE}/${path}`, init);
+  if (!response.ok) {
+    const error = await responseError(path, response);
+    error.retryAfter = Number(response.headers.get("Retry-After")) || null;
+    throw error;
+  }
+  return response.status === 204 ? null : response.json();
+}
+
+/* The error a failed response stands for, as load() rejects with it. */
+async function responseError(path, response) {
+  const detail = await response.json().then(
+    (body) => body.detail,
+    () => null,
+  );
+  const message = typeof detail === "object" && detail ? detail.message : detail;
+  const error = new Error(
+    `${API_BASE}/${path}: ${message ?? `HTTP ${response.status}`}`,
+  );
+  error.status = response.status;
+  error.detail = detail;
+  // The service's own words, for a page that shows them inline.
+  error.reason = message ?? `HTTP ${response.status}`;
+  return error;
+}
+
 export const loadCatalog = () => load("kernels");
 export const loadKernel = (kind) => load(`kernels/${kind}`);
 export const loadRows = (kind) => load(`kernels/${kind}/rows`);
-// The kernel configs the simulator registered as reading this kind's rows,
-// and one config's grid on its cache axes.
+// The kernel configs public deployments read this kind's rows with, and one
+// config's grid on its cache axes, by the config's id.
 export const loadConfigs = (kind) => load(`kernels/${kind}/configs`);
-export const loadConfig = (kind, hash, gpu) =>
-  load(`kernels/${kind}/configs/${hash}?gpu=${encodeURIComponent(gpu)}`);
+export const loadConfig = (kind, id) => load(`kernels/${kind}/configs/${id}`);
 
-/* A kernel's arguments, in profile.db column order, and the role a supported
-   model gives each: "sweep" (varies with the batch), "config" (fixed by the
-   model) or null when no supported model runs the kernel yet. */
+/* A kernel's arguments, in profile.db column order. */
 export const argNames = (kernel) => kernel.args.map((arg) => arg.name);
 const argInfo = (kernel, name) => kernel.args.find((arg) => arg.name === name);
-export const argRole = (kernel, name) => argInfo(kernel, name)?.role ?? null;
 // What one step of a numeric argument counts: tokens, bytes, GPUs, ...
 export const argUnit = (kernel, name) => argInfo(kernel, name)?.unit ?? null;
 // "dtype", "number", "list" or "label", from the argument's declared type.
@@ -65,7 +77,7 @@ export const isList = (kernel, name) => argType(kernel, name) === "list";
 // An element type (bf16, fp8_e4m3, ...): these are picked together as the precision.
 export const isDtype = (kernel, name) => argType(kernel, name) === "dtype";
 // The argument holding the compute dtype, which picks the throughput peak.
-export const precisionArg = (kernel) =>
+const precisionArg = (kernel) =>
   kernel.args.find((arg) => arg.precision)?.name ?? null;
 
 /* The metrics a kernel records, with the label and unit Sim gives each. */
@@ -220,53 +232,57 @@ export function downloadText(filename, text, type) {
   URL.revokeObjectURL(url);
 }
 
-/* The kernel library keeps its own state in the query string so every view can
-   be shared. The site router only knows the path, so these helpers notify
-   listeners themselves. */
-const listeners = new Set();
-export function subscribeUrl(listener) {
-  listeners.add(listener);
-  window.addEventListener("popstate", listener);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener("popstate", listener);
-  };
-}
-export function setQuery(params, { push = false } = {}) {
-  const url = new URL(window.location.href);
-  url.search = "";
-  for (const [key, value] of Object.entries(params)) {
-    if (value != null && value !== "") url.searchParams.set(key, value);
-  }
-  if (url.href === window.location.href) return;
-  window.history[push ? "pushState" : "replaceState"](null, "", url);
-  listeners.forEach((listener) => listener());
-}
-export const readQuery = () =>
-  Object.fromEntries(new URLSearchParams(window.location.search));
+/* A model is a checkpoint of the model catalog ("zai-org/GLM-5.2"). A public
+   preset's id starts with the checkpoint's repository name ("GLM-5.2/<arch>"),
+   which keys it here; the catalog gives each a name and a family. */
+const checkpointKey = (checkpoint) => checkpoint.split("/").at(-1);
+export const presetCheckpoint = (preset) => preset.split("/")[0];
+export const presetArch = (preset) => preset.split("/").slice(1).join("/");
+/* How a reader knows a preset's deployment ("vLLM, TP and EP"): its
+   `arch_name` from /models (`archNames`, modelData's map by preset id); the
+   arch tag when /models did not load. */
+export const archName = (archNames, preset) =>
+  archNames?.get(preset) ?? presetArch(preset);
+/* GPU names in the catalog's order (most rows first), then any it does not
+   list; checkpoint keys in the model catalog's order, likewise. */
+const inOrder = (order) => (a, b) =>
+  (order.indexOf(a) + 1 || order.length + 1) -
+  (order.indexOf(b) + 1 || order.length + 1);
+export const sortGpus = (names, catalog) =>
+  [...names].sort(inOrder(catalog.gpus.map((g) => g.name)));
+export const sortModels = (keys, catalog) =>
+  [...keys].sort(inOrder(catalog.models.map((m) => checkpointKey(m.checkpoint))));
+// Axis values and ids that may hold numbers, in numeric order.
+export const byNumber = (a, b) =>
+  String(a).localeCompare(String(b), undefined, { numeric: true });
+// A member of a preset by its params, as a Map key.
+export const memberKey = (params) => JSON.stringify(params);
+const modelEntry = (models, key) =>
+  models.find((m) => checkpointKey(m.checkpoint) === key);
+export const modelName = (models, key) => modelEntry(models, key)?.name ?? key;
+export const modelFamily = (models, key) =>
+  modelEntry(models, key)?.family ?? modelName(models, key);
 
-/* A model is keyed by its model config (the file stem Sim names it by); the
-   catalog gives most of them a name and a family. One it does not name reads
-   as its model config and stands in a family of its own. */
-export const modelEntry = (models, stem) =>
-  models.find((m) => m.model_config === stem);
-export const modelName = (models, stem) => modelEntry(models, stem)?.name ?? stem;
-export const modelFamily = (models, stem) =>
-  modelEntry(models, stem)?.family ?? modelName(models, stem);
+/* The models whose public presets build a config of a kernel (`used_by`
+   names the presets), by checkpoint key. */
+export const usedModels = (kernel) => [
+  ...new Set(kernel.used_by.map(presetCheckpoint)),
+];
 
-/* The models a kernel is used by, grouped by family in catalog order:
-   [{ family: "Qwen", stems: [...], names: ["Qwen3 235B-A22B", ...] }, ...]. */
-export function groupModels(usedBy, models) {
+/* Models by checkpoint key, grouped by family in catalog order:
+   [{ family: "Qwen", keys: [...], names: ["Qwen3 235B-A22B", ...] }, ...]. */
+export function groupModels(keys, models) {
   const groups = [];
-  for (const { model_config: stem } of models) {
-    if (!usedBy.includes(stem)) continue;
-    const family = modelFamily(models, stem);
-    const name = modelName(models, stem);
+  for (const { checkpoint } of models) {
+    const key = checkpointKey(checkpoint);
+    if (!keys.includes(key)) continue;
+    const family = modelFamily(models, key);
+    const name = modelName(models, key);
     const group = groups.find((g) => g.family === family);
     if (group) {
-      group.stems.push(stem);
+      group.keys.push(key);
       group.names.push(name);
-    } else groups.push({ family, stems: [stem], names: [name] });
+    } else groups.push({ family, keys: [key], names: [name] });
   }
   return groups;
 }

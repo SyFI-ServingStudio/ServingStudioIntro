@@ -2,7 +2,7 @@
   "experiment": "20260907_0_llama3_h200_throughput",
   "sweepId": "e_5ae8104896c4411080f6c7ed328ef93f",
   "source": "Analyzer sweep payload",
-  "model": "Llama 3 8B BF16",
+  "model": "Llama 3.1 8B BF16",
   "hardware": "1 \u00d7 NVIDIA H200",
   "deployment": "unified",
   "worker": "barebone",

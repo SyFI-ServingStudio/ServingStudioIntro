@@ -1,9 +1,12 @@
 import { Download, ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ChartBar } from "./ChartBar";
+import { Level } from "./Level";
 import {
   apiUrl,
+  archName,
   argUnit,
+  byNumber,
   downloadText,
   formatNumber,
   formatValue,
@@ -13,138 +16,153 @@ import {
   modelFamily,
   modelName,
   peakFor,
+  presetArch,
+  memberKey,
+  presetCheckpoint,
   shortGpu,
+  sortGpus,
+  sortModels,
 } from "./kernelData";
+import { memberHref, paramsText } from "../models/modelData";
+import { memberSubset } from "./memberSubset";
 import { PerfChart, seriesColor } from "./PerfChart";
 import { Tag, ToggleTag, tagColor } from "./Tag";
 import picker from "./ConfigPicker.module.css";
 import k from "./KernelDetail.module.css";
 import s from "./GridExplorer.module.css";
 
-/* The kernel configs the simulator registered for this kind, one chart per
-   config on the grid it reads its cost from: GPU, then the model, then the
-   config, then its cells along one cache axis with a line per backend.
+/* The kernel configs public deployments read this kind's rows with, one
+   chart per config on the grid it reads its cost from: GPU, then the model,
+   then the config, then its cells along one cache axis with a line per
+   backend.
 
-   Everything here comes from /configs (which configs exist, who uses them)
-   and /configs/{hash} (the cells). URL keys: cgpu, cmodel, config, cx (the
-   cache axis on x) and at.<axis> (the value of each other axis). */
+   Everything here comes from /configs (which configs exist, which preset
+   members use them) and /configs/{id} (the cells). URL keys: cgpu, cmodel
+   (a checkpoint's repository name), config (its id), cx (the cache axis on
+   x) and at.<axis> (the value of each other axis). */
 
 // A kernel is built under a dotted role, its scope path outermost first
 // ("unified.body.attention.qkv_proj"); the last step names the op.
 const opOf = (role) => role.split(".").at(-1);
-const byNumber = (a, b) => a.localeCompare(b, undefined, { numeric: true });
 const measuredCells = (config) => Math.max(0, ...Object.values(config.measured));
 // Entries a config's role list shows before the rest fold away.
 const LIST_SHOWN = 4;
 
-/* A deployment entry is one #[supported] row: the params the row lists
-   several values for (d.varies) hold a list, one value per member. These say
-   which members something covers: "max_model_len 524288", or each member
-   spelled out when the row varies more than one param. */
-function membersText(d, members) {
-  if (d.varies.length === 1) {
-    const [name] = d.varies;
-    return `${name} ${members.map((i) => formatValue(d.members[i].params[name])).join(" · ")}`;
-  }
-  return members
-    .map((i) =>
-      d.varies
-        .map((name) => `${name} ${formatValue(d.members[i].params[name])}`)
-        .join(", "),
-    )
-    .join("; ");
+/* The axes a preset's members tell apart, with the values they take. */
+export function presetAxes(members) {
+  const all = [...members.values()];
+  const names = Object.keys(all[0] ?? {});
+  return names.map((name) => ({
+    name,
+    values: [...new Set(all.map((params) => params[name]))].sort(byNumber),
+  }));
 }
-const allMembers = (d, members) => members.length === d.members.length;
 
-/* The label the API gives, with numbers read as the chips read them: a
-   param the row lists several values for reads "max_model_len 8,192 · 65,536". */
-export const deploymentLabel = (d) =>
-  [
-    d.arch,
-    ...Object.entries(d.params).map(
-      ([name, v]) =>
-        `${name} ${Array.isArray(v) ? v.map((x) => formatValue(x)).join(" · ") : formatValue(v)}`,
-    ),
-  ].join(", ");
+/* Which members of a preset something covers, by the axes that decide it:
+   "ep_size 4", or its few combinations of those axes, else a count. */
+const MAX_COMBINATIONS = 4;
+function membersText(d, members) {
+  const all = [...d.members.entries()];
+  const subset = memberSubset(
+    all.map(([, params]) => params),
+    all.map(([key]) => members.includes(key)),
+  );
+  if (subset?.values)
+    return subset.axes
+      .map(
+        (name, i) =>
+          `${name} ${subset.values[i].map((v) => formatValue(v)).join(" · ")}`,
+      )
+      .join(", ");
+  if (subset && subset.tuples.length <= MAX_COMBINATIONS)
+    return subset.tuples
+      .map((tuple) =>
+        subset.axes.map((name, i) => `${name} ${formatValue(tuple[i])}`).join(", "),
+      )
+      .join("; ");
+  return `${members.length} of ${all.length} configurations`;
+}
 
-/* configs → GPU → model → deployment → the configs it uses, each with the
-   roles that use it and which of the deployment's members ask. A config no
-   deployment claims (built only at the deployment level) sits under model
-   null. */
-function buildIndex(list) {
-  const deployments = new Map(list.deployments.map((d) => [d.id, d]));
+/* A preset as its chips read it: the arch, then each axis its members move,
+   with the values they take. */
+const presetLabel = (d) => {
+  const axes = presetAxes(d.members)
+    .filter((axis) => axis.values.length > 1)
+    .map(
+      (axis) =>
+        `${axis.name} ${axis.values.map((v) => formatValue(v)).join(" · ")}`,
+    );
+  return axes.length ? `${d.name} (${axes.join("; ")})` : d.name;
+};
+
+/* configs → GPU → model → preset → the configs its members read, each with
+   the roles that read it and which members ask. A preset knows its members
+   by the ones that read this kind. */
+function buildIndex(list, catalog) {
   const gpus = new Map();
   for (const config of list.configs) {
     if (!gpus.has(config.gpu)) gpus.set(config.gpu, new Map());
     const models = gpus.get(config.gpu);
-    const claims = config.uses.flatMap((use) =>
-      use.deployments.length
-        ? use.deployments.map(({ id, members }) => [
-            deployments.get(id),
-            use,
-            members,
-          ])
-        : [[null, use, []]],
-    );
-    const named = claims.some(([d]) => d);
-    for (const [d, use, members] of claims) {
-      if (!d && named) continue;
-      const stem = d?.model_config ?? null;
-      if (!models.has(stem)) models.set(stem, new Map());
-      const byDeployment = models.get(stem);
-      const key = d ? d.id : "none";
-      if (!byDeployment.has(key))
-        byDeployment.set(key, { deployment: d, entries: new Map() });
-      const entries = byDeployment.get(key).entries;
-      if (!entries.has(config.config_hash))
-        entries.set(config.config_hash, {
-          config,
-          roles: new Set(),
-          members: new Set(),
+    for (const use of config.uses) {
+      const model = presetCheckpoint(use.preset);
+      if (!models.has(model)) models.set(model, new Map());
+      const presets = models.get(model);
+      if (!presets.has(use.preset))
+        presets.set(use.preset, {
+          preset: use.preset,
+          name: archName(catalog.archNames, use.preset),
+          members: new Map(),
+          entries: new Map(),
         });
-      const entry = entries.get(config.config_hash);
-      entry.roles.add(use.role);
-      members.forEach((m) => entry.members.add(m));
+      const d = presets.get(use.preset);
+      const member = memberKey(use.params);
+      d.members.set(member, use.params);
+      if (!d.entries.has(config.id))
+        d.entries.set(config.id, { config, roles: new Set(), members: new Set() });
+      const entry = d.entries.get(config.id);
+      use.roles.forEach((role) => entry.roles.add(role));
+      entry.members.add(member);
     }
   }
   return gpus;
 }
 
-/* A model's deployments that use the same configs, each by every member,
-   read as one group. A deployment some of whose configs only some members
-   use stays on its own, so its captions can name those members. */
-function groupsOf(byDeployment) {
+/* A model's presets that read the same configs, each with every member,
+   read as one group. A preset some of whose configs only some members read
+   stays on its own, so its captions can name those members. */
+function groupsOf(byPreset) {
   const groups = new Map();
-  for (const { deployment, entries } of byDeployment.values()) {
-    const whole = [...entries.values()].every(
-      (e) => !deployment || allMembers(deployment, [...e.members]),
+  for (const d of byPreset.values()) {
+    const whole = [...d.entries.values()].every(
+      (e) => e.members.size === d.members.size,
     );
-    const key = whole
-      ? [...entries.keys()].sort().join()
-      : `deployment ${deployment.id}`;
+    const key = whole ? [...d.entries.keys()].sort().join() : `preset ${d.preset}`;
     if (!groups.has(key))
-      groups.set(key, { deployments: [], entries: [...entries.values()] });
+      groups.set(key, {
+        presets: [],
+        entries: [...d.entries.values()].map((e) => ({
+          ...e,
+          roles: new Set(e.roles),
+        })),
+      });
     const group = groups.get(key);
-    group.deployments.push(deployment);
-    // Roles of every merged deployment.
-    group.entries.forEach((entry) => {
-      entries
-        .get(entry.config.config_hash)
-        .roles.forEach((r) => entry.roles.add(r));
-    });
+    group.presets.push(d);
+    // Roles of every merged preset.
+    group.entries.forEach((entry) =>
+      d.entries.get(entry.config.id).roles.forEach((r) => entry.roles.add(r)),
+    );
   }
-  const labelOf = (d) => d?.label ?? "Built at the deployment level";
   return [...groups.values()]
     .map((g) => ({
       ...g,
-      deployments: g.deployments.sort((a, b) => byNumber(labelOf(a), labelOf(b))),
-      labels: g.deployments.map(labelOf).sort(byNumber),
+      presets: g.presets.sort((a, b) => byNumber(presetLabel(a), presetLabel(b))),
+      labels: g.presets.map(presetLabel).sort(byNumber),
     }))
     .sort((a, b) => byNumber(a.labels[0], b.labels[0]));
 }
 
 const valueOf = (config, key) =>
-  key in config.fixed ? config.fixed[key] : config.config_args[key];
+  key in config.fixed ? config.fixed[key] : config.identity[key];
 const tupleOf = (config, keys) =>
   JSON.stringify(keys.map((key) => valueOf(config, key)));
 
@@ -158,7 +176,7 @@ function distinguishing(configs) {
   const fixedKeys = [...new Set(configs.flatMap((c) => Object.keys(c.fixed)))];
   const keys = fixedKeys.filter(differs);
   const extra = [
-    ...new Set(configs.flatMap((c) => Object.keys(c.config_args))),
+    ...new Set(configs.flatMap((c) => Object.keys(c.identity))),
   ].filter((key) => !fixedKeys.includes(key) && differs(key));
   const distinct = (list) => new Set(configs.map((c) => tupleOf(c, list))).size;
   for (const key of extra) {
@@ -169,30 +187,25 @@ function distinguishing(configs) {
 }
 
 export function GridExplorer({ kernel, catalog, list, query, update }) {
-  const index = useMemo(() => buildIndex(list), [list]);
+  const index = useMemo(() => buildIndex(list, catalog), [list, catalog]);
   const models = catalog.models;
-  const rank = (stem) => {
-    const i = models.findIndex((m) => m.model_config === stem);
-    return i < 0 ? models.length : i;
-  };
+  // A link may name a config alone: it opens on that config's GPU and model.
+  const named = list.configs.find((c) => c.id === query.config);
 
-  // GPUs in the catalog's order (most rows first), then any it does not list.
-  const gpuNames = [...index.keys()].sort((a, b) => {
-    const order = catalog.gpus.map((g) => g.name);
-    return (
-      (order.indexOf(a) + 1 || order.length + 1) -
-      (order.indexOf(b) + 1 || order.length + 1)
-    );
-  });
-  const gpu = index.has(query.cgpu) ? query.cgpu : gpuNames[0];
+  const gpuNames = sortGpus(index.keys(), catalog);
+  const gpu = index.has(query.cgpu) ? query.cgpu : (named?.gpu ?? gpuNames[0]);
   const byModel = index.get(gpu);
-  const stems = [...byModel.keys()].sort((a, b) => rank(a) - rank(b));
-  const modelKey = (stem) => stem ?? "";
-  const stem = stems.find((m) => modelKey(m) === query.cmodel) ?? stems[0];
-  const groups = groupsOf(byModel.get(stem));
+  const modelKeys = sortModels(byModel.keys(), catalog);
+  const namedModel =
+    named?.gpu === gpu ? presetCheckpoint(named.uses[0].preset) : null;
+  const modelKey =
+    modelKeys.find((m) => m === query.cmodel) ??
+    modelKeys.find((m) => m === namedModel) ??
+    modelKeys[0];
+  const groups = groupsOf(byModel.get(modelKey));
   const entries = [
     ...new Map(
-      groups.flatMap((g) => g.entries).map((e) => [e.config.config_hash, e]),
+      groups.flatMap((g) => g.entries).map((e) => [e.config.id, e]),
     ).values(),
   ];
   const configs = entries.map((e) => e.config);
@@ -211,12 +224,12 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
   const opsOf = (entry) => [...new Set([...entry.roles].map(opOf))].sort().join();
   const keysByOps = useMemo(() => {
     const byOps = new Map();
-    for (const deployments of index.get(gpu).values())
-      for (const { entries: claimed } of deployments.values())
+    for (const presets of index.get(gpu).values())
+      for (const { entries: claimed } of presets.values())
         for (const e of claimed.values()) {
           const ops = opsOf(e);
           if (!byOps.has(ops)) byOps.set(ops, new Map());
-          byOps.get(ops).set(e.config.config_hash, e.config);
+          byOps.get(ops).set(e.config.id, e.config);
         }
     return new Map(
       [...byOps].map(([ops, set]) => [
@@ -230,15 +243,10 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
   const keysOf = (entry) => keysByOps.get(opsOf(entry)) ?? [];
   const keys = ordered([...new Set(entries.flatMap(keysOf))]);
   const best = [...configs].sort((a, b) => measuredCells(b) - measuredCells(a))[0];
-  const config = configs.find((c) => c.config_hash === query.config) ?? best;
+  const config = configs.find((c) => c.id === query.config) ?? best;
 
   const pick = (patch) =>
-    update({
-      cgpu: gpu,
-      cmodel: modelKey(stem),
-      config: config.config_hash,
-      ...patch,
-    });
+    update({ cgpu: gpu, cmodel: modelKey, config: config.id, ...patch });
 
   const chipText = (entry) => {
     const ops = [...new Set([...entry.roles].map(opOf))];
@@ -253,22 +261,25 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
     };
   };
 
-  /* A config only some of a deployment's members use (one max_model_len of
+  /* A config only some of a preset's members use (one max_model_len of
      several, say) goes under a caption naming them, after the configs every
      member uses. Configs that still read alike differ in a structured config
      value no chip can show (a recorded expert-demand table, say); their chips
-     add the config's short hash. */
+     add the config's short id. */
   const chipsOf = (group) => {
-    const [deployment] = group.deployments;
+    const [d] = group.presets;
+    const order = [...d.members.keys()];
     const parts = new Map();
     for (const e of group.entries) {
-      const members = [...e.members].sort((a, b) => a - b);
-      const whole = !deployment || allMembers(deployment, members);
-      const id = whole ? "all" : members.join();
+      const members = [...e.members].sort(
+        (a, b) => order.indexOf(a) - order.indexOf(b),
+      );
+      const whole = members.length === d.members.size;
+      const id = whole ? "all" : members.join("|");
       if (!parts.has(id))
         parts.set(id, {
-          caption: whole ? null : `${membersText(deployment, members)} only`,
-          order: whole ? [-1] : members,
+          caption: whole ? null : `${membersText(d, members)} only`,
+          order: whole ? [-1] : members.map((m) => order.indexOf(m)),
           entries: [],
         });
       parts.get(id).entries.push(e);
@@ -300,29 +311,23 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
                   type="gpu"
                   value={shortGpu(name)}
                   pressed={name === gpu}
-                  count={[...index.get(name).values()].reduce(
-                    (n, d) =>
-                      n +
-                      new Set([...d.values()].flatMap((x) => [...x.entries.keys()]))
-                        .size,
-                    0,
-                  )}
+                  count={list.configs.filter((c) => c.gpu === name).length}
                   onClick={() => update({ cgpu: name })}
                 />
               ))
             )}
           </Level>
           <Level label="Model">
-            {stems.map((m) => (
+            {modelKeys.map((m) => (
               <ToggleTag
-                key={modelKey(m)}
+                key={m}
                 type="family"
-                value={m ? modelFamily(models, m) : null}
-                pressed={m === stem}
-                title={m ?? "Configs no model deployment claims"}
-                onClick={() => update({ cgpu: gpu, cmodel: modelKey(m) })}
+                value={modelFamily(models, m)}
+                pressed={m === modelKey}
+                title={m}
+                onClick={() => update({ cgpu: gpu, cmodel: m })}
               >
-                {m ? modelName(models, m) : "No model"}
+                {modelName(models, m)}
               </ToggleTag>
             ))}
           </Level>
@@ -343,16 +348,16 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
               className={picker.model}
               style={{
                 "--family":
-                  tagColor("family", modelFamily(models, stem)) ??
+                  tagColor("family", modelFamily(models, modelKey)) ??
                   "var(--c-line-600)",
               }}
               aria-label={group.labels.join("; ")}
             >
               <ul className={s.deployments}>
-                {group.deployments.map((d) => (
-                  <li key={d?.id ?? "none"}>
-                    <span className={s.deployment}>
-                      {d ? deploymentLabel(d) : "Built at the deployment level"}
+                {group.presets.map((d) => (
+                  <li key={d.preset}>
+                    <span className={s.deployment} title={presetArch(d.preset)}>
+                      {presetLabel(d)}
                     </span>
                   </li>
                 ))}
@@ -367,23 +372,21 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
                       const measured = measuredCells(c);
                       return (
                         <ToggleTag
-                          key={c.config_hash}
+                          key={c.id}
                           type="choice"
-                          value={c.config_hash}
-                          pressed={c.config_hash === config.config_hash}
+                          value={c.id}
+                          pressed={c.id === config.id}
                           faint={measured === 0}
                           title={[
                             ...[...entry.roles].sort(),
-                            `config ${c.config_hash.slice(0, 12)}`,
+                            `config ${c.id}`,
                           ].join("\n")}
-                          onClick={() => pick({ config: c.config_hash })}
+                          onClick={() => pick({ config: c.id })}
                         >
                           {ops && <span className={picker.op}>{ops}</span>}
                           {text || (!ops && [...allOps].join(", "))}
                           {part.alike(entry) && (
-                            <span className={s.hash}>
-                              {c.config_hash.slice(0, 6)}
-                            </span>
+                            <span className={s.hash}>{c.id.slice(0, 6)}</span>
                           )}
                           <span className={s.coverage}>
                             {measured}/{c.cells}
@@ -400,7 +403,7 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
       </section>
 
       <GridChart
-        key={`${config.config_hash}|${gpu}`}
+        key={config.id}
         kernel={kernel}
         catalog={catalog}
         config={config}
@@ -412,24 +415,12 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
   );
 }
 
-export function Level({ label, children }) {
-  return (
-    <div className={picker.level} role="group" aria-label={label}>
-      <span className={picker.levelName}>{label}</span>
-      <div className={picker.choices}>{children}</div>
-    </div>
-  );
-}
-
 function GridChart({ kernel, catalog, config, entry, query, update }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
-    loadConfig(kernel.kind, config.config_hash, config.gpu).then(
-      setDetail,
-      setError,
-    );
-  }, [kernel.kind, config.config_hash, config.gpu]);
+    loadConfig(kernel.kind, config.id).then(setDetail, setError);
+  }, [kernel.kind, config.id]);
 
   if (error)
     return (
@@ -625,7 +616,12 @@ function GridView({ kernel, catalog, detail, entry, query, update }) {
       </div>
 
       <div className={k.rowsColumn}>
-        <ConfigFacts kernel={kernel} detail={detail} entry={entry} />
+        <ConfigFacts
+          kernel={kernel}
+          catalog={catalog}
+          detail={detail}
+          entry={entry}
+        />
         <CellTable
           kernel={kernel}
           detail={detail}
@@ -679,20 +675,18 @@ function FoldedList({ items, render }) {
   );
 }
 
-function ConfigFacts({ kernel, detail, entry }) {
+function ConfigFacts({ kernel, catalog, detail, entry }) {
   const fixed = Object.entries(detail.fixed);
-  const own = Object.entries(detail.config_args).filter(
-    ([key]) => !(key in detail.fixed),
+  const own = Object.entries(detail.identity).filter(
+    ([key]) => !(key in detail.fixed) && !detail.structured.includes(key),
   );
-  const url = apiUrl(
-    `kernels/${kernel.kind}/configs/${detail.config_hash}?gpu=${encodeURIComponent(detail.gpu)}`,
-  );
+  const url = apiUrl(`kernels/${kernel.kind}/configs/${detail.id}`);
   return (
     <div className={s.facts}>
       <h2>This config</h2>
       <dl>
         <div>
-          <dt>Fixed profile.db args</dt>
+          <dt>Fixed arguments</dt>
           <dd>
             {fixed.map(([key, v]) => (
               <span key={key} className={s.fact}>
@@ -711,7 +705,7 @@ function ConfigFacts({ kernel, detail, entry }) {
             ))}
           </dd>
         </div>
-        {(own.length > 0 || detail.config_args_omitted.length > 0) && (
+        {(own.length > 0 || detail.structured.length > 0) && (
           <div>
             <dt>Other config values</dt>
             <dd>
@@ -720,7 +714,7 @@ function ConfigFacts({ kernel, detail, entry }) {
                   <code>{key}</code> {formatValue(v)}
                 </span>
               ))}
-              {detail.config_args_omitted.map((key) => (
+              {detail.structured.map((key) => (
                 <span key={key} className={s.fact}>
                   <code>{key}</code> in the API response
                 </span>
@@ -728,6 +722,28 @@ function ConfigFacts({ kernel, detail, entry }) {
             </dd>
           </div>
         )}
+        <div>
+          <dt>Used by</dt>
+          <FoldedList
+            items={detail.uses}
+            render={(use) => (
+              <a
+                key={memberKey([use.preset, use.params])}
+                className={s.use}
+                href={memberHref(use.preset, use.params)}
+                title={[use.preset, ...use.roles].join("\n")}
+              >
+                <strong>
+                  {modelName(catalog.models, presetCheckpoint(use.preset))} ·{" "}
+                  {archName(catalog.archNames, use.preset)}
+                </strong>
+                {Object.keys(use.params).length > 0 && (
+                  <span>{paramsText(use.params)}</span>
+                )}
+              </a>
+            )}
+          />
+        </div>
         {entry && (
           <div>
             <dt>Asked for by</dt>
@@ -743,7 +759,7 @@ function ConfigFacts({ kernel, detail, entry }) {
             {detail.cache_coords
               .map((name, i) => `${name} ${detail.axes[i].length}`)
               .join(" × ")}{" "}
-            cells, config <code>{detail.config_hash.slice(0, 12)}</code>{" "}
+            cells, config <code>{detail.id}</code>{" "}
             <a href={url} target="_blank" rel="noreferrer" className={k.external}>
               JSON
               <ExternalLink size={14} aria-label="opens in a new tab" />
@@ -775,7 +791,7 @@ function CellTable({ kernel, detail, slice, coords, backends, y }) {
       );
     });
     downloadText(
-      `${kernel.kind}-${detail.config_hash.slice(0, 12)}.csv`,
+      `${kernel.kind}-${detail.id}.csv`,
       [header.join(","), ...lines].join("\n"),
       "text/csv",
     );

@@ -1,19 +1,18 @@
 import { Search, X } from "lucide-react";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 import { PageHero } from "../../components/PageHero";
 import {
+  archName,
   groupModels,
-  readQuery,
-  setQuery,
+  presetCheckpoint,
+  usedModels,
   shortGpu,
-  subscribeUrl,
 } from "./kernelData";
-import { kernelHref, openKernel } from "./Kernels";
+import { openInPage, pageHref, setQuery, useQuery } from "../../url";
 import { SkillInstall } from "./SkillInstall";
 import { Tag, TagList, ToggleTag, tagColor } from "./Tag";
 import s from "./KernelCatalog.module.css";
 
-const search = () => window.location.search;
 // Kinds without a DOC have no category yet; they close the list.
 const UNDOCUMENTED = "Not yet documented";
 const categoryOf = (kernel) => kernel.category ?? UNDOCUMENTED;
@@ -37,7 +36,7 @@ function matcher(query, catalog) {
   };
   const matches = (k, over = {}) => {
     const m = over.models ?? models;
-    if (m.size && !k.used_by.some((stem) => m.has(stem))) return false;
+    if (m.size && !usedModels(k).some((key) => m.has(key))) return false;
     if (!covered(k, over).length) return false;
     if (!needle) return true;
     return [
@@ -46,7 +45,7 @@ function matcher(query, catalog) {
       categoryOf(k),
       k.subcategory ?? "",
       ...k.used_by,
-      ...groupModels(k.used_by, catalog.models).flatMap((g) => [
+      ...groupModels(usedModels(k), catalog.models).flatMap((g) => [
         g.family,
         ...g.names,
       ]),
@@ -66,20 +65,18 @@ const toggle = (set, values, on) => {
 };
 
 export function KernelCatalog({ catalog, unknownKind }) {
-  useSyncExternalStore(subscribeUrl, search);
+  const query = useQuery();
   // A detail page renames the tab; coming back has to name it again.
   useEffect(() => {
     document.title = "Kernels | ServingStudio";
   }, []);
-  const query = readQuery();
   const { q = "", cat = "", sub = "" } = query;
   const update = (patch) => setQuery({ ...query, ...patch });
   const m = matcher(query, catalog);
 
-  const families = groupModels(
-    catalog.models.map((model) => model.model_config),
-    catalog.models,
-  );
+  // The models some kernel is used by: every other one would match nothing.
+  const usedBy = [...new Set(catalog.kernels.flatMap(usedModels))];
+  const families = groupModels(usedBy, catalog.models);
   const gpuNames = catalog.gpus.map((g) => shortGpu(g.name));
   // The count on a choice is how many kernels have it, given the other
   // columns' filters. Choices in its own column don't move it, so picking FP8
@@ -105,7 +102,8 @@ export function KernelCatalog({ catalog, unknownKind }) {
     (k) => (!cat || categoryOf(k) === cat) && (!sub || k.subcategory === sub),
   );
   const order = (a, b) =>
-    b.used_by.length - a.used_by.length || titleOf(a).localeCompare(titleOf(b));
+    usedModels(b).length - usedModels(a).length ||
+    titleOf(a).localeCompare(titleOf(b));
   const groups = categories
     .map((category) => [
       category,
@@ -215,12 +213,12 @@ export function KernelCatalog({ catalog, unknownKind }) {
             <div className={s.filterCell}>
               <span className={s.columnName}>Used by</span>
               <div className={s.choices}>
-                {families.map(({ family, stems, names }) => {
-                  const picked = stems.filter((n) => m.models.has(n));
+                {families.map(({ family, keys: modelKeys, names }) => {
+                  const picked = modelKeys.filter((n) => m.models.has(n));
                   const state =
                     picked.length === 0
                       ? false
-                      : picked.length === stems.length
+                      : picked.length === modelKeys.length
                         ? true
                         : "mixed";
                   return (
@@ -229,10 +227,12 @@ export function KernelCatalog({ catalog, unknownKind }) {
                       type="family"
                       value={family}
                       pressed={state}
-                      count={countWith({ models: new Set(stems) })}
+                      count={countWith({ models: new Set(modelKeys) })}
                       title={names.join(", ")}
                       onClick={() =>
-                        update({ model: toggle(m.models, stems, state !== true) })
+                        update({
+                          model: toggle(m.models, modelKeys, state !== true),
+                        })
                       }
                     />
                   );
@@ -240,25 +240,29 @@ export function KernelCatalog({ catalog, unknownKind }) {
               </div>
               {families
                 .filter(
-                  ({ stems }) =>
-                    stems.length > 1 && stems.some((n) => m.models.has(n)),
+                  ({ keys }) =>
+                    keys.length > 1 && keys.some((n) => m.models.has(n)),
                 )
-                .map(({ family, stems, names }) => (
+                .map(({ family, keys: modelKeys, names }) => (
                   <div
                     key={family}
                     className={s.variants}
                     aria-label={`${family} models`}
                   >
-                    {stems.map((stem, i) => (
+                    {modelKeys.map((modelKey, i) => (
                       <ToggleTag
-                        key={stem}
+                        key={modelKey}
                         type="family"
                         value={family}
                         small
-                        pressed={m.models.has(stem)}
+                        pressed={m.models.has(modelKey)}
                         onClick={() =>
                           update({
-                            model: toggle(m.models, [stem], !m.models.has(stem)),
+                            model: toggle(
+                              m.models,
+                              [modelKey],
+                              !m.models.has(modelKey),
+                            ),
                           })
                         }
                       >
@@ -362,6 +366,7 @@ export function KernelCatalog({ catalog, unknownKind }) {
                         kernel={kernel}
                         catalog={catalog}
                         coverage={m.covered(kernel)}
+                        usedBy={usedBy.length}
                       />
                     )),
                   ])}
@@ -375,17 +380,27 @@ export function KernelCatalog({ catalog, unknownKind }) {
   );
 }
 
+/* The deployments (archs) of one model that build a config of a kernel. */
+const deployments = (catalog, kernel, key) =>
+  kernel.used_by
+    .filter((preset) => presetCheckpoint(preset) === key)
+    .map((preset) => archName(catalog.archNames, preset))
+    .join("; ");
+
 /* The precision and GPU cells follow the filters: with B200 picked, the
    precision cell lists what was measured on B200, and the other way round. */
-function KernelRow({ kernel, catalog, coverage }) {
+function KernelRow({ kernel, catalog, coverage, usedBy }) {
   const models = catalog.models;
+  const used = usedModels(kernel);
   const precisions = catalog.precisions.filter((p) =>
     coverage.some((c) => c.precision === p),
   );
   const gpus = catalog.gpus
     .map((g) => g.name)
     .filter((name) => coverage.some((c) => c.gpu === name));
-  const href = kernel.documented ? kernelHref({ kind: kernel.kind }) : null;
+  const href = kernel.documented
+    ? pageHref("kernels", { kind: kernel.kind })
+    : null;
   // The name is the link for keyboards and "open in new tab"; a click anywhere
   // else on the row follows it too, unless it ends a text selection.
   const openRow = (event) => {
@@ -395,7 +410,7 @@ function KernelRow({ kernel, catalog, coverage }) {
       window.open(href, "_blank", "noopener");
       return;
     }
-    if (event.button === 0) openKernel(event, { kind: kernel.kind });
+    if (event.button === 0) openInPage(event, { kind: kernel.kind });
   };
   return (
     <tr
@@ -407,7 +422,7 @@ function KernelRow({ kernel, catalog, coverage }) {
         {href ? (
           <a
             href={href}
-            onClick={(event) => openKernel(event, { kind: kernel.kind })}
+            onClick={(event) => openInPage(event, { kind: kernel.kind })}
           >
             {kernel.title}
           </a>
@@ -417,22 +432,26 @@ function KernelRow({ kernel, catalog, coverage }) {
         {kernel.title && <code>{kernel.kind}</code>}
       </th>
       <td data-label="Used by">
-        {models.length > 1 && kernel.used_by.length === models.length ? (
+        {usedBy > 1 && used.length === usedBy ? (
           <Tag
             type="family"
             value="all"
-            title="Every modeled architecture uses this kernel"
+            title="Every model with a public deployment uses this kernel"
           >
             All models
           </Tag>
-        ) : kernel.used_by.length ? (
+        ) : used.length ? (
           <TagList label="Used by">
-            {groupModels(kernel.used_by, models).map(({ family, names }) => (
+            {groupModels(used, models).map(({ family, keys, names }) => (
               <Tag
                 key={family}
                 type="family"
                 value={family}
-                title={names.join(", ")}
+                title={keys
+                  .map(
+                    (key, i) => `${names[i]}: ${deployments(catalog, kernel, key)}`,
+                  )
+                  .join("\n")}
               />
             ))}
           </TagList>

@@ -1,16 +1,24 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { loadCatalog, readQuery, setQuery, subscribeUrl } from "./kernelData";
+import { useEffect, useState } from "react";
+import { archNames, loadModels } from "../models/modelData";
+import { loadCatalog } from "./kernelData";
+import { useQuery } from "../../url";
 import { KernelCatalog } from "./KernelCatalog";
 import { KernelDetail } from "./KernelDetail";
 
-const search = () => window.location.search;
-
 export default function Kernels() {
-  const query = useSyncExternalStore(subscribeUrl, search);
+  const query = useQuery();
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
-    loadCatalog().then(setCatalog, setError);
+    // /models names each deployment; without it the pages show arch tags.
+    Promise.all([loadCatalog(), loadModels().catch(() => null)]).then(
+      ([kernels, models]) =>
+        setCatalog({
+          ...kernels,
+          archNames: archNames(models),
+        }),
+      setError,
+    );
   }, []);
 
   if (error)
@@ -26,7 +34,7 @@ export default function Kernels() {
         Loading kernels…
       </p>
     );
-  const { kind } = readQuery(query);
+  const { kind } = query;
   // Only documented kinds have a detail page.
   const entry =
     kind && catalog.kernels.find((k) => k.kind === kind && k.documented);
@@ -35,19 +43,4 @@ export default function Kernels() {
   ) : (
     <KernelCatalog catalog={catalog} unknownKind={kind && !entry ? kind : null} />
   );
-}
-
-/* A link inside the library changes the query string without a page load. */
-export function openKernel(event, params) {
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0)
-    return;
-  event.preventDefault();
-  setQuery(params, { push: true });
-  window.scrollTo({ top: 0, behavior: "instant" });
-}
-
-export function kernelHref(params) {
-  const url = new URLSearchParams(params);
-  const text = url.toString();
-  return `${import.meta.env.BASE_URL}kernels.html${text ? `?${text}` : ""}`;
 }

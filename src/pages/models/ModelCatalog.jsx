@@ -1,50 +1,48 @@
 import { ArrowRight } from "lucide-react";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 import { PageHero } from "../../components/PageHero";
-import { readQuery, setQuery, shortGpu, subscribeUrl } from "../kernels/kernelData";
+import { shortGpu } from "../kernels/kernelData";
+import { openInPage, pageHref, setQuery, useQuery } from "../../url";
 import { Tag, ToggleTag, tagColor } from "../kernels/Tag";
-import { CONTRACTS } from "./modelData";
-import { Prose } from "./Prose";
-import { modelHref, openModel } from "./Models";
+import { archLabel, CONTRACTS, predictable } from "./modelData";
 import s from "./Models.module.css";
 
-const search = () => window.location.search;
 const OTHER = "Other";
-const familyOf = (arch) => arch.families[0] ?? OTHER;
+const familyOf = (checkpoint) => checkpoint.family ?? OTHER;
 
-/* Every arch the simulator supports, grouped by model family in the model
-   catalog's order. An arch is a model's execution graph under one way of
-   deploying it; each opens on its supported parameter sets. */
-export function ModelCatalog({ catalog, unknownArch }) {
-  useSyncExternalStore(subscribeUrl, search);
+/* Every checkpoint of the model catalog, grouped by family in the catalog's
+   order. A checkpoint opens on its public presets: each one way of deploying
+   it (an arch), with every supported value of its parameters. */
+export function ModelCatalog({ catalog, unknownPreset }) {
+  const query = useQuery();
   useEffect(() => {
     document.title = "Models | ServingStudio";
   }, []);
-  const query = readQuery();
   const picked = query.family ?? "";
-  const models = new Map(catalog.models.map((m) => [m.model_config, m]));
-  const families = [...new Set(catalog.archs.map(familyOf))];
-  const shown = catalog.archs.filter((a) => !picked || familyOf(a) === picked);
+  const checkpoints = catalog.checkpoints;
+  const families = [...new Set(checkpoints.map(familyOf))];
+  const shown = checkpoints.filter((c) => !picked || familyOf(c) === picked);
   const groups = families
     .map((family) => ({
       family,
-      archs: shown.filter((a) => familyOf(a) === family),
+      checkpoints: shown.filter((c) => familyOf(c) === family),
     }))
-    .filter((g) => g.archs.length);
+    .filter((g) => g.checkpoints.length);
 
   return (
     <div className={s.page}>
       <PageHero
         compact
         title="Models"
-        description="Each model runs as an execution graph, which the simulator costs as a tree of measured kernels. Pick one and a supported set of parameters to see how an iteration's time is put together."
+        description="Each model runs as an execution graph, which the simulator costs as a tree of measured kernels. Pick a model and how it is deployed to see how an iteration's time is put together, then time a batch of your own."
         image="hero-models.webp"
       />
 
       <div className={`wrap ${s.catalog}`}>
-        {unknownArch && (
+        {unknownPreset && (
           <p className={s.notice} role="status">
-            No model runs as <code>{unknownArch}</code>. These are the ones that do.
+            No public deployment is named <code>{unknownPreset}</code>. These are
+            the ones that are.
           </p>
         )}
         <div className={s.filters} role="group" aria-label="Model family">
@@ -52,7 +50,7 @@ export function ModelCatalog({ catalog, unknownArch }) {
             type="family"
             value="Any"
             pressed={!picked}
-            count={catalog.archs.length}
+            count={checkpoints.length}
             onClick={() => setQuery({ ...query, family: "" })}
           >
             All
@@ -63,7 +61,7 @@ export function ModelCatalog({ catalog, unknownArch }) {
               type="family"
               value={family}
               pressed={picked === family}
-              count={catalog.archs.filter((a) => familyOf(a) === family).length}
+              count={checkpoints.filter((c) => familyOf(c) === family).length}
               onClick={() =>
                 setQuery({ ...query, family: picked === family ? "" : family })
               }
@@ -71,7 +69,7 @@ export function ModelCatalog({ catalog, unknownArch }) {
           ))}
         </div>
 
-        {groups.map(({ family, archs }) => (
+        {groups.map(({ family, checkpoints: rows }) => (
           <section
             key={family}
             className={s.family}
@@ -82,59 +80,9 @@ export function ModelCatalog({ catalog, unknownArch }) {
           >
             <h2 id={`family-${family}`}>{family}</h2>
             <ul className={s.archList}>
-              {archs.map((arch) => (
-                <li key={arch.arch}>
-                  <a
-                    className={s.archRow}
-                    href={modelHref({ arch: arch.arch })}
-                    onClick={(event) => openModel(event, { arch: arch.arch })}
-                  >
-                    <span className={s.archMain}>
-                      <span className={s.archName}>{arch.name ?? arch.arch}</span>
-                      <code className={s.archTag}>{arch.arch}</code>
-                      {arch.summary && (
-                        <span className={s.archSummary}>
-                          <Prose text={arch.summary} />
-                        </span>
-                      )}
-                    </span>
-                    <span className={s.archFacts}>
-                      <span className={s.fact}>
-                        <span className={s.factName}>Models</span>
-                        <span className={s.factValue}>
-                          {arch.models.map((stem) => (
-                            <Tag key={stem} type="family" value={family}>
-                              {models.get(stem)?.name ?? stem}
-                            </Tag>
-                          ))}
-                        </span>
-                      </span>
-                      <span className={s.fact}>
-                        <span className={s.factName}>GPU</span>
-                        <span className={s.factValue}>
-                          {arch.gpus.map((gpu) => (
-                            <Tag key={gpu} type="gpu" value={shortGpu(gpu)} />
-                          ))}
-                        </span>
-                      </span>
-                      <span className={s.fact}>
-                        <span className={s.factName}>Parameter sets</span>
-                        <span className={s.factValue}>
-                          <span className={s.figure}>{arch.combinations}</span>
-                          {arch.contract !== "iter_wise" && (
-                            <span className={s.contract}>
-                              {CONTRACTS[arch.contract]}
-                            </span>
-                          )}
-                        </span>
-                      </span>
-                    </span>
-                    <ArrowRight
-                      className={s.archArrow}
-                      size={20}
-                      aria-hidden="true"
-                    />
-                  </a>
+              {rows.map((checkpoint) => (
+                <li key={checkpoint.checkpoint}>
+                  <CheckpointRow checkpoint={checkpoint} />
                 </li>
               ))}
             </ul>
@@ -142,5 +90,73 @@ export function ModelCatalog({ catalog, unknownArch }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function CheckpointRow({ checkpoint }) {
+  const { presets } = checkpoint;
+  const members = presets.flatMap((p) => p.members);
+  const ready = members.filter(predictable).length;
+  const gpus = [...new Set(presets.map((p) => p.gpu))];
+  const body = (
+    <>
+      <span className={s.archMain}>
+        <span className={s.archName}>
+          {checkpoint.name ?? checkpoint.checkpoint}
+        </span>
+        <code className={s.archTag}>{checkpoint.checkpoint}</code>
+      </span>
+      <span className={s.archFacts}>
+        <span className={s.fact}>
+          <span className={s.factName}>Deployments</span>
+          <span className={s.factValue}>
+            {presets.length ? (
+              presets.map((p) => (
+                <span
+                  key={p.id}
+                  className={s.deploymentName}
+                  title={[p.arch, CONTRACTS[p.contract]].filter(Boolean).join("\n")}
+                >
+                  {archLabel(p)}
+                </span>
+              ))
+            ) : (
+              <span className={s.contract}>None yet</span>
+            )}
+          </span>
+        </span>
+        {gpus.length > 0 && (
+          <span className={s.fact}>
+            <span className={s.factName}>GPU</span>
+            <span className={s.factValue}>
+              {gpus.map((gpu) => (
+                <Tag key={gpu} type="gpu" value={shortGpu(gpu)} />
+              ))}
+            </span>
+          </span>
+        )}
+        {members.length > 0 && (
+          <span className={s.fact}>
+            <span className={s.factName}>Configurations</span>
+            <span className={s.factValue}>
+              <span className={s.figure}>{members.length}</span>
+              <span className={s.contract}>{ready} predictable</span>
+            </span>
+          </span>
+        )}
+      </span>
+    </>
+  );
+  if (!presets.length) return <div className={s.archRow}>{body}</div>;
+  const params = { preset: presets[0].id };
+  return (
+    <a
+      className={s.archRow}
+      href={pageHref("models", params)}
+      onClick={(event) => openInPage(event, params)}
+    >
+      {body}
+      <ArrowRight className={s.archArrow} size={20} aria-hidden="true" />
+    </a>
   );
 }

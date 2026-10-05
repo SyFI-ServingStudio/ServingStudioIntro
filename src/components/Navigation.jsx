@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Brand } from "./Brand";
 import { preparePage } from "../hooks/useSiteNavigation";
+import { PAGES } from "../sitePages";
 import s from "./Navigation.module.css";
 
 export function Navigation({ page = "overview" }) {
@@ -37,26 +38,13 @@ export function Navigation({ page = "overview" }) {
           ref={nav}
           onScroll={(event) => markEdges(event.currentTarget)}
         >
-          {[
-            ["overview", "Overview", base],
-            ["features", "Features", `${base}features.html`],
-            ["architecture", "Architecture", `${base}architecture.html`],
-            ["models", "Models", `${base}models.html`],
-            ["kernels", "Kernels", `${base}kernels.html`],
-            ["blog", "Blog", `${base}blog.html`],
-          ].map(([id, name, href]) => (
+          {PAGES.map(({ id, name, file }) => (
             <a
               key={id}
-              href={href}
+              href={`${base}${file}`}
               aria-current={page === id ? "page" : undefined}
-              onPointerEnter={() => {
-                if (["blog", "models", "kernels"].includes(id))
-                  preparePage(id).catch(() => {});
-              }}
-              onFocus={() => {
-                if (["blog", "models", "kernels"].includes(id))
-                  preparePage(id).catch(() => {});
-              }}
+              onPointerEnter={() => preparePage(id).catch(() => {})}
+              onFocus={() => preparePage(id).catch(() => {})}
             >
               {name}
             </a>

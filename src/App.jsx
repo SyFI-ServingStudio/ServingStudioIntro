@@ -14,6 +14,7 @@ import { FeatureOverview } from "./sections/FeatureOverview";
 const Blog = lazy(() => import("./pages/Blog"));
 const Kernels = lazy(() => import("./pages/kernels/Kernels"));
 const Models = lazy(() => import("./pages/models/Models"));
+const Simulate = lazy(() => import("./pages/simulate/Simulate"));
 
 export default function App() {
   const mainRef = useRef(null);
@@ -71,6 +72,16 @@ export default function App() {
             }
           >
             <Models />
+          </Suspense>
+        ) : page === "simulate" ? (
+          <Suspense
+            fallback={
+              <p className="wrap blog-loading" role="status">
+                Loading deployments…
+              </p>
+            }
+          >
+            <Simulate />
           </Suspense>
         ) : page === "kernels" ? (
           <Suspense

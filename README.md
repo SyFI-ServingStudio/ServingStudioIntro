@@ -15,10 +15,32 @@ The development server listens on all interfaces by default.
 ## Production build
 
 ```bash
-npm run build
+SERVINGSTUDIO_UI_DIR=/path/to/ServingStudioUI npm run build
 ```
 
 Vite writes the deployable site to `dist/`.
+
+### Read more
+
+A live prediction on the Models page and a finished run on the Simulate page
+have a "Read more" button that opens ServingStudio UI's own result pages for
+them. Those pages are compiled into this
+site from a ServingStudioUI checkout (`app/src/embed`, on a branch that ships
+the embedded viewer), named by `SERVINGSTUDIO_UI_DIR`; see
+`scripts/servingstudio-ui.mjs`.
+
+- `npm run dev` without `SERVINGSTUDIO_UI_DIR` runs without Read more and says
+  so in its log.
+- `npm run build` without it stops, so a deploy does not drop Read more by
+  accident. `ALLOW_NO_READ_MORE=1 npm run build` builds the site without the
+  button; the GitHub Actions check sets it.
+- `npm run deploy:cse` runs a plain `npm run build`, so set one of the two
+  before it: `SERVINGSTUDIO_UI_DIR=… npm run deploy:cse` for the full site.
+
+The viewer reads the prediction or run through the public API's forwarded
+Analyzer routes (`/api/public/v1/analyzer/predictions/…`, `…/analyzer/runs/…`
+and `…/analyzer/kernel-kinds`); `src/pages/models/ReadMore.jsx` answers any
+other read it makes with a 404 and logs it.
 
 ## Deployment
 
@@ -35,10 +57,12 @@ npm run deploy:cse -- --dry-run # build, then list what would change
 The sync deletes server files that are not in the build, so put anything the
 server needs, such as an `.htaccess`, in `public/`.
 
-The Models and Kernels pages read ServingStudio Sim's read-only public API at
-`/api/public/v1` on the site's own origin. On the CSE site, `public/.htaccess`
+The Models, Simulate and Kernels pages use ServingStudio Sim's public API at
+`/api/public/v1` on the site's own origin: they read its catalogs, and Live
+predict and Simulate send it work (`POST /predict`, `POST /simulate`,
+`POST /workloads` for an uploaded trace). On the CSE site, `public/.htaccess`
 proxies that path to the service on cayenne (`10.158.48.50:5220`); if it is not
-running, both pages say the data service is not reachable. In development, point
+running, the pages say the data service is not reachable. In development, point
 Vite at a running service:
 
 ```bash
@@ -100,10 +124,11 @@ available at `/blog/introducing-servingstudio/`.
 
 The build also writes `sitemap.xml` with the main pages and every published
 post (with its date as `lastmod`). Submit
-`https://servingstudio.cs.washington.edu/sitemap.xml` in Google Search Console; new posts are added automatically. To list another page, add it
-to the `sitemap` plugin's `pages` in `vite.config.js`.
+`https://servingstudio.cs.washington.edu/sitemap.xml` in Google Search Console; new posts are added automatically. A page in
+`PAGES` (`src/sitePages.js`) is listed, as it is in the navigation.
 
-Run `npm test`, `npm run lint:css`, and `npm run build` before publishing.
+Run `npm test`, `npm run lint:css`, and `SERVINGSTUDIO_UI_DIR=… npm run build`
+before publishing.
 The previous introduction draft now lives at
 `content/blog/introducing-servingstudio/index.md`; historical drafts remain local.
 The cover export template remains `blog-overview.html`. Save future captures to

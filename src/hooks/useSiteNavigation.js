@@ -1,16 +1,13 @@
 import { prepareHero } from "../heroImages";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { PAGES } from "../sitePages";
+import { notifyUrl } from "../url";
 
 const base = import.meta.env.BASE_URL;
 const pages = new Map([
-  [base, "overview"],
+  ...PAGES.map((p) => [`${base}${p.file}`, p.id]),
   [`${base}index.html`, "overview"],
-  [`${base}features.html`, "features"],
-  [`${base}architecture.html`, "architecture"],
-  [`${base}models.html`, "models"],
-  [`${base}kernels.html`, "kernels"],
-  [`${base}blog.html`, "blog"],
 ]);
 export function pageFromPath(pathname) {
   if (pages.has(pathname)) return pages.get(pathname);
@@ -33,8 +30,15 @@ export function preparePage(page, search = "") {
     return Promise.all([
       hero,
       import("../pages/models/Models"),
-      import("../pages/models/modelData").then(({ loadArchs }) =>
-        loadArchs().catch(() => {}),
+      import("../pages/models/modelData").then(({ loadModels }) =>
+        loadModels().catch(() => {}),
+      ),
+    ]);
+  if (page === "simulate")
+    return Promise.all([
+      import("../pages/simulate/Simulate"),
+      import("../pages/simulate/simulateData").then(({ loadSimPresets }) =>
+        loadSimPresets().catch(() => {}),
       ),
     ]);
   if (page === "kernels")
@@ -62,7 +66,12 @@ export function useSiteNavigation(mainRef) {
       transitionRef.current?.skipTransition();
       const update = () => {
         if (push) window.history.pushState(null, "", url);
-        flushSync(() => setPage(currentPage()));
+        // A link to the page already shown changes only its query: the
+        // page's URL subscribers re-read it in the same commit.
+        flushSync(() => {
+          setPage(currentPage());
+          if (push) notifyUrl();
+        });
         const hash = url.hash.slice(1);
         const target = hash ? document.getElementById(hash) : null;
         if (target) target.scrollIntoView({ behavior: "instant" });
@@ -72,6 +81,12 @@ export function useSiteNavigation(mainRef) {
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (document.startViewTransition && !reduced) {
         transitionRef.current = document.startViewTransition(update);
+        // A navigation that starts before this one's animation ends skips it,
+        // and skipTransition() rejects `ready` with an AbortError. Any other
+        // rejection is a real failure and stays uncaught.
+        transitionRef.current.ready.catch((error) => {
+          if (error?.name !== "AbortError") throw error;
+        });
       } else {
         update();
         if (!reduced)
@@ -130,7 +145,7 @@ export function useSiteNavigation(mainRef) {
     document.title =
       page === "overview"
         ? "ServingStudio | Simulate and improve LLM serving"
-        : `${{ features: "Features", models: "Models", kernels: "Kernels" }[page] || "Architecture"} | ServingStudio`;
+        : `${PAGES.find((p) => p.id === page).name} | ServingStudio`;
   }, [page]);
   return page;
 }

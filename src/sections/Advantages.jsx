@@ -639,7 +639,7 @@ function AgentFigure() {
         <blockquote className={s.flowEnd}>
           <span>You</span>
           <p>
-            Find the request rate where Llama 3 8B stops keeping up on one H200.
+            Find the request rate where Llama 3.1 8B stops keeping up on one H200.
           </p>
         </blockquote>
         <ol className={s.flowStages}>
@@ -675,7 +675,7 @@ const rows = [
     name: "Fast simulation.",
     claim: "Simulate long workloads in minutes.",
     body: "The Rust simulator advances modeled time without waiting for real hardware, so long workloads can reach steady state quickly. This makes broader configuration sweeps practical before deployment.",
-    note: "Llama 3 8B and Qwen3-235B. Simulator wall time on one host; it varies with the machine.",
+    note: "Llama 3.1 8B and Qwen3-235B. Simulator wall time on one host; it varies with the machine.",
     figure: <SpeedChart />,
   },
   {

@@ -3,15 +3,19 @@
   "simulated_ms": 2000000,
   "note": "Every run simulates the same 2,000,000 ms of serving. wall_s is simulator wall time on one host and varies with the machine.",
   "shapes": [
-    { "tier": "1_local_dense", "name": "Single GPU, dense", "model": "Llama 3 8B" },
-    { "tier": "3_tp", "name": "Tensor parallel", "model": "Llama 3 8B" },
+    {
+      "tier": "1_local_dense",
+      "name": "Single GPU, dense",
+      "model": "Llama 3.1 8B"
+    },
+    { "tier": "3_tp", "name": "Tensor parallel", "model": "Llama 3.1 8B" },
     { "tier": "2_moe_local", "name": "MoE expert parallel", "model": "Qwen3-235B" },
     {
       "tier": "4_dp_tp",
       "name": "Data and tensor parallel",
-      "model": "Llama 3 8B"
+      "model": "Llama 3.1 8B"
     },
-    { "tier": "5_pd", "name": "Prefill and decode split", "model": "Llama 3 8B" },
+    { "tier": "5_pd", "name": "Prefill and decode split", "model": "Llama 3.1 8B" },
     { "tier": "6_afd", "name": "Attention and FFN split", "model": "Qwen3-235B" }
   ],
   "runs": [

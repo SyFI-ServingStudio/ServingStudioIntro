@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { ChartBar } from "./ChartBar";
-import { Level, deploymentLabel } from "./GridExplorer";
+import { presetAxes } from "./GridExplorer";
+import { Level } from "./Level";
 import {
+  archName,
   argUnit,
   formatNumber,
   formatValue,
@@ -11,30 +13,36 @@ import {
   modelFamily,
   modelName,
   peakFor,
+  presetArch,
+  byNumber,
+  memberKey,
+  presetCheckpoint,
   shortGpu,
+  sortGpus,
+  sortModels,
 } from "./kernelData";
+import { memberHref, memberMatches, paramsText } from "../models/modelData";
+import { MemberPicker } from "../models/MemberPicker";
 import { PerfChart, SERIES_COLORS } from "./PerfChart";
 import { Tag, ToggleTag } from "./Tag";
-import picker from "./ConfigPicker.module.css";
 import k from "./KernelDetail.module.css";
 import g from "./GridExplorer.module.css";
 import s from "./SeriesExplorer.module.css";
 
 /* A chart the kind declares over several of its configs (kernel.view, a
-   ConfigView in the kind's Sim doc): the configs one deployment builds for one
-   leaf that differ only in view.series.field are one chart, a line per config.
-   view.workload.field is picked with a selector, by the name /configs gives
-   each config's value (config_labels). Series values are positions in an
-   order, 0 first: line n reads "<label> n+1", and position 0, which leads the
-   order, is drawn strongest. The chart shows each line relative to the first
-   one by default, since the lines differ by far less than a line moves along
-   x; absolute values are a switch away. Nothing here knows the kind.
+   ConfigView in the kind's Sim doc): the configs one configuration of a
+   public preset builds for one leaf that differ only in view.series.field
+   are one chart, a line per config. view.workload.field is the routing the
+   configuration reads, so picking the configuration picks it. Series values
+   are positions in an order, 0 first: line n reads "<label> n+1", and
+   position 0, which leads the order, is drawn strongest. The chart shows
+   each line relative to the first one by default, since the lines differ by
+   far less than a line moves along x; absolute values are a switch away.
+   Nothing here knows the kind.
 
-   URL keys: cgpu, cmodel (shared with the grid view), dep, work, leaf,
-   backend and ymode ("absolute", else relative). */
-
-const byNumber = (a, b) =>
-  String(a).localeCompare(String(b), undefined, { numeric: true });
+   URL keys: cgpu, cmodel (shared with the grid view), dep (the preset's id),
+   m.<axis> (the member's value of each axis), leaf, backend and ymode
+   ("absolute", else relative). */
 
 /* A position's colour: its categorical slot, so neighbours in the order,
    which sit next to each other on the chart, stay apart (every adjacent pair
@@ -53,89 +61,69 @@ function rampColor(position, count) {
   return `#${mixed.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
-/* GPU → model → deployment → the configs it uses that carry both view
-   fields, each with the roles that ask for it. A config no deployment claims
-   sits under model null. */
+/* GPU → model → preset → member → the configs it reads that carry both
+   view fields, each with the roles that ask for it. */
+const carries = (config, view) =>
+  view.series.field in config.identity &&
+  (config.structured.includes(view.workload.field) ||
+    view.workload.field in config.identity);
+
 function buildIndex(list, view) {
-  const deployments = new Map(list.deployments.map((d) => [d.id, d]));
   const gpus = new Map();
   for (const config of list.configs) {
-    if (!(view.series.field in config.config_args)) continue;
-    if (!config.config_labels?.[view.workload.field]) continue;
+    if (!carries(config, view)) continue;
     if (!gpus.has(config.gpu)) gpus.set(config.gpu, new Map());
     const models = gpus.get(config.gpu);
-    const claims = config.uses.flatMap((use) =>
-      use.deployments.length
-        ? use.deployments.map(({ id }) => [deployments.get(id), use])
-        : [[null, use]],
-    );
-    const named = claims.some(([d]) => d);
-    for (const [d, use] of claims) {
-      if (!d && named) continue;
-      const stem = d?.model_config ?? null;
-      if (!models.has(stem)) models.set(stem, new Map());
-      const byDeployment = models.get(stem);
-      const key = d ? String(d.id) : "none";
-      if (!byDeployment.has(key))
-        byDeployment.set(key, { deployment: d, configs: new Map() });
-      const configs = byDeployment.get(key).configs;
-      if (!configs.has(config.config_hash))
-        configs.set(config.config_hash, { config, roles: new Set() });
-      configs.get(config.config_hash).roles.add(use.role);
+    for (const use of config.uses) {
+      const model = presetCheckpoint(use.preset);
+      if (!models.has(model)) models.set(model, new Map());
+      const presets = models.get(model);
+      if (!presets.has(use.preset))
+        presets.set(use.preset, {
+          preset: use.preset,
+          members: new Map(),
+          configs: new Map(),
+        });
+      const d = presets.get(use.preset);
+      const key = memberKey(use.params);
+      d.members.set(key, use.params);
+      if (!d.configs.has(key)) d.configs.set(key, new Map());
+      const configs = d.configs.get(key);
+      if (!configs.has(config.id))
+        configs.set(config.id, { config, roles: new Set() });
+      use.roles.forEach((role) => configs.get(config.id).roles.add(role));
     }
   }
   return gpus;
 }
 
-/* A deployment's configs by workload value, then by leaf: configs that agree
-   on everything but the series field (the roles that ask, every other config
-   value, how the workload is bound) are one leaf, a line each. */
-function workloadsOf(entries, view) {
-  const byLabel = new Map();
-  for (const entry of entries) {
-    const name = entry.config.config_labels[view.workload.field];
-    if (!byLabel.has(name.label)) byLabel.set(name.label, { name, entries: [] });
-    byLabel.get(name.label).entries.push(entry);
-  }
-  return [...byLabel.values()]
-    .map((w) => ({ ...w, leaves: leavesOf(w.entries, view) }))
-    .sort(
-      (a, b) =>
-        a.name.preference - b.name.preference ||
-        byNumber(a.name.label, b.name.label),
-    );
-}
-
+/* One member's configs by leaf: configs that agree on everything but the
+   series field (the roles that ask, every other config value) are one leaf,
+   a line each. */
 function leavesOf(entries, view) {
   const field = view.series.field;
   const leaves = new Map();
   for (const entry of entries) {
     const { config } = entry;
-    const others = Object.entries(config.config_args).filter(
-      ([key]) => key !== field,
-    );
-    const key = JSON.stringify([
-      [...entry.roles].sort(),
-      others.sort(),
-      config.config_labels[view.workload.field].binding,
-    ]);
+    const others = Object.entries(config.identity).filter(([key]) => key !== field);
+    const key = JSON.stringify([[...entry.roles].sort(), others.sort()]);
     if (!leaves.has(key))
       leaves.set(key, { roles: [...entry.roles].sort(), lines: new Map() });
     const lines = leaves.get(key).lines;
-    const position = config.config_args[field];
+    const position = config.identity[field];
     if (!lines.has(position)) lines.set(position, config);
   }
   return [...leaves.values()].map((leaf) => {
     const lines = [...leaf.lines]
       .sort(([a], [b]) => a - b)
       .map(([position, config]) => ({ position, config }));
-    return { ...leaf, lines, id: lines[0].config.config_hash.slice(0, 12) };
+    return { ...leaf, lines, id: lines[0].config.id };
   });
 }
 
 /* What tells leaves apart: the steps of their role paths that differ
    ("mtp.step_0" against "mtp.recurrent"), else the binding values that do. */
-function leafNames(leaves, view) {
+function leafNames(leaves) {
   const paths = leaves.map((leaf) => leaf.roles[0].split("."));
   const shortest = Math.min(...paths.map((p) => p.length));
   let head = 0;
@@ -148,79 +136,73 @@ function leafNames(leaves, view) {
   )
     tail += 1;
   const texts = paths.map((p) => p.slice(head, p.length - tail).join("."));
-  if (new Set(texts).size === leaves.length) return texts;
-  const bindingOf = (leaf) =>
-    leaf.lines[0].config.config_labels[view.workload.field].binding;
-  const differs = Object.keys(bindingOf(leaves[0])).filter(
-    (key) => new Set(leaves.map((l) => JSON.stringify(bindingOf(l)[key]))).size > 1,
-  );
-  return leaves.map((leaf) =>
-    differs.length
-      ? differs
-          .map((key) => `${key} ${formatValue(bindingOf(leaf)[key])}`)
-          .join(" · ")
-      : leaf.id,
-  );
+  return new Set(texts).size === leaves.length
+    ? texts
+    : leaves.map((leaf) => leaf.id.slice(0, 6));
 }
 
 export function SeriesExplorer({ kernel, catalog, list, query, update }) {
   const view = kernel.view;
   const index = buildIndex(list, view);
   const models = catalog.models;
-  const rank = (stem) => {
-    const i = models.findIndex((m) => m.model_config === stem);
-    return i < 0 ? models.length : i;
-  };
-  const gpuNames = [...index.keys()].sort((a, b) => {
-    const order = catalog.gpus.map((x) => x.name);
-    return (
-      (order.indexOf(a) + 1 || order.length + 1) -
-      (order.indexOf(b) + 1 || order.length + 1)
-    );
-  });
+  const gpuNames = sortGpus(index.keys(), catalog);
   if (!gpuNames.length)
     return (
       <p className={k.note}>
-        No registered config carries both of this view&apos;s fields.
+        No public deployment reads a config that carries both of this view&apos;s
+        fields.
       </p>
     );
   const gpu = index.has(query.cgpu) ? query.cgpu : gpuNames[0];
   const byModel = index.get(gpu);
-  const stems = [...byModel.keys()].sort((a, b) => rank(a) - rank(b));
-  const modelKey = (stem) => stem ?? "";
-  const stem = stems.find((m) => modelKey(m) === query.cmodel) ?? stems[0];
-  const byDeployment = byModel.get(stem);
-  const labelOf = (d) => (d ? deploymentLabel(d) : "Built at the deployment level");
-  const deploymentKeys = [...byDeployment.keys()].sort((a, b) =>
-    byNumber(
-      labelOf(byDeployment.get(a).deployment),
-      labelOf(byDeployment.get(b).deployment),
-    ),
-  );
-  // The default deployment draws the most lines: the view is about comparing them.
-  const widest = (key) =>
+  const modelKeys = sortModels(byModel.keys(), catalog);
+  const modelKey = modelKeys.find((m) => m === query.cmodel) ?? modelKeys[0];
+  const byPreset = byModel.get(modelKey);
+  const presetIds = [...byPreset.keys()].sort(byNumber);
+  // The default draws the most lines: the view is about comparing them.
+  const widest = (d, key) =>
     Math.max(
-      ...workloadsOf([...byDeployment.get(key).configs.values()], view).flatMap(
-        (w) => w.leaves.map((l) => l.lines.length),
+      ...leavesOf([...d.configs.get(key).values()], view).map(
+        (l) => l.lines.length,
       ),
     );
-  const depKey = byDeployment.has(query.dep)
+  const widestMember = (d) =>
+    [...d.members.keys()].reduce((best, key) =>
+      widest(d, key) > widest(d, best) ? key : best,
+    );
+  const depId = byPreset.has(query.dep)
     ? query.dep
-    : [...deploymentKeys].sort((a, b) => widest(b) - widest(a))[0];
-  const { deployment, configs } = byDeployment.get(depKey);
-  const workloads = workloadsOf([...configs.values()], view);
-  // The API orders measured routings first; the default is the first of them.
-  const workload =
-    workloads.find((w) => w.name.label === query.work) ?? workloads[0];
-  const leaves = workload.leaves;
-  const names = leafNames(leaves, view);
+    : [...presetIds].sort(
+        (a, b) =>
+          widest(byPreset.get(b), widestMember(byPreset.get(b))) -
+          widest(byPreset.get(a), widestMember(byPreset.get(a))),
+      )[0];
+  const d = byPreset.get(depId);
+  const axes = presetAxes(d.members);
+  const asked = Object.fromEntries(
+    axes.map((axis) => [axis.name, query[`m.${axis.name}`]]),
+  );
+  const memberId =
+    [...d.members.keys()].find((key) =>
+      memberMatches({ params: d.members.get(key) }, asked, Object.keys(asked)),
+    ) ?? widestMember(d);
+  const params = d.members.get(memberId);
+  const leaves = leavesOf([...d.configs.get(memberId).values()], view);
+  const names = leafNames(leaves);
   const leafIndex = Math.max(
     0,
     leaves.findIndex((l) => l.id === query.leaf),
   );
   const leaf = leaves[leafIndex];
 
-  const here = { cgpu: gpu, cmodel: modelKey(stem), dep: depKey };
+  const memberQuery = (p) =>
+    Object.fromEntries(Object.entries(p).map(([name, v]) => [`m.${name}`, v]));
+  const cleared = Object.fromEntries(
+    Object.keys(query)
+      .filter((key) => key.startsWith("m."))
+      .map((key) => [key, ""]),
+  );
+  const here = { cgpu: gpu, cmodel: modelKey, dep: depId, ...memberQuery(params) };
 
   return (
     <div className={k.explorer}>
@@ -236,59 +218,59 @@ export function SeriesExplorer({ kernel, catalog, list, query, update }) {
                   type="gpu"
                   value={shortGpu(name)}
                   pressed={name === gpu}
-                  onClick={() => update({ cgpu: name })}
+                  onClick={() =>
+                    update({ ...cleared, cgpu: name, dep: "", leaf: "" })
+                  }
                 />
               ))
             )}
           </Level>
           <Level label="Model">
-            {stems.map((m) => (
+            {modelKeys.map((m) => (
               <ToggleTag
-                key={modelKey(m)}
+                key={m}
                 type="family"
-                value={m ? modelFamily(models, m) : null}
-                pressed={m === stem}
-                title={m ?? "Configs no model deployment claims"}
-                onClick={() => update({ cgpu: gpu, cmodel: modelKey(m) })}
+                value={modelFamily(models, m)}
+                pressed={m === modelKey}
+                title={m}
+                onClick={() =>
+                  update({ ...cleared, cgpu: gpu, cmodel: m, dep: "", leaf: "" })
+                }
               >
-                {m ? modelName(models, m) : "No model"}
+                {modelName(models, m)}
               </ToggleTag>
             ))}
           </Level>
         </div>
         <div className={s.levels}>
           <Level label="Deployment">
-            {deploymentKeys.map((key) => (
+            {presetIds.map((id) => (
               <ToggleTag
-                key={key}
+                key={id}
                 type="choice"
-                value={key}
-                pressed={key === depKey}
-                onClick={() => update({ ...here, dep: key, work: "", leaf: "" })}
+                value={id}
+                pressed={id === depId}
+                title={presetArch(id)}
+                onClick={() =>
+                  update({
+                    ...cleared,
+                    cgpu: gpu,
+                    cmodel: modelKey,
+                    dep: id,
+                    leaf: "",
+                  })
+                }
               >
-                <span className={s.code}>
-                  {labelOf(byDeployment.get(key).deployment)}
-                </span>
+                {archName(catalog.archNames, id)}
               </ToggleTag>
             ))}
           </Level>
-          <Level label={view.workload.label}>
-            {workloads.map((w) => (
-              <ToggleTag
-                key={w.name.label}
-                type="choice"
-                value={w.name.label}
-                pressed={w === workload}
-                title={[w.name.label, w.name.fingerprint].join("\n")}
-                onClick={() => update({ ...here, work: w.name.label, leaf: "" })}
-              >
-                {w.name.label !== w.name.routing && (
-                  <span className={picker.op}>{w.name.routing}</span>
-                )}
-                <span className={s.code}>{w.name.label}</span>
-              </ToggleTag>
-            ))}
-          </Level>
+          <MemberPicker
+            axes={axes}
+            members={[...d.members.values()].map((p) => ({ params: p }))}
+            current={params}
+            onPick={(p) => update({ ...here, ...memberQuery(p), leaf: "" })}
+          />
           {leaves.length > 1 && (
             <Level label="Layer">
               {leaves.map((l, i) => (
@@ -298,9 +280,7 @@ export function SeriesExplorer({ kernel, catalog, list, query, update }) {
                   value={l.id}
                   pressed={i === leafIndex}
                   title={l.roles.join("\n")}
-                  onClick={() =>
-                    update({ ...here, work: workload.name.label, leaf: l.id })
-                  }
+                  onClick={() => update({ ...here, leaf: l.id })}
                 >
                   <span className={s.code}>{names[i]}</span>
                 </ToggleTag>
@@ -312,13 +292,13 @@ export function SeriesExplorer({ kernel, catalog, list, query, update }) {
       </section>
 
       <LinesChart
-        key={leaf.lines.map((l) => l.config.config_hash).join()}
+        key={leaf.lines.map((l) => l.config.id).join()}
         kernel={kernel}
         catalog={catalog}
         view={view}
         leaf={leaf}
-        workload={workload}
-        deployment={deployment}
+        preset={depId}
+        params={params}
         query={query}
         update={update}
       />
@@ -331,8 +311,8 @@ function LinesChart({
   catalog,
   view,
   leaf,
-  workload,
-  deployment,
+  preset,
+  params,
   query,
   update,
 }) {
@@ -340,9 +320,7 @@ function LinesChart({
   const [error, setError] = useState(null);
   useEffect(() => {
     Promise.all(
-      leaf.lines.map(({ config }) =>
-        loadConfig(kernel.kind, config.config_hash, config.gpu),
-      ),
+      leaf.lines.map(({ config }) => loadConfig(kernel.kind, config.id)),
     ).then(setDetails, setError);
   }, [kernel.kind, leaf]);
   if (error)
@@ -364,8 +342,8 @@ function LinesChart({
       view={view}
       leaf={leaf}
       details={details}
-      workload={workload}
-      deployment={deployment}
+      preset={preset}
+      params={params}
       query={query}
       update={update}
     />
@@ -378,8 +356,8 @@ function LinesView({
   view,
   leaf,
   details,
-  workload,
-  deployment,
+  preset,
+  params,
   query,
   update,
 }) {
@@ -466,7 +444,7 @@ function LinesView({
   };
   const positions = leaf.lines.map((l) => l.position);
   const series = leaf.lines.map(({ position, config }, i) => ({
-    key: config.config_hash,
+    key: config.id,
     label: lineLabel(position),
     color: positionColor(position, positions),
     width: position === 0 ? 4.5 : 2,
@@ -495,7 +473,6 @@ function LinesView({
       : null;
   const unit = argUnit(kernel, xName);
   const xLabel = unit && unit !== "bytes" ? `${xName} (${unit})` : xName;
-  const name = workload.name;
 
   return (
     <>
@@ -555,7 +532,7 @@ function LinesView({
                     `${formatNumber(p.y)}× · ${formatNumber(p.abs)} ${metric.unit}`
                 : undefined
             }
-            describe={`${yLabel} of ${kernel.kind} over ${xName}, one line per ${view.series.label.toLowerCase()} of ${count}, ${backend}, ${view.workload.label.toLowerCase()} ${name.label}.`}
+            describe={`${yLabel} of ${kernel.kind} over ${xName}, one line per ${view.series.label.toLowerCase()} of ${count}, ${backend}, ${archName(catalog.archNames, preset)} ${paramsText(params)}.`}
             note={
               relative
                 ? `Each line is one config's grid for ${backend}, divided cell by cell by ${reference}'s, which leads the order and so lies flat at 1; a cell ${reference} did not measure is left out. The ticks along the bottom are its cells.`
@@ -583,28 +560,32 @@ function LinesView({
             <div>
               <dt>{view.workload.label}</dt>
               <dd className={g.stack}>
-                <code>{name.label}</code>
-                <span className={s.muted}>
-                  {name.routing}, {name.fingerprint}
-                  {Object.entries(name.binding).map(
-                    ([key, v]) => `, ${key} ${formatValue(v)}`,
-                  )}
-                </span>
                 <span className={s.muted}>{view.workload.doc}</span>
+                <span className={s.muted}>
+                  The configuration below reads one; its deployment names it.
+                </span>
               </dd>
             </div>
             <div>
-              <dt>Deployment</dt>
+              <dt>Configuration</dt>
               <dd>
-                <code>
-                  {deployment
-                    ? deploymentLabel(deployment)
-                    : "Built at the deployment level"}
-                </code>
+                <a
+                  className={g.use}
+                  href={memberHref(preset, params)}
+                  title={preset}
+                >
+                  <strong>
+                    {modelName(catalog.models, presetCheckpoint(preset))} ·{" "}
+                    {archName(catalog.archNames, preset)}
+                  </strong>
+                  {Object.keys(params).length > 0 && (
+                    <span>{paramsText(params)}</span>
+                  )}
+                </a>
               </dd>
             </div>
             <div>
-              <dt>Fixed profile.db args</dt>
+              <dt>Fixed arguments</dt>
               <dd>
                 {Object.entries(first.fixed).map(([key, v]) => (
                   <span key={key} className={g.fact}>
@@ -706,9 +687,4 @@ function LinesTable({ kernel, xName, xs, series, metric, relative }) {
 }
 
 export const hasSeriesView = (kernel, list) =>
-  Boolean(kernel.view) &&
-  list.configs.some(
-    (c) =>
-      kernel.view.series.field in c.config_args &&
-      c.config_labels?.[kernel.view.workload.field],
-  );
+  Boolean(kernel.view) && list.configs.some((c) => carries(c, kernel.view));
