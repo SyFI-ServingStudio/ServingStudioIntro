@@ -10,6 +10,7 @@ const pages = new Map([
   [`${base}features.html`, "features"],
   [`${base}architecture.html`, "architecture"],
   [`${base}models.html`, "models"],
+  [`${base}simulate.html`, "simulate"],
   [`${base}kernels.html`, "kernels"],
   [`${base}blog.html`, "blog"],
 ]);
@@ -36,6 +37,13 @@ export function preparePage(page, search = "") {
       import("../pages/models/Models"),
       import("../pages/models/modelData").then(({ loadModels }) =>
         loadModels().catch(() => {}),
+      ),
+    ]);
+  if (page === "simulate")
+    return Promise.all([
+      import("../pages/simulate/Simulate"),
+      import("../pages/simulate/simulateData").then(({ loadSimPresets }) =>
+        loadSimPresets().catch(() => {}),
       ),
     ]);
   if (page === "kernels")
@@ -142,7 +150,7 @@ export function useSiteNavigation(mainRef) {
     document.title =
       page === "overview"
         ? "ServingStudio | Simulate and improve LLM serving"
-        : `${{ features: "Features", models: "Models", kernels: "Kernels" }[page] || "Architecture"} | ServingStudio`;
+        : `${{ features: "Features", models: "Models", simulate: "Simulate", kernels: "Kernels" }[page] || "Architecture"} | ServingStudio`;
   }, [page]);
   return page;
 }

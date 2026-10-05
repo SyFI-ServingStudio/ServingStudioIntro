@@ -1,0 +1,531 @@
+/* The Simulate page. Panels, chips, fields and buttons are the Models page's
+   (Models.module.css, KernelDetail.module.css); what is here is the layout
+   and the run's numbers. */
+
+.body {
+  display: grid;
+  gap: 28px;
+  padding-top: 32px;
+}
+
+/* The setup takes the width; the run panel sits beside it and stays in view
+   while the setup scrolls. Under 1200px it follows the setup. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+  gap: 40px;
+  align-items: start;
+}
+
+.aside {
+  position: sticky;
+  top: 108px;
+  min-width: 0;
+}
+
+.setup {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.group {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.group h2,
+.panelTitle,
+.runs h2 {
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.hint {
+  max-width: 72ch;
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.hint code,
+.uploaded code {
+  color: var(--c-ink-1300);
+  font-family: var(--font-code);
+}
+
+.failure {
+  max-width: 72ch;
+  color: var(--cost-max-ink);
+  font-size: var(--fs-fine);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Fields ---------- */
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px 20px;
+}
+
+.field {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field label {
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+}
+
+.field label code {
+  font-family: var(--font-code);
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--c-line-200);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+  background: var(--bg);
+}
+
+.field input:focus-visible,
+.field select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.field small {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  line-height: 1.45;
+}
+
+.field small.problem {
+  color: var(--cost-max-ink);
+}
+
+.field:has(.problem) input {
+  border-color: var(--cost-max-border);
+}
+
+/* ---------- Recordings ---------- */
+
+/* One row per recording: its name, and what it holds under it. */
+.options {
+  display: grid;
+  max-width: 720px;
+  border: 1px solid var(--c-line-100);
+  border-radius: var(--r-md);
+}
+
+.option {
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.option + .option {
+  border-top: 1px solid var(--c-line-100);
+}
+
+.option:hover .optionName {
+  color: var(--ink);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.optionName {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+}
+
+.optionName svg {
+  color: var(--cost-max-ink);
+}
+
+.optionFacts {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.option[aria-checked="true"] {
+  background: var(--c-surface-300);
+}
+
+.option[aria-checked="true"] .optionName {
+  color: var(--accent);
+}
+
+.option:first-child {
+  border-radius: var(--r-md) var(--r-md) 0 0;
+}
+
+.option:last-child {
+  border-radius: 0 0 var(--r-md) var(--r-md);
+}
+
+.option:only-child {
+  border-radius: var(--r-md);
+}
+
+.more summary {
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  cursor: pointer;
+}
+
+.more[open] summary {
+  margin-bottom: 8px;
+}
+
+.more p + p {
+  margin-top: 6px;
+}
+
+.uploadRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.uploadRow label {
+  cursor: pointer;
+}
+
+.uploadRow:has(.fileInput:focus-visible) label {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.fileInput,
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.uploaded {
+  color: var(--c-ink-1100);
+  font-size: var(--fs-fine);
+}
+
+/* ---------- The run ---------- */
+
+.panel {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.run {
+  justify-self: start;
+  gap: 10px;
+}
+
+.run:disabled {
+  color: var(--c-ink-200);
+  background: var(--c-surface-500);
+  cursor: not-allowed;
+}
+
+.result {
+  min-width: 0;
+  margin-top: 6px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.empty {
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  line-height: 1.6;
+}
+
+.view {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.what {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.whatName {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.finished {
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+  line-height: 1.55;
+}
+
+/* A latency per row: its name, the median large, its tail on the right. */
+.metrics {
+  display: grid;
+}
+
+.metrics > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 2px 16px;
+  padding-block: 12px;
+}
+
+.metrics > div + div {
+  border-top: 1px solid var(--c-line-100);
+}
+
+.metrics dt {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}
+
+.metrics dd strong {
+  color: var(--ink);
+  font-size: var(--fs-num);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.metrics dd strong span {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  letter-spacing: 0;
+}
+
+.metrics dd small {
+  margin-left: 8px;
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+}
+
+.tail {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  color: var(--c-ink-1100);
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+}
+
+.throughput {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+}
+
+.throughput div {
+  display: grid;
+  gap: 2px;
+}
+
+.throughput dt {
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}
+
+.throughput dd {
+  color: var(--accent);
+  font-size: var(--fs-xl);
+  font-variant-numeric: tabular-nums;
+}
+
+.throughput dd span {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+}
+
+.progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+}
+
+.progress > svg {
+  color: var(--accent);
+}
+
+.progress p {
+  flex: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Your runs ---------- */
+
+.runs {
+  display: grid;
+  gap: 16px;
+  padding-top: 56px;
+}
+
+.runs h2 span {
+  margin-left: 6px;
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  font-weight: 400;
+}
+
+/* The table scrolls inside its own box on a narrow screen; the page does not. */
+.tableScroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+}
+
+.table thead th {
+  padding: 0 12px 10px;
+  color: var(--subtle);
+  font-weight: 400;
+  text-align: right;
+  vertical-align: bottom;
+}
+
+.table thead th:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+
+.table td {
+  padding: 12px;
+  color: var(--c-ink-1300);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.table tbody tr {
+  border-top: 1px solid var(--c-line-100);
+}
+
+.table tbody th {
+  padding: 8px 12px 8px 0;
+  font-weight: 400;
+  text-align: left;
+}
+
+.table tbody th button {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.table tbody th button span {
+  color: var(--ink);
+}
+
+.table tbody th button small {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+}
+
+.table tbody th button:hover span {
+  color: var(--accent);
+}
+
+.table tbody tr[aria-current="true"] th button span {
+  color: var(--accent);
+}
+
+.table td small.delta {
+  display: block;
+  margin-top: 2px;
+  color: var(--subtle);
+}
+
+.table tbody tr[data-pinned="true"] {
+  background: var(--c-surface-200);
+}
+
+.table td.rowActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.rowActions button[aria-pressed="true"] {
+  color: var(--accent);
+}
+
+.table td.status {
+  color: var(--muted);
+  text-align: left;
+}
+
+@media (max-width: 1199px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .aside {
+    position: static;
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 767px) {
+  .fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .runs {
+    padding-top: 40px;
+  }
+}
+
+/* A mode switch is as wide as its choices; a choice the traffic does not
+   allow stays visible but dim. */
+.group > [role="radiogroup"]:not(.options) {
+  justify-self: start;
+}
+
+.group [role="radiogroup"] button:disabled {
+  color: var(--c-ink-100);
+  cursor: not-allowed;
+}

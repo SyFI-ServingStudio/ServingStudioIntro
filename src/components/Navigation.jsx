@@ -42,6 +42,7 @@ export function Navigation({ page = "overview" }) {
             ["features", "Features", `${base}features.html`],
             ["architecture", "Architecture", `${base}architecture.html`],
             ["models", "Models", `${base}models.html`],
+            ["simulate", "Simulate", `${base}simulate.html`],
             ["kernels", "Kernels", `${base}kernels.html`],
             ["blog", "Blog", `${base}blog.html`],
           ].map(([id, name, href]) => (
@@ -50,11 +51,11 @@ export function Navigation({ page = "overview" }) {
               href={href}
               aria-current={page === id ? "page" : undefined}
               onPointerEnter={() => {
-                if (["blog", "models", "kernels"].includes(id))
+                if (["blog", "models", "simulate", "kernels"].includes(id))
                   preparePage(id).catch(() => {});
               }}
               onFocus={() => {
-                if (["blog", "models", "kernels"].includes(id))
+                if (["blog", "models", "simulate", "kernels"].includes(id))
                   preparePage(id).catch(() => {});
               }}
             >
