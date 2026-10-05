@@ -20,7 +20,7 @@
 }
 
 /* A config group names each public preset that uses it, one per line, with
-   the values its parameter sets take. */
+   the values its configurations take. */
 .deployments {
   display: grid;
   gap: 4px;
@@ -152,7 +152,7 @@
   margin-top: 4px;
 }
 
-/* The parameter sets that read the chips below it, when only some do. */
+/* The configurations that read the chips below it, when only some do. */
 .caption {
   display: grid;
   color: var(--muted);

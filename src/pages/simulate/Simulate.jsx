@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { readQuery, setQuery, subscribeUrl } from "../kernels/kernelData";
-import { loadModels, memberFromQuery } from "../models/modelData";
+import { readQuery, setQuery, subscribeUrl } from "../../url";
+import { archNames, loadModels, memberFromQuery } from "../models/modelData";
 import { RunList } from "./RunList";
 import { RunPanel } from "./RunPanel";
 import {
@@ -67,9 +67,7 @@ export default function Simulate() {
    its checkpoint and the arch presets its pools run. */
 function join(sims, models) {
   const checkpoints = models?.checkpoints ?? [];
-  const archNames = new Map(
-    checkpoints.flatMap((c) => c.presets.map((p) => [p.id, p.arch_name ?? p.arch])),
-  );
+  const names = archNames(models);
   const order = (checkpoint) => {
     const index = checkpoints.findIndex((c) => c.checkpoint === checkpoint);
     return index < 0 ? checkpoints.length : index;
@@ -88,7 +86,7 @@ function join(sims, models) {
     const group = groups.get(preset.checkpoint);
     group.presets.push({
       ...preset,
-      name: presetName(preset, archNames),
+      name: presetName(preset, names),
       checkpointName: group.name,
     });
   }
@@ -100,16 +98,21 @@ function join(sims, models) {
   };
 }
 
-// A member that builds and runs at least one of its captures.
-const runnable = (member) =>
-  !member.error && Object.keys(member.unavailable).length === 0;
+/* A member that builds and can use one of the preset's captures: measured on
+   it, its requests replayed or (a misfit) its routing alone. */
+const runnable = (preset) => (member) =>
+  !member.error &&
+  preset.captures.some((c) => {
+    const reason = member.unavailable[c.name];
+    return !reason || reason.misfit;
+  });
 
 function Workbench({ catalog, workloads }) {
   const url = readQuery();
   const preset =
     catalog.presets.get(url.preset) ?? catalog.checkpoints[0].presets[0];
   const checkpoint = catalog.checkpoints.find((c) => c.presets.includes(preset));
-  const { member, unmatched } = memberFromQuery(preset, url, runnable);
+  const { member, unmatched } = memberFromQuery(preset, url, runnable(preset));
   const [workload, setWorkload] = useWorkload();
   const runs = useRuns(url.run);
   const selected = url.run ?? runs.ids[0] ?? null;
@@ -118,11 +121,15 @@ function Workbench({ catalog, workloads }) {
   const pick = (id, params) => {
     const next = catalog.presets.get(id);
     const fitted = params
-      ? memberFromQuery(next, params, runnable).member.params
+      ? memberFromQuery(next, params, runnable(next)).member.params
       : {};
     setQuery({ preset: id, ...fitted, run: url.run });
   };
   const select = (id) => setQuery({ ...url, run: id });
+  const remove = (id) => {
+    runs.remove(id);
+    if (id === url.run) setQuery({ ...url, run: undefined });
+  };
 
   const request = useMemo(
     () => requestFor(preset, member, workload, workloads, catalog.limits),
@@ -185,7 +192,7 @@ function Workbench({ catalog, workloads }) {
               id={selected}
               record={selected ? runs.records[selected] : null}
               presets={catalog.presets}
-              onStop={runs.stop}
+              onStop={remove}
             />
           </aside>
         </div>
@@ -196,10 +203,7 @@ function Workbench({ catalog, workloads }) {
         selected={selected}
         presets={catalog.presets}
         onSelect={select}
-        onRemove={(id) => {
-          runs.remove(id);
-          if (id === url.run) setQuery({ ...url, run: undefined });
-        }}
+        onRemove={remove}
       />
     </div>
   );

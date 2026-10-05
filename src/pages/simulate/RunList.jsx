@@ -11,7 +11,6 @@ const STATUS = {
   running: "Running",
   failed: "Failed",
   timed_out: "Timed out",
-  cancelled: "Stopped",
 };
 
 /* The numbers a reader compares runs by, each with how to print it. */

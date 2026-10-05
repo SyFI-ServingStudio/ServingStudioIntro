@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { readQuery, setQuery, subscribeUrl } from "../kernels/kernelData";
+import { readQuery, subscribeUrl } from "../../url";
 import { loadModels } from "./modelData";
 import { ModelCatalog } from "./ModelCatalog";
 import { ModelDetail } from "./ModelDetail";
@@ -43,13 +43,4 @@ export default function Models() {
   ) : (
     <ModelCatalog catalog={catalog} unknownPreset={id && !checkpoint ? id : null} />
   );
-}
-
-/* A link inside the page changes the query string without a page load. */
-export function openModel(event, params) {
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0)
-    return;
-  event.preventDefault();
-  setQuery(params, { push: true });
-  window.scrollTo({ top: 0, behavior: "instant" });
 }

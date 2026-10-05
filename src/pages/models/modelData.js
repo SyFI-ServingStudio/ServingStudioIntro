@@ -1,15 +1,26 @@
 /* Data access for the Models page.
 
-   Everything comes from ServingStudio Sim's read-only public API, through the
+   Everything comes from ServingStudio Sim's public API, through the
    same origin and proxy as the kernel library (kernelData.js):
    /models lists every checkpoint with its public presets, their axes and
    members; /models/{checkpoint}/{arch}/tree gives one member's kernels by
    section and slot; POST /predict times a reader's batch on one member and
    gives each section's cost tree. */
 
-import { API_BASE, load, responseError } from "../kernels/kernelData";
+import { load, send } from "../kernels/kernelData";
 
 export const loadModels = () => load("models");
+
+/* A public preset as a reader names its deployment ("vLLM, TP and EP"): the
+   arch's `arch_name`, else its arch tag. `archNames` maps every preset of
+   /models (absent: none) to it, by id. */
+export const archLabel = (preset) => preset.arch_name ?? preset.arch;
+export const archNames = (models) =>
+  new Map(
+    (models?.checkpoints ?? []).flatMap((c) =>
+      c.presets.map((p) => [p.id, archLabel(p)]),
+    ),
+  );
 
 /* A member is named by its preset's id ("<checkpoint>/<arch>") and one value
    per axis of the preset. The service rejects anything it would have to guess. */
@@ -33,16 +44,13 @@ export const memberHref = (preset, params) => modelHref({ preset, ...params });
 
 /* Each case's time on one member. Not cached: a reader edits the batch.
    `signal` cancels a request a newer edit made stale. */
-export async function predict(body, signal) {
-  const response = await fetch(`${API_BASE}/predict`, {
+export const predict = (body, signal) =>
+  send("predict", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     signal,
   });
-  if (!response.ok) throw await responseError("predict", response);
-  return response.json();
-}
 
 /* ---------- Members ---------- */
 
@@ -53,9 +61,16 @@ export const sameValue = (a, b) => String(a) === String(b);
 export const memberMatches = (member, params, names) =>
   names.every((name) => sameValue(member.params[name], params[name]));
 
-// A member the simulator built and profile.db has every row for.
-export const predictable = (member) =>
-  !member.error && member.missing != null && !Object.keys(member.missing).length;
+/* Why a member cannot be predicted, in a reader's words, or null when it can:
+   the simulator built it and every kernel it calls is measured. */
+export function blockedReason(member) {
+  if (member.error) return `The simulator cannot build it: ${member.error}`;
+  if (member.missing == null) return "Its measurements are not checked yet";
+  if (Object.keys(member.missing).length)
+    return `Cannot be timed yet; measurements missing for ${missingText(member.missing)}`;
+  return null;
+}
+export const predictable = (member) => !blockedReason(member);
 
 /* The member a link names; one it does not fully name opens on the first
    `usable` member that has the values it gives, and says so (`unmatched`). */
@@ -169,6 +184,10 @@ export function kernelLink(kernel, slot, tree) {
   });
   return `${import.meta.env.BASE_URL}kernels.html?${params}`;
 }
+
+/* A share in percent as the page prints it. */
+export const formatPercent = (pct) =>
+  pct > 0 && pct < 0.1 ? "<0.1%" : `${pct.toFixed(1)}%`;
 
 /* A time in milliseconds as the page prints it. */
 export const formatMs = (ms) =>

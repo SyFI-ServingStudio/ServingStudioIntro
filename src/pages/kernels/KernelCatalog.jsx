@@ -6,12 +6,10 @@ import {
   groupModels,
   presetCheckpoint,
   usedModels,
-  readQuery,
-  setQuery,
   shortGpu,
-  subscribeUrl,
 } from "./kernelData";
-import { kernelHref, openKernel } from "./Kernels";
+import { openInPage, readQuery, setQuery, subscribeUrl } from "../../url";
+import { kernelHref } from "./Kernels";
 import { SkillInstall } from "./SkillInstall";
 import { Tag, TagList, ToggleTag, tagColor } from "./Tag";
 import s from "./KernelCatalog.module.css";
@@ -407,7 +405,7 @@ function KernelRow({ kernel, catalog, coverage, usedBy }) {
       window.open(href, "_blank", "noopener");
       return;
     }
-    if (event.button === 0) openKernel(event, { kind: kernel.kind });
+    if (event.button === 0) openInPage(event, { kind: kernel.kind });
   };
   return (
     <tr
@@ -419,7 +417,7 @@ function KernelRow({ kernel, catalog, coverage, usedBy }) {
         {href ? (
           <a
             href={href}
-            onClick={(event) => openKernel(event, { kind: kernel.kind })}
+            onClick={(event) => openInPage(event, { kind: kernel.kind })}
           >
             {kernel.title}
           </a>

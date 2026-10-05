@@ -31,3 +31,13 @@ export function setQuery(params, { push = false } = {}) {
 
 export const readQuery = () =>
   Object.fromEntries(new URLSearchParams(window.location.search));
+
+/* A link that changes only this page's query: a plain click goes there in
+   place, from the top; a modified click (new tab, window) is the browser's. */
+export function openInPage(event, params) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0)
+    return;
+  event.preventDefault();
+  setQuery(params, { push: true });
+  window.scrollTo({ top: 0, behavior: "instant" });
+}

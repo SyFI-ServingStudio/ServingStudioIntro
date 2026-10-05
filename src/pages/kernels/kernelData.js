@@ -1,6 +1,6 @@
 /* Data access for the kernel library.
 
-   Everything comes from ServingStudio Sim's read-only public API. Pages request
+   Everything comes from ServingStudio Sim's public API. Pages request
    it from their own origin; the server in front of the site forwards
    /api/public/v1 to the service (in development, Vite's proxy; see
    vite.config.js). VITE_PUBLIC_API_BASE overrides the path. */
@@ -27,8 +27,20 @@ export function load(path) {
   return cache.get(path);
 }
 
+/* One uncached request: the answer's body, or the error its failure stands
+   for, with how long a refused one (429) asks to wait. */
+export async function send(path, init) {
+  const response = await fetch(`${API_BASE}/${path}`, init);
+  if (!response.ok) {
+    const error = await responseError(path, response);
+    error.retryAfter = Number(response.headers.get("Retry-After")) || null;
+    throw error;
+  }
+  return response.status === 204 ? null : response.json();
+}
+
 /* The error a failed response stands for, as load() rejects with it. */
-export async function responseError(path, response) {
+async function responseError(path, response) {
   const detail = await response.json().then(
     (body) => body.detail,
     () => null,
@@ -65,7 +77,7 @@ export const isList = (kernel, name) => argType(kernel, name) === "list";
 // An element type (bf16, fp8_e4m3, ...): these are picked together as the precision.
 export const isDtype = (kernel, name) => argType(kernel, name) === "dtype";
 // The argument holding the compute dtype, which picks the throughput peak.
-export const precisionArg = (kernel) =>
+const precisionArg = (kernel) =>
   kernel.args.find((arg) => arg.precision)?.name ?? null;
 
 /* The metrics a kernel records, with the label and unit Sim gives each. */
@@ -220,14 +232,10 @@ export function downloadText(filename, text, type) {
   URL.revokeObjectURL(url);
 }
 
-/* The kernel library keeps its own state in the query string so every view can
-   be shared; src/url.js holds the helpers, which the site router notifies. */
-export { readQuery, setQuery, subscribeUrl } from "../../url";
-
 /* A model is a checkpoint of the model catalog ("zai-org/GLM-5.2"). A public
    preset's id starts with the checkpoint's repository name ("GLM-5.2/<arch>"),
    which keys it here; the catalog gives each a name and a family. */
-export const checkpointKey = (checkpoint) => checkpoint.split("/").at(-1);
+const checkpointKey = (checkpoint) => checkpoint.split("/").at(-1);
 export const presetCheckpoint = (preset) => preset.split("/")[0];
 export const presetArch = (preset) => preset.split("/").slice(1).join("/");
 /* How a reader knows a preset's deployment ("vLLM, TP and EP"): its
@@ -235,7 +243,21 @@ export const presetArch = (preset) => preset.split("/").slice(1).join("/");
    (`catalog.archNames`); the arch tag when /models did not load. */
 export const archName = (catalog, preset) =>
   catalog.archNames?.get(preset) ?? presetArch(preset);
-export const modelEntry = (models, key) =>
+/* GPU names in the catalog's order (most rows first), then any it does not
+   list; checkpoint keys in the model catalog's order, likewise. */
+const inOrder = (order) => (a, b) =>
+  (order.indexOf(a) + 1 || order.length + 1) -
+  (order.indexOf(b) + 1 || order.length + 1);
+export const sortGpus = (names, catalog) =>
+  [...names].sort(inOrder(catalog.gpus.map((g) => g.name)));
+export const sortModels = (keys, catalog) =>
+  [...keys].sort(inOrder(catalog.models.map((m) => checkpointKey(m.checkpoint))));
+// Axis values and ids that may hold numbers, in numeric order.
+export const byNumber = (a, b) =>
+  String(a).localeCompare(String(b), undefined, { numeric: true });
+// A member of a preset by its params, as a Map key.
+export const memberKey = (params) => JSON.stringify(params);
+const modelEntry = (models, key) =>
   models.find((m) => checkpointKey(m.checkpoint) === key);
 export const modelName = (models, key) => modelEntry(models, key)?.name ?? key;
 export const modelFamily = (models, key) =>

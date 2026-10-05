@@ -6,6 +6,7 @@ import { Pending, breakable } from "./TreeParts";
 import { formatValue } from "../kernels/kernelData";
 import {
   formatMs,
+  formatPercent,
   kernelLink,
   paramValue,
   parents,
@@ -21,7 +22,7 @@ const SHAPE_ARGS = 5;
 
 /* One member's cost tree: how the simulator puts an iteration's time
    together from kernel calls. `tree` (/models/.../tree) names each section's
-   kernel calls, their kernels and configs. `times` is the Analyzer's tree of
+   kernel calls, their kernels and configs; `member` (/models) counts them. `times` is the Analyzer's tree of
    the batch Live predict last timed, { section: nodes }: every node's time
    for one call and its share of the section, after its repeats. `kernels`
    maps a kind to its catalog entry, for the leaf's title and link. While
@@ -31,6 +32,7 @@ const SHAPE_ARGS = 5;
    kernel or by kernel type. `aside` (Live predict) sits beside the rows,
    level with their top, under the panel's heading. */
 export function CostTreeExplorer({
+  member,
   tree,
   error,
   kernels,
@@ -152,8 +154,6 @@ function Tree({ tree, kernels, times, share, pending, view, onView, aside }) {
           : compositeRow(node, open, toggle, time);
       })
     : [];
-  const calls = tree.sections.reduce((sum, item) => sum + item.slots.length, 0);
-  const configs = Object.keys(tree.configs).length;
 
   return (
     <section className={s.treePanel} aria-labelledby="tree-title">
@@ -162,11 +162,11 @@ function Tree({ tree, kernels, times, share, pending, view, onView, aside }) {
         <dl className={s.stats}>
           <div>
             <dt>Kernel calls</dt>
-            <dd>{calls.toLocaleString("en-US")}</dd>
+            <dd>{member.leaves.toLocaleString("en-US")}</dd>
           </div>
           <div>
             <dt>Kernel configs</dt>
-            <dd>{configs.toLocaleString("en-US")}</dd>
+            <dd>{member.configs.toLocaleString("en-US")}</dd>
           </div>
           {nodes && (
             <div>
@@ -182,7 +182,7 @@ function Tree({ tree, kernels, times, share, pending, view, onView, aside }) {
           )}
           <div>
             <dt>GPUs per replica</dt>
-            <dd>{tree.gpus_per_replica ?? "unknown"}</dd>
+            <dd>{member.gpus_per_replica}</dd>
           </div>
         </dl>
         <BuiltWith arch={tree.arch} />
@@ -269,8 +269,6 @@ function SectionSwitch({ sections, section, onPick }) {
   );
 }
 
-const percent = (pct) => (pct > 0 && pct < 0.1 ? "<0.1%" : `${pct.toFixed(1)}%`);
-
 /* A node's time for one call, then its share of the section once its
    repeats are counted. */
 
@@ -286,7 +284,7 @@ function NodeTime({ node, pending }) {
       className={s.nodeTime}
       title={`One call ${formatMs(node.ms)} ms; ${formatMs(node.total_ms)} ms with its repeats`}
     >
-      {formatMs(node.ms)} ms <small>{percent(node.pct)}</small>
+      {formatMs(node.ms)} ms <small>{formatPercent(node.pct)}</small>
     </span>
   );
 }

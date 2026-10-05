@@ -1,10 +1,10 @@
 import { ArrowRight } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { PageHero } from "../../components/PageHero";
-import { readQuery, setQuery, shortGpu, subscribeUrl } from "../kernels/kernelData";
+import { shortGpu } from "../kernels/kernelData";
+import { openInPage, readQuery, setQuery, subscribeUrl } from "../../url";
 import { Tag, ToggleTag, tagColor } from "../kernels/Tag";
-import { CONTRACTS, modelHref, predictable } from "./modelData";
-import { openModel } from "./Models";
+import { archLabel, CONTRACTS, modelHref, predictable } from "./modelData";
 import s from "./Models.module.css";
 
 const search = () => window.location.search;
@@ -119,7 +119,7 @@ function CheckpointRow({ checkpoint }) {
                   className={s.deploymentName}
                   title={[p.arch, CONTRACTS[p.contract]].filter(Boolean).join("\n")}
                 >
-                  {p.arch_name ?? p.arch}
+                  {archLabel(p)}
                 </span>
               ))
             ) : (
@@ -155,7 +155,7 @@ function CheckpointRow({ checkpoint }) {
     <a
       className={s.archRow}
       href={modelHref(params)}
-      onClick={(event) => openModel(event, params)}
+      onClick={(event) => openInPage(event, params)}
     >
       {body}
       <ArrowRight className={s.archArrow} size={20} aria-hidden="true" />

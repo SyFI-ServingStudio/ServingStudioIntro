@@ -7,12 +7,10 @@ import {
   loadConfigs,
   loadKernel,
   loadRows,
-  readQuery,
-  setQuery,
   shortGpu,
-  subscribeUrl,
 } from "./kernelData";
-import { kernelHref, openKernel } from "./Kernels";
+import { openInPage, readQuery, setQuery, subscribeUrl } from "../../url";
+import { kernelHref } from "./Kernels";
 import { GridExplorer } from "./GridExplorer";
 import { SeriesExplorer, hasSeriesView } from "./SeriesExplorer";
 import { Measurements, apiFilters } from "./Measurements";
@@ -50,7 +48,7 @@ export function KernelDetail({ catalog, entry }) {
         <a
           className={s.back}
           href={kernelHref({})}
-          onClick={(event) => openKernel(event, {})}
+          onClick={(event) => openInPage(event, {})}
         >
           <ArrowLeft size={18} aria-hidden="true" />
           All kernels
@@ -128,7 +126,7 @@ export function KernelDetail({ catalog, entry }) {
 
 /* Views of one kernel's numbers. A kind whose Sim doc declares a chart over
    several configs (kernel.view) opens on it: one line per config of one
-   parameter set's leaf. "Simulator grid" (the default otherwise, when a public
+   configuration's leaf. "Simulator grid" (the default otherwise, when a public
    deployment reads this kind) plots each config on the cache axes it
    interpolates over, per GPU and model. "Measurements" is a table of every
    profile.db row, whoever asked for it, to sort and filter. */

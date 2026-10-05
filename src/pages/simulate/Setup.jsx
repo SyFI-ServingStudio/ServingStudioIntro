@@ -1,12 +1,12 @@
 import { CircleCheck, CircleDashed, FileUp, LoaderCircle } from "lucide-react";
 import { useId, useState } from "react";
-import { shortGpu } from "../kernels/kernelData";
+import { formatBytes, shortGpu } from "../kernels/kernelData";
+import { Level } from "../kernels/Level";
 import { Tag, ToggleTag } from "../kernels/Tag";
 import { MemberPicker } from "../models/MemberPicker";
 import { missingText } from "../models/modelData";
 import { count, draftTokens, rate, tokens, uploadWorkload } from "./simulateData";
 import detail from "../kernels/KernelDetail.module.css";
-import picker from "../kernels/ConfigPicker.module.css";
 import models from "../models/Models.module.css";
 import s from "./Simulate.module.css";
 
@@ -120,7 +120,7 @@ export function Setup({
       >
         <h2 id="deployment-title">Deployment</h2>
         <div className={models.picker}>
-          <Level name="Model" wrap>
+          <Level label="Model" className={models.wrapLevel}>
             {catalog.checkpoints.map((c) => (
               <ToggleTag
                 key={c.checkpoint}
@@ -134,7 +134,7 @@ export function Setup({
               </ToggleTag>
             ))}
           </Level>
-          <Level name="Configuration" wrap>
+          <Level label="Configuration" className={models.wrapLevel}>
             {checkpoint.presets.map((p) => (
               <ToggleTag
                 key={p.id}
@@ -148,7 +148,7 @@ export function Setup({
               </ToggleTag>
             ))}
           </Level>
-          <Level name="GPU">
+          <Level label="GPU">
             {[...new Set(Object.values(preset.pools).map((p) => p.gpu))].map(
               (gpu) => (
                 <Tag key={gpu} type="gpu" value={shortGpu(gpu)} />
@@ -183,19 +183,6 @@ export function Setup({
         workload={workload}
         set={set}
       />
-    </div>
-  );
-}
-
-function Level({ name, wrap, children }) {
-  return (
-    <div
-      className={`${picker.level} ${wrap ? models.wrapLevel : ""}`}
-      role="group"
-      aria-label={name}
-    >
-      <span className={picker.levelName}>{name}</span>
-      <div className={picker.choices}>{children}</div>
     </div>
   );
 }
@@ -244,7 +231,7 @@ function MemberLine({ preset, member, capture }) {
 /* ---------- Traffic ---------- */
 
 /* What a trace holds, in one line: how many requests, how long. */
-export function factsText(facts) {
+function factsText(facts) {
   const unit = facts.requests === 1 ? "request" : "requests";
   return `${count(facts.requests)} ${unit}${facts.sessions ? " in conversations" : ""}, prompts ${tokens(facts.prompt_tokens)} and outputs ${tokens(facts.output_tokens)} tokens on average`;
 }
@@ -470,7 +457,7 @@ function Upload({ described, upload, set }) {
     if (!file) return;
     if (file.size > described.max_bytes) {
       setState({
-        failure: `${file.name} is ${count(file.size / 1024)} KB; the limit is ${count(described.max_bytes / 1024)} KB.`,
+        failure: `${file.name} is ${formatBytes(file.size)}; the limit is ${formatBytes(described.max_bytes)}.`,
       });
       return;
     }
@@ -525,7 +512,7 @@ function Upload({ described, upload, set }) {
         <p className={s.hint}>
           One request per row, with the columns <Columns names={plain.columns} /> (
           <code>arrival_time</code> in milliseconds). Up to{" "}
-          {count(described.max_bytes / 1024)} KB.
+          {formatBytes(described.max_bytes)}.
         </p>
       )}
       {others.length > 0 && (

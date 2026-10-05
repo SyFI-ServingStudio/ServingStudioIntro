@@ -1,10 +1,12 @@
 import { Download, ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ChartBar } from "./ChartBar";
+import { Level } from "./Level";
 import {
   apiUrl,
   archName,
   argUnit,
+  byNumber,
   downloadText,
   formatNumber,
   formatValue,
@@ -15,8 +17,11 @@ import {
   modelName,
   peakFor,
   presetArch,
+  memberKey,
   presetCheckpoint,
   shortGpu,
+  sortGpus,
+  sortModels,
 } from "./kernelData";
 import { memberHref, paramsText } from "../models/modelData";
 import { memberSubset } from "./memberSubset";
@@ -39,12 +44,9 @@ import s from "./GridExplorer.module.css";
 // A kernel is built under a dotted role, its scope path outermost first
 // ("unified.body.attention.qkv_proj"); the last step names the op.
 const opOf = (role) => role.split(".").at(-1);
-const byNumber = (a, b) =>
-  String(a).localeCompare(String(b), undefined, { numeric: true });
 const measuredCells = (config) => Math.max(0, ...Object.values(config.measured));
 // Entries a config's role list shows before the rest fold away.
 const LIST_SHOWN = 4;
-const memberKey = (params) => JSON.stringify(params);
 
 /* The axes a preset's members tell apart, with the values they take. */
 export function presetAxes(members) {
@@ -83,7 +85,7 @@ function membersText(d, members) {
 
 /* A preset as its chips read it: the arch, then each axis its members move,
    with the values they take. */
-export const presetLabel = (d) => {
+const presetLabel = (d) => {
   const axes = presetAxes(d.members)
     .filter((axis) => axis.values.length > 1)
     .map(
@@ -187,24 +189,13 @@ function distinguishing(configs) {
 export function GridExplorer({ kernel, catalog, list, query, update }) {
   const index = useMemo(() => buildIndex(list, catalog), [list, catalog]);
   const models = catalog.models;
-  const rank = (stem) => {
-    const i = models.findIndex((m) => m.checkpoint.split("/").at(-1) === stem);
-    return i < 0 ? models.length : i;
-  };
   // A link may name a config alone: it opens on that config's GPU and model.
   const named = list.configs.find((c) => c.id === query.config);
 
-  // GPUs in the catalog's order (most rows first), then any it does not list.
-  const gpuNames = [...index.keys()].sort((a, b) => {
-    const order = catalog.gpus.map((g) => g.name);
-    return (
-      (order.indexOf(a) + 1 || order.length + 1) -
-      (order.indexOf(b) + 1 || order.length + 1)
-    );
-  });
+  const gpuNames = sortGpus(index.keys(), catalog);
   const gpu = index.has(query.cgpu) ? query.cgpu : (named?.gpu ?? gpuNames[0]);
   const byModel = index.get(gpu);
-  const stems = [...byModel.keys()].sort((a, b) => rank(a) - rank(b));
+  const stems = sortModels(byModel.keys(), catalog);
   const namedModel =
     named?.gpu === gpu ? presetCheckpoint(named.uses[0].preset) : null;
   const stem =
@@ -420,15 +411,6 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
         query={query}
         update={update}
       />
-    </div>
-  );
-}
-
-export function Level({ label, children }) {
-  return (
-    <div className={picker.level} role="group" aria-label={label}>
-      <span className={picker.levelName}>{label}</span>
-      <div className={picker.choices}>{children}</div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { ArrowUpRight, ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { formatMs, kernelLink } from "./modelData";
+import { formatMs, formatPercent, kernelLink } from "./modelData";
 import { Pending, breakable } from "./TreeParts";
 import s from "./Models.module.css";
 
@@ -189,7 +189,8 @@ function Time({ item, whole }) {
       className={s.shareTime}
       title={`${item.kernel_time_ms} ms of ${whole} ms`}
     >
-      {formatMs(item.kernel_time_ms)} ms <small>{percent(item.share_pct)}</small>
+      {formatMs(item.kernel_time_ms)} ms{" "}
+      <small>{formatPercent(item.share_pct)}</small>
     </span>
   );
 }
@@ -203,8 +204,6 @@ function Bar({ value, top }) {
     />
   );
 }
-
-const percent = (pct) => (pct > 0 && pct < 0.1 ? "<0.1%" : `${pct.toFixed(1)}%`);
 
 /* Each slot of the member's tree by name; a call site's slots share one. */
 function slotsByName(tree) {

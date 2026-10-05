@@ -78,8 +78,8 @@ export function useRuns(extra) {
     });
   }, []);
 
-  /* Forget a run here, and ask the service to drop it (or stop it, if it is
-     still running). */
+  /* Forget a run here, and ask the service to drop it: a run still on its
+     way stops, so stopping one removes it too. */
   const remove = useCallback((id) => {
     deleteSimulation(id).catch(() => {});
     setIds((list) => {
@@ -89,23 +89,11 @@ export function useRuns(extra) {
     });
   }, []);
 
-  const stop = useCallback((id) => {
-    deleteSimulation(id).then(
-      () =>
-        setRecords((all) => ({
-          ...all,
-          [id]: { ...all[id], status: "cancelled" },
-        })),
-      () => {},
-    );
-  }, []);
-
   return {
     ids: shown.filter((id) => !records[id]?.gone),
     records,
     add,
     remove,
-    stop,
   };
 }
 

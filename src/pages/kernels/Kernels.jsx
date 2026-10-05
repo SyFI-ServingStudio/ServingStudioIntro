@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { loadModels } from "../models/modelData";
-import { loadCatalog, readQuery, setQuery, subscribeUrl } from "./kernelData";
+import { archNames, loadModels } from "../models/modelData";
+import { loadCatalog } from "./kernelData";
+import { readQuery, subscribeUrl } from "../../url";
 import { KernelCatalog } from "./KernelCatalog";
 import { KernelDetail } from "./KernelDetail";
 
@@ -16,11 +17,7 @@ export default function Kernels() {
       ([kernels, models]) =>
         setCatalog({
           ...kernels,
-          archNames: new Map(
-            (models?.checkpoints ?? []).flatMap((c) =>
-              c.presets.map((p) => [p.id, p.arch_name ?? p.arch]),
-            ),
-          ),
+          archNames: archNames(models),
         }),
       setError,
     );
@@ -48,15 +45,6 @@ export default function Kernels() {
   ) : (
     <KernelCatalog catalog={catalog} unknownKind={kind && !entry ? kind : null} />
   );
-}
-
-/* A link inside the library changes the query string without a page load. */
-export function openKernel(event, params) {
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0)
-    return;
-  event.preventDefault();
-  setQuery(params, { push: true });
-  window.scrollTo({ top: 0, behavior: "instant" });
 }
 
 export function kernelHref(params) {

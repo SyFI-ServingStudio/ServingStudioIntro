@@ -513,15 +513,6 @@
   margin-top: 12px;
 }
 
-.shareFailure {
-  display: grid;
-  justify-items: start;
-  gap: 12px;
-  padding-block: 16px;
-  color: var(--muted);
-  font-size: var(--fs-fine);
-}
-
 /* The rows are the landing page's; here they sit in the page, not a figure. */
 .treeScroll {
   min-width: 0;

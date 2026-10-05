@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChartBar } from "./ChartBar";
-import { Level, presetAxes } from "./GridExplorer";
+import { presetAxes } from "./GridExplorer";
+import { Level } from "./Level";
 import {
   archName,
   argUnit,
@@ -13,8 +14,12 @@ import {
   modelName,
   peakFor,
   presetArch,
+  byNumber,
+  memberKey,
   presetCheckpoint,
   shortGpu,
+  sortGpus,
+  sortModels,
 } from "./kernelData";
 import { memberHref, memberMatches, paramsText } from "../models/modelData";
 import { MemberPicker } from "../models/MemberPicker";
@@ -25,10 +30,10 @@ import g from "./GridExplorer.module.css";
 import s from "./SeriesExplorer.module.css";
 
 /* A chart the kind declares over several of its configs (kernel.view, a
-   ConfigView in the kind's Sim doc): the configs one parameter set of a
+   ConfigView in the kind's Sim doc): the configs one configuration of a
    public preset builds for one leaf that differ only in view.series.field
    are one chart, a line per config. view.workload.field is the routing the
-   parameter set reads, so picking the parameter set picks it. Series values
+   configuration reads, so picking the configuration picks it. Series values
    are positions in an order, 0 first: line n reads "<label> n+1", and
    position 0, which leads the order, is drawn strongest. The chart shows
    each line relative to the first one by default, since the lines differ by
@@ -38,10 +43,6 @@ import s from "./SeriesExplorer.module.css";
    URL keys: cgpu, cmodel (shared with the grid view), dep (the preset's id),
    m.<axis> (the member's value of each axis), leaf, backend and ymode
    ("absolute", else relative). */
-
-const byNumber = (a, b) =>
-  String(a).localeCompare(String(b), undefined, { numeric: true });
-const memberKey = (params) => JSON.stringify(params);
 
 /* A position's colour: its categorical slot, so neighbours in the order,
    which sit next to each other on the chart, stay apart (every adjacent pair
@@ -144,17 +145,7 @@ export function SeriesExplorer({ kernel, catalog, list, query, update }) {
   const view = kernel.view;
   const index = buildIndex(list, view);
   const models = catalog.models;
-  const rank = (stem) => {
-    const i = models.findIndex((m) => m.checkpoint.split("/").at(-1) === stem);
-    return i < 0 ? models.length : i;
-  };
-  const gpuNames = [...index.keys()].sort((a, b) => {
-    const order = catalog.gpus.map((x) => x.name);
-    return (
-      (order.indexOf(a) + 1 || order.length + 1) -
-      (order.indexOf(b) + 1 || order.length + 1)
-    );
-  });
+  const gpuNames = sortGpus(index.keys(), catalog);
   if (!gpuNames.length)
     return (
       <p className={k.note}>
@@ -164,7 +155,7 @@ export function SeriesExplorer({ kernel, catalog, list, query, update }) {
     );
   const gpu = index.has(query.cgpu) ? query.cgpu : gpuNames[0];
   const byModel = index.get(gpu);
-  const stems = [...byModel.keys()].sort((a, b) => rank(a) - rank(b));
+  const stems = sortModels(byModel.keys(), catalog);
   const stem = stems.find((m) => m === query.cmodel) ?? stems[0];
   const byPreset = byModel.get(stem);
   const presetIds = [...byPreset.keys()].sort(byNumber);

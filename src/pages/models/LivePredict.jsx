@@ -1,8 +1,9 @@
 import { LoaderCircle, Plus, RotateCcw, TriangleAlert, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
+  archLabel,
+  blockedReason,
   formatMs,
-  missingText,
   paramValue,
   paramsText,
   predict,
@@ -44,19 +45,14 @@ export function LivePredict({
     [member.predict, caseFields],
   );
 
+  const reason = blockedReason(member);
   let blocked = null;
-  if (member.error)
-    blocked = [
-      "The simulator cannot build this configuration",
-      <p key="m">{member.error}</p>,
-    ];
-  else if (!predictable(member))
+  if (reason)
     blocked = [
       "This configuration cannot be timed yet",
       <p key="m">
-        Predictions use measurements only, and these kernels lack some:{" "}
-        {missingText(member.missing ?? {}) || "not yet checked"}. Pick a
-        configuration without the dashed mark above.
+        {reason}. Predictions use measurements only; pick a configuration without
+        the dashed mark above.
       </p>,
     ];
   else if (shape?.problem)
@@ -232,9 +228,9 @@ function Workbench({
 }) {
   const info = member.predict;
   const groupCount = Math.max(1, info.groups ?? 1);
-  // The member's context limit: its prediction shape names it when the model
-  // checks cases against it; otherwise its arch block does.
-  const limit = info.max_model_len ?? tree.arch.max_model_len ?? null;
+  // The context the simulator checks each case against; a shape of token
+  // counts (an FFN side) has none.
+  const limit = info.max_model_len ?? null;
   const queryWidth = info.query_width ?? null;
   const plan = batch ?? defaultBatch(limit);
   const groups = Array.from(
@@ -682,7 +678,7 @@ function Result({
             {batchText(groups, groupCount, tokens)}
             <br />
             {tree.gpus_per_replica ?? "?"} × {tree.gpu.replace(/^NVIDIA /, "")} ·{" "}
-            <span title={preset.arch}>{preset.arch_name ?? preset.arch}</span>
+            <span title={preset.arch}>{archLabel(preset)}</span>
           </p>
         )}
       </div>
@@ -709,7 +705,7 @@ function Result({
           body={body}
           name={[
             presetCheckpoint(preset.id),
-            preset.arch_name ?? preset.arch,
+            archLabel(preset),
             paramsText(member.params),
           ]
             .filter(Boolean)
@@ -765,13 +761,9 @@ function PredictReadMore({ body, name }) {
    max_model_len offers the members of the preset that go further. */
 function Failure({ failure, retry, preset, member, onPick }) {
   const reason = failure.reason ?? failure.message;
-  // "context 20000 exceeds max_model_len 8192" for a prefill, "context
-  // 20000 must be in 1..=8192" for a decode.
-  const exceeded =
-    /context \d+ (?:exceeds max_model_len |must be in 1\.\.=)(\d+)/.exec(reason);
+  const limit = failure.detail?.too_long?.max_model_len;
   const axis = preset.axes.find((a) => a.name === "max_model_len");
-  if (failure.status === 400 && exceeded && axis) {
-    const limit = Number(exceeded[1]);
+  if (limit != null && axis) {
     const others = preset.axes.filter((a) => a !== axis).map((a) => a.name);
     const larger = preset.members.filter(
       (m) =>

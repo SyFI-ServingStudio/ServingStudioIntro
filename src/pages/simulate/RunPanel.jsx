@@ -4,7 +4,7 @@ import { ReadMoreButton, ResultOverlay } from "../models/ReadMore";
 import { Pending } from "../models/TreeParts";
 import models from "../models/Models.module.css";
 import { requestsText, runName, runParams } from "./runs";
-import { count, duration, latency, rate } from "./simulateData";
+import { count, duration, latency, rate, unfinished } from "./simulateData";
 import s from "./Simulate.module.css";
 
 /* The run button and the run it shows: the one just started, or one picked
@@ -86,7 +86,7 @@ function RunView({ record, presets, onStop }) {
         <p>{requestsText(record)}</p>
       </div>
 
-      {record.status === "queued" || record.status === "running" ? (
+      {unfinished(record.status) ? (
         <Progress record={record} onStop={() => onStop(record.simulation_id)} />
       ) : record.status !== "done" ? (
         <div className={models.predictStatus} data-tone="warn" role="alert">
@@ -95,9 +95,7 @@ function RunView({ record, presets, onStop }) {
             <p className={models.predictStatusTitle}>
               {record.status === "timed_out"
                 ? "The run passed the time limit and was stopped"
-                : record.status === "cancelled"
-                  ? "The run was stopped"
-                  : "The run failed"}
+                : "The run failed"}
             </p>
             {record.error && <p className={models.failureText}>{record.error}</p>}
           </div>

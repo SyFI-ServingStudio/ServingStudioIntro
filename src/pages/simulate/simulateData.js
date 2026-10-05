@@ -7,20 +7,10 @@
    it until it is done. What a trace holds, which columns an upload needs and
    why a deployment cannot run are the service's answers. */
 
-import { API_BASE, load, responseError } from "../kernels/kernelData";
+import { load, send } from "../kernels/kernelData";
 
 export const loadSimPresets = () => load("simulations/presets");
 export const loadWorkloads = () => load("workloads");
-
-async function send(path, init) {
-  const response = await fetch(`${API_BASE}/${path}`, init);
-  if (!response.ok) {
-    const error = await responseError(path, response);
-    error.retryAfter = Number(response.headers.get("Retry-After")) || null;
-    throw error;
-  }
-  return response.status === 204 ? null : response.json();
-}
 
 export const startSimulation = (body) =>
   send("simulate", {
@@ -52,14 +42,14 @@ export const unfinished = (status) => status === "queued" || status === "running
 
 /* How a reader knows a worker type: what it does to a request. A type
    missing here shows its tag. */
-export const WORKERS = {
+const WORKERS = {
   barebone: "Whole-prompt prefill",
   hp_unified: "Whole-prompt prefill, prefix-aware placement",
   chunked_prefill: "Chunked prefill",
   speculative: "Speculative decoding",
 };
 
-export const DEPLOYMENTS = {
+const DEPLOYMENTS = {
   pd: "Prefill and decode on separate GPUs",
 };
 

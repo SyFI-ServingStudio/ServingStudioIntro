@@ -6,29 +6,24 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import {
-  loadCatalog,
-  readQuery,
-  setQuery,
-  shortGpu,
-  subscribeUrl,
-} from "../kernels/kernelData";
+import { loadCatalog, shortGpu } from "../kernels/kernelData";
+import { openInPage, readQuery, setQuery, subscribeUrl } from "../../url";
+import { Level } from "../kernels/Level";
 import { Tag, ToggleTag } from "../kernels/Tag";
 import {
+  archLabel,
+  blockedReason,
   CONTRACTS,
   loadTree,
   memberFromQuery,
-  missingText,
   modelHref,
   predictable,
   shortReference,
 } from "./modelData";
-import { openModel } from "./Models";
 import { CostTreeExplorer } from "./CostTreeExplorer";
 import { LivePredict } from "./LivePredict";
 import { MemberPicker } from "./MemberPicker";
 import detail from "../kernels/KernelDetail.module.css";
-import picker from "../kernels/ConfigPicker.module.css";
 import s from "./Models.module.css";
 
 const search = () => window.location.search;
@@ -49,7 +44,7 @@ export function ModelDetail({ catalog, checkpoint, preset }) {
         <a
           className={detail.back}
           href={modelHref({})}
-          onClick={(event) => openModel(event, {})}
+          onClick={(event) => openInPage(event, {})}
         >
           <ArrowLeft size={18} aria-hidden="true" />
           All models
@@ -108,37 +103,27 @@ function Explorer({ catalog, checkpoint, preset }) {
         className={`${detail.controls} ${s.picker}`}
         aria-label="Configuration"
       >
-        <div
-          className={`${picker.level} ${s.wrapLevel}`}
-          role="group"
-          aria-label="Deployment"
-        >
-          <span className={picker.levelName}>Deployment</span>
-          <div className={picker.choices}>
-            {checkpoint.presets.map((p) => (
-              <ToggleTag
-                key={p.id}
-                type="choice"
-                value={p.arch}
-                pressed={p === preset}
-                title={[p.arch, CONTRACTS[p.contract] ?? p.contract]
-                  .filter(Boolean)
-                  .join("\n")}
-                onClick={() =>
-                  pick(memberFromUrl(p, member.params).member.params, p.id)
-                }
-              >
-                {p.arch_name ?? p.arch}
-              </ToggleTag>
-            ))}
-          </div>
-        </div>
-        <div className={picker.level} role="group" aria-label="GPU">
-          <span className={picker.levelName}>GPU</span>
-          <div className={picker.choices}>
-            <Tag type="gpu" value={shortGpu(preset.gpu)} />
-          </div>
-        </div>
+        <Level label="Deployment" className={s.wrapLevel}>
+          {checkpoint.presets.map((p) => (
+            <ToggleTag
+              key={p.id}
+              type="choice"
+              value={p.arch}
+              pressed={p === preset}
+              title={[p.arch, CONTRACTS[p.contract] ?? p.contract]
+                .filter(Boolean)
+                .join("\n")}
+              onClick={() =>
+                pick(memberFromUrl(p, member.params).member.params, p.id)
+              }
+            >
+              {archLabel(p)}
+            </ToggleTag>
+          ))}
+        </Level>
+        <Level label="GPU">
+          <Tag type="gpu" value={shortGpu(preset.gpu)} />
+        </Level>
         {preset.axes.length > 0 && (
           <div className={s.axes}>
             <MemberPicker
@@ -159,6 +144,7 @@ function Explorer({ catalog, checkpoint, preset }) {
       <Legend />
 
       <CostTreeExplorer
+        member={member}
         tree={tree.data}
         error={tree.error}
         kernels={kernels}
@@ -187,15 +173,6 @@ function Explorer({ catalog, checkpoint, preset }) {
   );
 }
 
-/* Why a member cannot be predicted, or null when it can. */
-function blockedReason(member) {
-  if (member.error) return `The simulator cannot build it: ${member.error}`;
-  if (member.missing == null) return "Its measurements are not checked yet";
-  if (Object.keys(member.missing).length)
-    return `Cannot be timed yet; measurements missing for ${missingText(member.missing)}`;
-  return null;
-}
-
 /* A workload row binds the routing and the capture it reads. */
 const routingTitle = (row) =>
   row &&
@@ -203,8 +180,8 @@ const routingTitle = (row) =>
     .map(([name, value]) => `${name}: ${shortReference(value)}`)
     .join("\n");
 
-/* What the picked member is: its size, and whether Live predict can time it.
-   One that cannot is still shown, with the reason. */
+/* Whether Live predict can time the picked member, and the routing its
+   workload reads. One that cannot is still shown, with the reason. */
 function MemberStatus({ member, workload }) {
   const reason = blockedReason(member);
   const routing = workload && workload.rows[member.params[workload.name]];
@@ -216,31 +193,7 @@ function MemberStatus({ member, workload }) {
         <CircleCheck size={16} aria-hidden="true" />
       )}
       <p>
-        {member.error ? (
-          <>The simulator could not build this configuration: {member.error}</>
-        ) : (
-          <>
-            {member.leaves.toLocaleString("en-US")} kernel calls over{" "}
-            {member.configs.toLocaleString("en-US")} kernel configs on{" "}
-            {member.gpus_per_replica}{" "}
-            {member.gpus_per_replica === 1 ? "GPU" : "GPUs"}.
-            {reason && (
-              <>
-                {" "}
-                <b>Cannot be timed yet:</b> measurements missing for{" "}
-                {Object.entries(member.missing ?? {}).map(
-                  ([kind, count], index) => (
-                    <span key={kind}>
-                      {index > 0 && ", "}
-                      <code>{kind}</code> ({count.toLocaleString("en-US")})
-                    </span>
-                  ),
-                )}
-                {member.missing == null && "kernels not yet checked"}.
-              </>
-            )}
-          </>
-        )}
+        {reason ? `${reason}.` : "Every kernel it calls is measured."}
         {routing && (
           <>
             {" "}
