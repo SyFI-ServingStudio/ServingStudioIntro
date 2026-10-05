@@ -155,9 +155,9 @@ export function SeriesExplorer({ kernel, catalog, list, query, update }) {
     );
   const gpu = index.has(query.cgpu) ? query.cgpu : gpuNames[0];
   const byModel = index.get(gpu);
-  const stems = sortModels(byModel.keys(), catalog);
-  const stem = stems.find((m) => m === query.cmodel) ?? stems[0];
-  const byPreset = byModel.get(stem);
+  const modelKeys = sortModels(byModel.keys(), catalog);
+  const modelKey = modelKeys.find((m) => m === query.cmodel) ?? modelKeys[0];
+  const byPreset = byModel.get(modelKey);
   const presetIds = [...byPreset.keys()].sort(byNumber);
   // The default draws the most lines: the view is about comparing them.
   const widest = (d, key) =>
@@ -202,7 +202,7 @@ export function SeriesExplorer({ kernel, catalog, list, query, update }) {
       .filter((key) => key.startsWith("m."))
       .map((key) => [key, ""]),
   );
-  const here = { cgpu: gpu, cmodel: stem, dep: depId, ...memberQuery(params) };
+  const here = { cgpu: gpu, cmodel: modelKey, dep: depId, ...memberQuery(params) };
 
   return (
     <div className={k.explorer}>
@@ -226,12 +226,12 @@ export function SeriesExplorer({ kernel, catalog, list, query, update }) {
             )}
           </Level>
           <Level label="Model">
-            {stems.map((m) => (
+            {modelKeys.map((m) => (
               <ToggleTag
                 key={m}
                 type="family"
                 value={modelFamily(models, m)}
-                pressed={m === stem}
+                pressed={m === modelKey}
                 title={m}
                 onClick={() =>
                   update({ ...cleared, cgpu: gpu, cmodel: m, dep: "", leaf: "" })
@@ -252,7 +252,13 @@ export function SeriesExplorer({ kernel, catalog, list, query, update }) {
                 pressed={id === depId}
                 title={presetArch(id)}
                 onClick={() =>
-                  update({ ...cleared, cgpu: gpu, cmodel: stem, dep: id, leaf: "" })
+                  update({
+                    ...cleared,
+                    cgpu: gpu,
+                    cmodel: modelKey,
+                    dep: id,
+                    leaf: "",
+                  })
                 }
               >
                 {archName(catalog, id)}

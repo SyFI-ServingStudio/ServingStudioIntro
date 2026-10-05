@@ -127,7 +127,8 @@ post (with its date as `lastmod`). Submit
 `https://servingstudio.cs.washington.edu/sitemap.xml` in Google Search Console; new posts are added automatically. A page in
 `PAGES` (`src/sitePages.js`) is listed, as it is in the navigation.
 
-Run `npm test`, `npm run lint:css`, and `npm run build` before publishing.
+Run `npm test`, `npm run lint:css`, and `SERVINGSTUDIO_UI_DIR=… npm run build`
+before publishing.
 The previous introduction draft now lives at
 `content/blog/introducing-servingstudio/index.md`; historical drafts remain local.
 The cover export template remains `blog-overview.html`. Save future captures to

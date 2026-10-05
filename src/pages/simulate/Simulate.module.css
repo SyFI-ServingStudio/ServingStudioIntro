@@ -19,7 +19,7 @@
 
 .aside {
   position: sticky;
-  top: 108px;
+  top: var(--stick-top, var(--nav-clearance));
   min-width: 0;
 }
 

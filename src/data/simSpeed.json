@@ -3,7 +3,11 @@
   "simulated_ms": 2000000,
   "note": "Every run simulates the same 2,000,000 ms of serving. wall_s is simulator wall time on one host and varies with the machine.",
   "shapes": [
-    { "tier": "1_local_dense", "name": "Single GPU, dense", "model": "Llama 3.1 8B" },
+    {
+      "tier": "1_local_dense",
+      "name": "Single GPU, dense",
+      "model": "Llama 3.1 8B"
+    },
     { "tier": "3_tp", "name": "Tensor parallel", "model": "Llama 3.1 8B" },
     { "tier": "2_moe_local", "name": "MoE expert parallel", "model": "Qwen3-235B" },
     {

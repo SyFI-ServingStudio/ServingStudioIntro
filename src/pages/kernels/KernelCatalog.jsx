@@ -1,5 +1,5 @@
 import { Search, X } from "lucide-react";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 import { PageHero } from "../../components/PageHero";
 import {
   archName,
@@ -8,13 +8,11 @@ import {
   usedModels,
   shortGpu,
 } from "./kernelData";
-import { openInPage, readQuery, setQuery, subscribeUrl } from "../../url";
-import { kernelHref } from "./Kernels";
+import { openInPage, pageHref, setQuery, useQuery } from "../../url";
 import { SkillInstall } from "./SkillInstall";
 import { Tag, TagList, ToggleTag, tagColor } from "./Tag";
 import s from "./KernelCatalog.module.css";
 
-const search = () => window.location.search;
 // Kinds without a DOC have no category yet; they close the list.
 const UNDOCUMENTED = "Not yet documented";
 const categoryOf = (kernel) => kernel.category ?? UNDOCUMENTED;
@@ -67,12 +65,11 @@ const toggle = (set, values, on) => {
 };
 
 export function KernelCatalog({ catalog, unknownKind }) {
-  useSyncExternalStore(subscribeUrl, search);
+  const query = useQuery();
   // A detail page renames the tab; coming back has to name it again.
   useEffect(() => {
     document.title = "Kernels | ServingStudio";
   }, []);
-  const query = readQuery();
   const { q = "", cat = "", sub = "" } = query;
   const update = (patch) => setQuery({ ...query, ...patch });
   const m = matcher(query, catalog);
@@ -216,12 +213,12 @@ export function KernelCatalog({ catalog, unknownKind }) {
             <div className={s.filterCell}>
               <span className={s.columnName}>Used by</span>
               <div className={s.choices}>
-                {families.map(({ family, keys: stems, names }) => {
-                  const picked = stems.filter((n) => m.models.has(n));
+                {families.map(({ family, keys: modelKeys, names }) => {
+                  const picked = modelKeys.filter((n) => m.models.has(n));
                   const state =
                     picked.length === 0
                       ? false
-                      : picked.length === stems.length
+                      : picked.length === modelKeys.length
                         ? true
                         : "mixed";
                   return (
@@ -230,10 +227,12 @@ export function KernelCatalog({ catalog, unknownKind }) {
                       type="family"
                       value={family}
                       pressed={state}
-                      count={countWith({ models: new Set(stems) })}
+                      count={countWith({ models: new Set(modelKeys) })}
                       title={names.join(", ")}
                       onClick={() =>
-                        update({ model: toggle(m.models, stems, state !== true) })
+                        update({
+                          model: toggle(m.models, modelKeys, state !== true),
+                        })
                       }
                     />
                   );
@@ -244,22 +243,26 @@ export function KernelCatalog({ catalog, unknownKind }) {
                   ({ keys }) =>
                     keys.length > 1 && keys.some((n) => m.models.has(n)),
                 )
-                .map(({ family, keys: stems, names }) => (
+                .map(({ family, keys: modelKeys, names }) => (
                   <div
                     key={family}
                     className={s.variants}
                     aria-label={`${family} models`}
                   >
-                    {stems.map((stem, i) => (
+                    {modelKeys.map((modelKey, i) => (
                       <ToggleTag
-                        key={stem}
+                        key={modelKey}
                         type="family"
                         value={family}
                         small
-                        pressed={m.models.has(stem)}
+                        pressed={m.models.has(modelKey)}
                         onClick={() =>
                           update({
-                            model: toggle(m.models, [stem], !m.models.has(stem)),
+                            model: toggle(
+                              m.models,
+                              [modelKey],
+                              !m.models.has(modelKey),
+                            ),
                           })
                         }
                       >
@@ -395,7 +398,9 @@ function KernelRow({ kernel, catalog, coverage, usedBy }) {
   const gpus = catalog.gpus
     .map((g) => g.name)
     .filter((name) => coverage.some((c) => c.gpu === name));
-  const href = kernel.documented ? kernelHref({ kind: kernel.kind }) : null;
+  const href = kernel.documented
+    ? pageHref("kernels", { kind: kernel.kind })
+    : null;
   // The name is the link for keyboards and "open in new tab"; a click anywhere
   // else on the row follows it too, unless it ends a text selection.
   const openRow = (event) => {

@@ -1,5 +1,5 @@
 import { ArrowLeft, Check, Copy, Download, ExternalLink } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import {
   apiUrl,
   expandRows,
@@ -9,8 +9,7 @@ import {
   loadRows,
   shortGpu,
 } from "./kernelData";
-import { openInPage, readQuery, setQuery, subscribeUrl } from "../../url";
-import { kernelHref } from "./Kernels";
+import { openInPage, pageHref, setQuery, useQuery } from "../../url";
 import { GridExplorer } from "./GridExplorer";
 import { SeriesExplorer, hasSeriesView } from "./SeriesExplorer";
 import { Measurements, apiFilters } from "./Measurements";
@@ -23,11 +22,8 @@ const TABS = [
   ["implementations", "Implementations"],
   ["data", "Data and API"],
 ];
-const search = () => window.location.search;
-
 export function KernelDetail({ catalog, entry }) {
-  useSyncExternalStore(subscribeUrl, search);
-  const query = readQuery();
+  const query = useQuery();
   const tab = TABS.some(([id]) => id === query.tab) ? query.tab : "performance";
   const [loaded, setLoaded] = useState(null);
   const [error, setError] = useState(null);
@@ -47,7 +43,7 @@ export function KernelDetail({ catalog, entry }) {
       <header className={`wrap ${s.header}`}>
         <a
           className={s.back}
-          href={kernelHref({})}
+          href={pageHref("kernels")}
           onClick={(event) => openInPage(event, {})}
         >
           <ArrowLeft size={18} aria-hidden="true" />

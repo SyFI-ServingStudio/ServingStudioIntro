@@ -1,12 +1,13 @@
-/* The Models page's "Read more": ServingStudio UI's own result pages
+/* "Read more" on the Models and Simulate pages: ServingStudio UI's own result pages
    (app/src/embed in a ServingStudioUI checkout), compiled into this site from
    source, in the page's React tree. SERVINGSTUDIO_UI_DIR names the checkout.
 
    The UI's imports of its dependencies resolve here, from this site's
    node_modules (package.json carries the UI's runtime dependencies at its
    versions), so the page has one React, one emotion and one MUI. Pages read
-   whether the viewer is there, and from which UI commit, from
-   `virtual:servingstudio-ui`; `@servingstudio/ui/embed` is the viewer itself.
+   whether the viewer is there from `virtual:servingstudio-ui`;
+   `@servingstudio/ui/embed` is the viewer itself. The build log names the UI
+   commit, or why there is none.
 
    Without a checkout development goes on without Read more; a build stops
    instead, unless ALLOW_NO_READ_MORE=1 asks for a site without it. */
@@ -89,11 +90,7 @@ export function servingStudioUi({ uiDir, allowMissing = false, log = console }) 
     },
     load(id) {
       if (id === `\0${INFO}`)
-        return `export default ${JSON.stringify(
-          from.dir
-            ? { available: true, commit: from.commit }
-            : { available: false, reason: from.reason },
-        )};`;
+        return `export default ${JSON.stringify({ available: Boolean(from.dir) })};`;
       if (id === MISSING) return "export const ResultViewer = null;";
       return null;
     },

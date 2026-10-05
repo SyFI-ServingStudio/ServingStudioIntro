@@ -195,14 +195,14 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
   const gpuNames = sortGpus(index.keys(), catalog);
   const gpu = index.has(query.cgpu) ? query.cgpu : (named?.gpu ?? gpuNames[0]);
   const byModel = index.get(gpu);
-  const stems = sortModels(byModel.keys(), catalog);
+  const modelKeys = sortModels(byModel.keys(), catalog);
   const namedModel =
     named?.gpu === gpu ? presetCheckpoint(named.uses[0].preset) : null;
-  const stem =
-    stems.find((m) => m === query.cmodel) ??
-    stems.find((m) => m === namedModel) ??
-    stems[0];
-  const groups = groupsOf(byModel.get(stem));
+  const modelKey =
+    modelKeys.find((m) => m === query.cmodel) ??
+    modelKeys.find((m) => m === namedModel) ??
+    modelKeys[0];
+  const groups = groupsOf(byModel.get(modelKey));
   const entries = [
     ...new Map(
       groups.flatMap((g) => g.entries).map((e) => [e.config.id, e]),
@@ -246,7 +246,7 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
   const config = configs.find((c) => c.id === query.config) ?? best;
 
   const pick = (patch) =>
-    update({ cgpu: gpu, cmodel: stem, config: config.id, ...patch });
+    update({ cgpu: gpu, cmodel: modelKey, config: config.id, ...patch });
 
   const chipText = (entry) => {
     const ops = [...new Set([...entry.roles].map(opOf))];
@@ -318,12 +318,12 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
             )}
           </Level>
           <Level label="Model">
-            {stems.map((m) => (
+            {modelKeys.map((m) => (
               <ToggleTag
                 key={m}
                 type="family"
                 value={modelFamily(models, m)}
-                pressed={m === stem}
+                pressed={m === modelKey}
                 title={m}
                 onClick={() => update({ cgpu: gpu, cmodel: m })}
               >
@@ -348,7 +348,7 @@ export function GridExplorer({ kernel, catalog, list, query, update }) {
               className={picker.model}
               style={{
                 "--family":
-                  tagColor("family", modelFamily(models, stem)) ??
+                  tagColor("family", modelFamily(models, modelKey)) ??
                   "var(--c-line-600)",
               }}
               aria-label={group.labels.join("; ")}

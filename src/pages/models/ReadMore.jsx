@@ -21,9 +21,6 @@ const ResultViewer = lazy(() =>
 
 const LOADING = { margin: 0, padding: "48px 16px", textAlign: "center" };
 
-/* Whether this build has the viewer, and why not. */
-export const READ_MORE = ui;
-
 /* The Analyzer's routes for one prediction or run, and the kernel kinds'
    DOC names by which the viewer names and groups kernels, as the viewer asks
    for them; the data service forwards each under /analyzer. Nothing else is
@@ -31,7 +28,7 @@ export const READ_MORE = ui;
    a gap shows. */
 const ANALYZER = /^\/api\/analyzer\/v1\/((?:predictions|runs)\/.+|kernel-kinds)$/;
 
-export async function forwardedFetch(url, { signal } = {}) {
+async function forwardedFetch(url, { signal } = {}) {
   const address = new URL(url, window.location.origin);
   const route = address.pathname.match(ANALYZER);
   if (!route) {
@@ -50,7 +47,7 @@ export async function forwardedFetch(url, { signal } = {}) {
 }
 
 export function ReadMoreButton({ onClick, disabled, busy }) {
-  if (!READ_MORE.available) return null;
+  if (!ui.available) return null;
   return (
     <button
       type="button"

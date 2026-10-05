@@ -18,6 +18,7 @@ export function RunPanel({
   record,
   id,
   presets,
+  limits,
   onStop,
 }) {
   return (
@@ -47,7 +48,8 @@ export function RunPanel({
         </p>
       ) : (
         <p className={s.hint}>
-          Most runs take seconds; results are kept for a day.
+          Most runs take seconds; results are kept for{" "}
+          {duration(limits.keep_s * 1000)}.
         </p>
       )}
       <div className={s.result} aria-live="polite">
@@ -87,7 +89,10 @@ function RunView({ record, presets, onStop }) {
       </div>
 
       {unfinished(record.status) ? (
-        <Progress record={record} onStop={() => onStop(record.simulation_id)} />
+        <Progress
+          record={record}
+          onStop={onStop && (() => onStop(record.simulation_id))}
+        />
       ) : record.status !== "done" ? (
         <div className={models.predictStatus} data-tone="warn" role="alert">
           <TriangleAlert size={18} aria-hidden="true" />
@@ -211,10 +216,12 @@ function Progress({ record, onStop }) {
             : "Waiting to start"
           : `Running, ${elapsed} s`}
       </p>
-      <button type="button" className={models.addButton} onClick={onStop}>
-        <Square size={14} aria-hidden="true" />
-        Stop
-      </button>
+      {onStop && (
+        <button type="button" className={models.addButton} onClick={onStop}>
+          <Square size={14} aria-hidden="true" />
+          Stop
+        </button>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   kernelLink,
   paramValue,
   parents,
+  sectionName,
   shortReference,
   visibleRows,
 } from "./modelData";
@@ -273,7 +274,7 @@ function SectionSwitch({ sections, section, onPick }) {
           aria-checked={item === section}
           onClick={() => onPick(index)}
         >
-          {item.section.replaceAll("_", " ")}
+          {sectionName(item.section)}
         </button>
       ))}
     </div>

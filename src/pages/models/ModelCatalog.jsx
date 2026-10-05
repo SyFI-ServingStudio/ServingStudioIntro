@@ -1,13 +1,12 @@
 import { ArrowRight } from "lucide-react";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 import { PageHero } from "../../components/PageHero";
 import { shortGpu } from "../kernels/kernelData";
-import { openInPage, readQuery, setQuery, subscribeUrl } from "../../url";
+import { openInPage, pageHref, setQuery, useQuery } from "../../url";
 import { Tag, ToggleTag, tagColor } from "../kernels/Tag";
-import { archLabel, CONTRACTS, modelHref, predictable } from "./modelData";
+import { archLabel, CONTRACTS, predictable } from "./modelData";
 import s from "./Models.module.css";
 
-const search = () => window.location.search;
 const OTHER = "Other";
 const familyOf = (checkpoint) => checkpoint.family ?? OTHER;
 
@@ -15,11 +14,10 @@ const familyOf = (checkpoint) => checkpoint.family ?? OTHER;
    order. A checkpoint opens on its public presets: each one way of deploying
    it (an arch), with every supported value of its parameters. */
 export function ModelCatalog({ catalog, unknownPreset }) {
-  useSyncExternalStore(subscribeUrl, search);
+  const query = useQuery();
   useEffect(() => {
     document.title = "Models | ServingStudio";
   }, []);
-  const query = readQuery();
   const picked = query.family ?? "";
   const checkpoints = catalog.checkpoints;
   const families = [...new Set(checkpoints.map(familyOf))];
@@ -154,7 +152,7 @@ function CheckpointRow({ checkpoint }) {
   return (
     <a
       className={s.archRow}
-      href={modelHref(params)}
+      href={pageHref("models", params)}
       onClick={(event) => openInPage(event, params)}
     >
       {body}

@@ -1,10 +1,11 @@
-import { CircleCheck, CircleDashed, FileUp, LoaderCircle } from "lucide-react";
+import { CircleDashed, FileUp, LoaderCircle } from "lucide-react";
 import { useId, useState } from "react";
 import { formatBytes, shortGpu } from "../kernels/kernelData";
 import { Level } from "../kernels/Level";
 import { Tag, ToggleTag } from "../kernels/Tag";
 import { MemberPicker } from "../models/MemberPicker";
-import { missingText } from "../models/modelData";
+import { StatusLine } from "../models/StatusParts";
+import { blockerText } from "../models/modelData";
 import { count, draftTokens, rate, tokens, uploadWorkload } from "./simulateData";
 import detail from "../kernels/KernelDetail.module.css";
 import models from "../models/Models.module.css";
@@ -49,16 +50,14 @@ export const replays = (workload) => workload.source === "capture";
    can. Requests too long for the member (a misfit) block only a replay: a
    run of other requests still takes the capture's routing. */
 export function blockedText(member, capture, replayed) {
-  if (member.error) return `The simulator cannot build it: ${member.error}`;
+  if (member.error) return blockerText(member);
   const reason = capture && member.unavailable[capture.name];
   if (!reason || (reason.misfit && !replayed)) return null;
   if (reason.misfit)
     return reason.misfit.requests != null
       ? `Too long here: ${count(reason.misfit.requests)} of ${count(reason.misfit.total)} requests need more than this configuration's ${count(reason.misfit.max_model_len)}-token context`
       : `Its requests do not fit this configuration: ${reason.misfit.reason}`;
-  if (reason.missing)
-    return `Cannot run yet: measurements missing for ${missingText(reason.missing)}`;
-  return `The simulator cannot build it: ${reason.error}`;
+  return blockerText(reason, "Cannot run yet");
 }
 
 /* The generator a custom shape draws from: tracegen's `synthetic`, one round
@@ -203,38 +202,31 @@ function MemberLine({ preset, member, capture, replayed }) {
   const pools = Object.entries(member.pools);
   const draft = draftTokens(member);
   return (
-    <div className={models.memberStatus} data-state={reason ? "blocked" : "ready"}>
-      {reason ? (
-        <CircleDashed size={16} aria-hidden="true" />
-      ) : (
-        <CircleCheck size={16} aria-hidden="true" />
+    <StatusLine blocked={reason}>
+      {member.gpus != null && (
+        <>
+          {count(member.gpus)} {member.gpus === 1 ? "GPU" : "GPUs"}:{" "}
+          {pools
+            .map(([role, pool]) =>
+              [
+                pools.length > 1 && role,
+                `${pool.replicas} ${pool.replicas === 1 ? "replica" : "replicas"} of ${pool.gpus_per_replica ?? "?"} ${shortGpu(preset.pools[role].gpu)}`,
+              ]
+                .filter(Boolean)
+                .join(" "),
+            )
+            .join(", ")}
+          .
+        </>
       )}
-      <p>
-        {member.gpus != null && (
-          <>
-            {count(member.gpus)} {member.gpus === 1 ? "GPU" : "GPUs"}:{" "}
-            {pools
-              .map(([role, pool]) =>
-                [
-                  pools.length > 1 && role,
-                  `${pool.replicas} ${pool.replicas === 1 ? "replica" : "replicas"} of ${pool.gpus_per_replica ?? "?"} ${shortGpu(preset.pools[role].gpu)}`,
-                ]
-                  .filter(Boolean)
-                  .join(" "),
-              )
-              .join(", ")}
-            .
-          </>
-        )}
-        {draft != null && <> Drafts {draft} tokens per step.</>}
-        {reason && (
-          <>
-            {" "}
-            <b>{reason}</b>
-          </>
-        )}
-      </p>
-    </div>
+      {draft != null && <> Drafts {draft} tokens per step.</>}
+      {reason && (
+        <>
+          {" "}
+          <b>{reason}</b>
+        </>
+      )}
+    </StatusLine>
   );
 }
 
@@ -457,11 +449,11 @@ function Shape({ limits, custom, set }) {
 }
 
 /* A CSV of the reader's own requests. The service reads its columns as the
-   format they fit and keeps it a day. */
+   format they fit and keeps it for `described.keep_s`. */
 function Upload({ described, upload, set }) {
   const [state, setState] = useState({});
   const fileId = useId();
-  const [plain, ...others] = described.formats;
+  const [first, ...others] = described.formats;
 
   const send = async (file) => {
     if (!file) return;
@@ -518,10 +510,9 @@ function Upload({ described, upload, set }) {
           {state.failure}
         </p>
       )}
-      {plain && (
+      {first && (
         <p className={s.hint}>
-          One request per row, with the columns <Columns names={plain.columns} /> (
-          <code>arrival_time</code> in milliseconds). Up to{" "}
+          <FormatText format={first} tags={described.tags} /> Up to{" "}
           {formatBytes(described.max_bytes)}.
         </p>
       )}
@@ -530,20 +521,42 @@ function Upload({ described, upload, set }) {
           <summary>Other formats</summary>
           {others.map((format) => (
             <p key={format.name} className={s.hint}>
-              Conversations, one round per row: <Columns names={format.columns} />.
+              <FormatText format={format} tags={described.tags} />
             </p>
           ))}
-          <p className={s.hint}>
-            Optional columns:{" "}
-            {described.tags.map((tag, index) => (
-              <span key={tag.name}>
-                {index > 0 && "; "}
-                <Columns names={tag.columns} />
-              </span>
-            ))}
-            .
-          </p>
         </details>
+      )}
+    </>
+  );
+}
+
+/* One upload format as the service describes it: what a row is, its columns,
+   and the optional columns of each tag it takes. */
+function FormatText({ format, tags }) {
+  const optional = tags.filter((tag) => format.tags.includes(tag.name));
+  return (
+    <>
+      {format.sessions ? "Conversations, one round per row" : "One request per row"}
+      , with the columns <Columns names={format.columns} />
+      {format.columns.includes("arrival_time") && (
+        <>
+          {" "}
+          (<code>arrival_time</code> in milliseconds)
+        </>
+      )}
+      .
+      {optional.length > 0 && (
+        <>
+          {" "}
+          Optional:{" "}
+          {optional.map((tag, index) => (
+            <span key={tag.name}>
+              {index > 0 && "; "}
+              <Columns names={tag.columns} />
+            </span>
+          ))}
+          .
+        </>
       )}
     </>
   );

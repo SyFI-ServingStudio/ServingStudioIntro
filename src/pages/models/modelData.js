@@ -7,7 +7,8 @@
    section and slot; POST /predict times a reader's batch on one member and
    gives each section's cost tree. */
 
-import { load, send } from "../kernels/kernelData";
+import { load, presetCheckpoint, send } from "../kernels/kernelData";
+import { pageHref } from "../../url";
 
 export const loadModels = () => load("models");
 
@@ -34,13 +35,10 @@ export const loadTree = (preset, params) => {
   return load(`models/${presetPath(preset)}/tree${query ? `?${query}` : ""}`);
 };
 
-/* The Models page, at a member when given one: the preset's id, then a
-   value per axis. Plain links, so the Kernels page can link here too. */
-export function modelHref(params) {
-  const text = new URLSearchParams(params).toString();
-  return `${import.meta.env.BASE_URL}models.html${text ? `?${text}` : ""}`;
-}
-export const memberHref = (preset, params) => modelHref({ preset, ...params });
+/* The Models page at a member: the preset's id, then a value per axis. A
+   plain link, so the Kernels page can link here too. */
+export const memberHref = (preset, params) =>
+  pageHref("models", { preset, ...params });
 
 /* Each case's time on one member. Not cached: a reader edits the batch.
    `signal` cancels a request a newer edit made stale. */
@@ -61,15 +59,23 @@ export const sameValue = (a, b) => String(a) === String(b);
 export const memberMatches = (member, params, names) =>
   names.every((name) => sameValue(member.params[name], params[name]));
 
-/* Why a member cannot be predicted, in a reader's words, or null when it can:
-   the simulator built it and every kernel it calls is measured. */
-export function blockedReason(member) {
-  if (member.error) return `The simulator cannot build it: ${member.error}`;
-  if (member.missing == null) return "Its measurements are not checked yet";
-  if (Object.keys(member.missing).length)
-    return `Cannot be timed yet; measurements missing for ${missingText(member.missing)}`;
+/* What the service says blocks a configuration, in a reader's words: its
+   build's `error`, or the measurements it lacks (`missing`, {kind: rows});
+   `notYet` begins the latter ("Cannot be timed yet"). The service's "not
+   checked", and a missing `missing`, mean the check has not run. Null when
+   nothing blocks. Models and Simulate both say it this way. */
+export function blockerText({ error, missing }, notYet) {
+  if (error === "not checked" || (!error && missing == null))
+    return "Its measurements are not checked yet";
+  if (error) return `The simulator cannot build it: ${error}`;
+  if (Object.keys(missing).length)
+    return `${notYet}; measurements missing for ${missingText(missing)}`;
   return null;
 }
+
+/* Why a member cannot be predicted, or null when it can: the simulator
+   built it and every kernel it calls is measured. */
+export const blockedReason = (member) => blockerText(member, "Cannot be timed yet");
 export const predictable = (member) => !blockedReason(member);
 
 /* The member a link names; one it does not fully name opens on the first
@@ -175,15 +181,17 @@ export const parents = (nodes, depth = Infinity) =>
    documented kinds have a page. */
 export function kernelLink(kernel, slot, tree) {
   if (!kernel?.documented) return null;
-  const params = new URLSearchParams({
+  return pageHref("kernels", {
     kind: slot.kernel,
     view: "grid",
     cgpu: tree.gpu,
-    cmodel: tree.preset.split("/")[0],
+    cmodel: presetCheckpoint(tree.preset),
     config: slot.config,
   });
-  return `${import.meta.env.BASE_URL}kernels.html?${params}`;
 }
+
+/* A section of the cost tree as a reader reads its name ("lm_head" → "lm head"). */
+export const sectionName = (section) => section.replaceAll("_", " ");
 
 /* A share in percent as the page prints it. */
 export const formatPercent = (pct) =>

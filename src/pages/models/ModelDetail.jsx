@@ -1,13 +1,7 @@
-import { ArrowLeft, CircleCheck, CircleDashed } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { ArrowLeft, CircleDashed } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { loadCatalog, shortGpu } from "../kernels/kernelData";
-import { openInPage, readQuery, setQuery, subscribeUrl } from "../../url";
+import { openInPage, pageHref, readQuery, setQuery, useQuery } from "../../url";
 import { Level } from "../kernels/Level";
 import { Tag, ToggleTag } from "../kernels/Tag";
 import {
@@ -16,22 +10,21 @@ import {
   CONTRACTS,
   loadTree,
   memberFromQuery,
-  modelHref,
   predictable,
   shortReference,
 } from "./modelData";
+import { useStickyTop } from "../../hooks/useStickyTop";
 import { CostTreeExplorer } from "./CostTreeExplorer";
+import { StatusLine, UnmatchedNotice } from "./StatusParts";
 import { LivePredict } from "./LivePredict";
 import { MemberPicker } from "./MemberPicker";
 import detail from "../kernels/KernelDetail.module.css";
 import s from "./Models.module.css";
 
-const search = () => window.location.search;
-
 /* One checkpoint: pick one of its public presets and a value per axis of the
    preset, then read that member's cost tree and time a batch on it. */
 export function ModelDetail({ catalog, checkpoint, preset }) {
-  useSyncExternalStore(subscribeUrl, search);
+  useQuery();
   const title = checkpoint.name ?? checkpoint.checkpoint;
   useEffect(() => {
     document.title = `${title} | Models | ServingStudio`;
@@ -43,7 +36,7 @@ export function ModelDetail({ catalog, checkpoint, preset }) {
       <header className={`wrap ${detail.header}`}>
         <a
           className={detail.back}
-          href={modelHref({})}
+          href={pageHref("models")}
           onClick={(event) => openInPage(event, {})}
         >
           <ArrowLeft size={18} aria-hidden="true" />
@@ -93,12 +86,7 @@ function Explorer({ catalog, checkpoint, preset }) {
 
   return (
     <>
-      {unmatched && (
-        <p className={s.notice} role="status">
-          The link named values no configuration of this deployment has, so the
-          closest one is shown.
-        </p>
-      )}
+      {unmatched && <UnmatchedNotice />}
       <section
         className={`${detail.controls} ${s.picker}`}
         aria-label="Configuration"
@@ -186,60 +174,24 @@ function MemberStatus({ member, workload }) {
   const reason = blockedReason(member);
   const routing = workload && workload.rows[member.params[workload.name]];
   return (
-    <div className={s.memberStatus} data-state={reason ? "blocked" : "ready"}>
-      {reason ? (
-        <CircleDashed size={16} aria-hidden="true" />
-      ) : (
-        <CircleCheck size={16} aria-hidden="true" />
+    <StatusLine blocked={reason}>
+      {reason ? `${reason}.` : "Every kernel it calls is measured."}
+      {routing && (
+        <>
+          {" "}
+          Routing: {routing.routing}
+          {Object.entries(routing)
+            .filter(([name]) => name !== "routing")
+            .map(([name, value]) => (
+              <span key={name} title={String(value)}>
+                , <code>{shortReference(value)}</code>
+              </span>
+            ))}
+          .
+        </>
       )}
-      <p>
-        {reason ? `${reason}.` : "Every kernel it calls is measured."}
-        {routing && (
-          <>
-            {" "}
-            Routing: {routing.routing}
-            {Object.entries(routing)
-              .filter(([name]) => name !== "routing")
-              .map(([name, value]) => (
-                <span key={name} title={String(value)}>
-                  , <code>{shortReference(value)}</code>
-                </span>
-              ))}
-            .
-          </>
-        )}
-      </p>
-    </div>
+    </StatusLine>
   );
-}
-
-/* Where a sticky panel sticks: under the nav when it fits in the window,
-   otherwise by its bottom, so its last line stays reachable. */
-const NAV_CLEARANCE = 108;
-const BOTTOM_GAP = 24;
-
-function useStickyTop() {
-  const release = useRef(null);
-  // A callback ref: the panel remounts with the tree panel around it.
-  return useCallback((node) => {
-    release.current?.();
-    release.current = null;
-    if (!node) return;
-    const place = () => {
-      const top = Math.min(
-        NAV_CLEARANCE,
-        window.innerHeight - node.offsetHeight - BOTTOM_GAP,
-      );
-      node.style.setProperty("--stick-top", `${top}px`);
-    };
-    const observer = new ResizeObserver(place);
-    observer.observe(node);
-    window.addEventListener("resize", place);
-    release.current = () => {
-      observer.disconnect();
-      window.removeEventListener("resize", place);
-    };
-  }, []);
 }
 
 /* The member's cost tree. */
@@ -299,7 +251,8 @@ function Legend() {
       </dl>
       <p className={s.legendNote}>
         <CircleDashed size={14} aria-hidden="true" /> marks a configuration that
-        cannot be timed yet, because some of its kernel measurements are missing.
+        cannot be timed yet: some of its kernel measurements are missing, or the
+        simulator cannot build it.
       </p>
     </section>
   );

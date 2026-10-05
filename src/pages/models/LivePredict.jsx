@@ -9,8 +9,9 @@ import {
   predict,
   predictable,
   sameValue,
+  sectionName,
 } from "./modelData";
-import { presetCheckpoint } from "../kernels/kernelData";
+import { presetCheckpoint, shortGpu } from "../kernels/kernelData";
 import { ReadMoreButton, ResultOverlay } from "./ReadMore";
 import { Pending } from "./TreeParts";
 import cost from "../../components/CostTree.module.css";
@@ -648,7 +649,7 @@ function Result({
             {sections.map((item) => (
               <div key={`${item.section}:${item.layer}`}>
                 <dt>
-                  {item.section.replaceAll("_", " ")}
+                  {sectionName(item.section)}
                   {item.layer >= 0 && <small> layer {item.layer}</small>}
                 </dt>
                 <dd title={`${item.total_ms} ms`} data-ms={item.total_ms}>
@@ -677,7 +678,7 @@ function Result({
           <p>
             {batchText(groups, groupCount, tokens)}
             <br />
-            {tree.gpus_per_replica ?? "?"} × {tree.gpu.replace(/^NVIDIA /, "")} ·{" "}
+            {member.gpus_per_replica} × {shortGpu(tree.gpu)} ·{" "}
             <span title={preset.arch}>{archLabel(preset)}</span>
           </p>
         )}
@@ -818,7 +819,11 @@ function Failure({ failure, retry, preset, member, onPick }) {
       <TriangleAlert size={18} aria-hidden="true" />
       <div>
         <p className={s.predictStatusTitle}>{title}</p>
-        <p className={s.failureText}>{reason}</p>
+        <p className={s.failureText}>
+          {failure.status === 409
+            ? "Some of its kernels are not measured. Pick a configuration without the dashed mark above."
+            : reason}
+        </p>
         {failure.status !== 400 && failure.status !== 409 && (
           <button type="button" className={s.addButton} onClick={retry}>
             <RotateCcw size={16} aria-hidden="true" />

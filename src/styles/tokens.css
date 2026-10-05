@@ -25,6 +25,8 @@
   --diagram-node: #292929;
   --diagram-detail: #353535;
   --nav-layer: 10;
+  /* Where a sticky panel sits under the navigation (useStickyTop). */
+  --nav-clearance: 108px;
   --page-width: 76%;
 
   /* One radius scale. There were 23 different values before this, from 2px to

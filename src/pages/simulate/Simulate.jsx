@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { readQuery, setQuery, subscribeUrl } from "../../url";
+import { useEffect, useMemo, useState } from "react";
+import { readQuery, setQuery, useQuery } from "../../url";
 import { archNames, loadModels, memberFromQuery } from "../models/modelData";
+import { UnmatchedNotice } from "../models/StatusParts";
 import { RunList } from "./RunList";
 import { RunPanel } from "./RunPanel";
 import {
@@ -16,6 +17,7 @@ import {
   Setup,
   trafficFacts,
 } from "./Setup";
+import { useStickyTop } from "../../hooks/useStickyTop";
 import { useRuns } from "./runs";
 import {
   draftTokens,
@@ -28,13 +30,11 @@ import detail from "../kernels/KernelDetail.module.css";
 import models from "../models/Models.module.css";
 import s from "./Simulate.module.css";
 
-const search = () => window.location.search;
-
 /* The Simulate page: pick a deployment (`?preset=<id>` and a value per axis),
    the traffic it serves and how hard it comes, run it on the service, and
    compare the runs this browser started (`?run=<id>` shows one). */
 export default function Simulate() {
-  const query = useSyncExternalStore(subscribeUrl, search);
+  useQuery();
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState(null);
   const [workloads, setWorkloads] = useState(null);
@@ -99,14 +99,9 @@ function join(sims, models) {
   };
 }
 
-/* A member that builds and can use one of the preset's captures: measured on
-   it, its requests replayed or (a misfit) its routing alone. */
+// A member that can use one of the preset's captures, if only its routing.
 const runnable = (preset) => (member) =>
-  !member.error &&
-  preset.captures.some((c) => {
-    const reason = member.unavailable[c.name];
-    return !reason || reason.misfit;
-  });
+  preset.captures.some((c) => !blockedText(member, c, false));
 
 function Workbench({ catalog, workloads }) {
   const url = readQuery();
@@ -118,6 +113,7 @@ function Workbench({ catalog, workloads }) {
   const runs = useRuns(url.run);
   const selected = url.run ?? runs.ids[0] ?? null;
   const [start, setStart] = useState({});
+  const aside = useStickyTop();
 
   const pick = (id, params) => {
     const next = catalog.presets.get(id);
@@ -145,12 +141,7 @@ function Workbench({ catalog, workloads }) {
       setStart({});
       setQuery({ ...url, run: answer.simulation_id });
     } catch (failure) {
-      setStart({
-        failure:
-          failure.status === 429 && failure.retryAfter
-            ? `${failure.reason}. Try again in ${failure.retryAfter} s.`
-            : (failure.reason ?? failure.message),
-      });
+      setStart({ failure: startFailure(failure) });
     }
   };
 
@@ -164,12 +155,7 @@ function Workbench({ catalog, workloads }) {
         </p>
       </header>
       <div className={`wrap ${s.body}`}>
-        {unmatched && (
-          <p className={models.notice} role="status">
-            The link named values no configuration of this deployment has, so the
-            closest one is shown.
-          </p>
-        )}
+        {unmatched && <UnmatchedNotice />}
         <div className={s.layout}>
           <Setup
             catalog={catalog}
@@ -184,7 +170,7 @@ function Workbench({ catalog, workloads }) {
               setWorkload(change);
             }}
           />
-          <aside className={s.aside}>
+          <aside className={s.aside} ref={aside}>
             <RunPanel
               request={request}
               starting={start.busy}
@@ -193,7 +179,8 @@ function Workbench({ catalog, workloads }) {
               id={selected}
               record={selected ? runs.records[selected] : null}
               presets={catalog.presets}
-              onStop={remove}
+              limits={catalog.limits}
+              onStop={runs.own.includes(selected) ? remove : null}
             />
           </aside>
         </div>
@@ -208,6 +195,19 @@ function Workbench({ catalog, workloads }) {
       />
     </div>
   );
+}
+
+/* Why the service did not start a run, in a reader's words: its own for a
+   request it found wrong (400), ours for a deployment it cannot run (409,
+   which the setup should have said) and for a busy service (429). */
+function startFailure(failure) {
+  if (failure.status === 409)
+    return "This configuration cannot run this traffic yet. Pick another configuration or recording.";
+  if (failure.status === 429)
+    return failure.retryAfter
+      ? `The service is busy. Try again in ${failure.retryAfter} s.`
+      : "The service is busy. Try again shortly.";
+  return failure.reason ?? failure.message;
 }
 
 /* The workload outlives a change of deployment: a reader who built a trace

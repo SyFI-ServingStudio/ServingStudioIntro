@@ -1,16 +1,14 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { readQuery, subscribeUrl } from "../../url";
+import { useEffect, useState } from "react";
+import { useQuery } from "../../url";
 import { loadModels } from "./modelData";
 import { ModelCatalog } from "./ModelCatalog";
 import { ModelDetail } from "./ModelDetail";
-
-const search = () => window.location.search;
 
 /* The Models page: the list of checkpoints, or one public preset
    (`?preset=<checkpoint>/<arch>`) with one member picked by its axis values,
    its cost tree and Live predict. */
 export default function Models() {
-  const query = useSyncExternalStore(subscribeUrl, search);
+  const query = useQuery();
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
@@ -30,7 +28,7 @@ export default function Models() {
         Loading models…
       </p>
     );
-  const { preset: id } = readQuery(query);
+  const { preset: id } = query;
   const checkpoint =
     id && catalog.checkpoints.find((c) => c.presets.some((p) => p.id === id));
   return checkpoint ? (

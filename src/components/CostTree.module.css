@@ -147,7 +147,7 @@
 
 .aside {
   position: sticky;
-  top: 108px;
+  top: var(--nav-clearance);
   display: grid;
   gap: 22px;
 }

@@ -5,6 +5,9 @@
    router (useSiteNavigation) through notifyUrl. Back and forward arrive as
    popstate. */
 
+import { useSyncExternalStore } from "react";
+import { PAGES } from "./sitePages";
+
 const listeners = new Set();
 
 export function subscribeUrl(listener) {
@@ -32,6 +35,13 @@ export function setQuery(params, { push = false } = {}) {
 export const readQuery = () =>
   Object.fromEntries(new URLSearchParams(window.location.search));
 
+/* The query string as page state: re-renders the page when it changes. */
+const search = () => window.location.search;
+export function useQuery() {
+  useSyncExternalStore(subscribeUrl, search);
+  return readQuery();
+}
+
 /* A link that changes only this page's query: a plain click goes there in
    place, from the top; a modified click (new tab, window) is the browser's. */
 export function openInPage(event, params) {
@@ -40,4 +50,11 @@ export function openInPage(event, params) {
   event.preventDefault();
   setQuery(params, { push: true });
   window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+/* A link to one of the site's pages (`PAGES`) with the query `params`. */
+export function pageHref(id, params = {}) {
+  const page = PAGES.find((p) => p.id === id);
+  const text = new URLSearchParams(params).toString();
+  return `${import.meta.env.BASE_URL}${page.file}${text ? `?${text}` : ""}`;
 }

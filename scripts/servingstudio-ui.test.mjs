@@ -40,7 +40,7 @@ test("a checkout's viewer is the embed entry, at its commit", () => {
     plugin.resolveId("@servingstudio/ui/embed"),
     join(dir, "app", "src", "embed", "index.ts"),
   );
-  assert.deepEqual(info(plugin), { available: true, commit: head });
+  assert.deepEqual(info(plugin), { available: true });
   const config = plugin.config({}, { command: "build" });
   assert.deepEqual(config.resolve.dedupe, UI_DEPENDENCIES);
   assert.ok(config.server.fs.allow.includes(dir));
@@ -52,18 +52,17 @@ test("a checkout with uncommitted UI changes is marked dirty", () => {
   assert.equal(uiSource({ uiDir: dir }).commit, `${head}-dirty`);
 });
 
-test("without a checkout there is no viewer, and the page is told why", () => {
-  const plugin = servingStudioUi({ log: quiet });
-  assert.deepEqual(info(plugin), {
-    available: false,
-    reason:
-      "SERVINGSTUDIO_UI_DIR is not set; point it at a ServingStudioUI checkout.",
-  });
+test("without a checkout there is no viewer, and the log says why", () => {
+  const logged = [];
+  const log = { log() {}, warn: (line) => logged.push(line) };
+  const plugin = servingStudioUi({ log });
+  assert.deepEqual(info(plugin), { available: false });
   assert.equal(
     plugin.load(plugin.resolveId("@servingstudio/ui/embed")),
     "export const ResultViewer = null;",
   );
   assert.equal(plugin.config({}, { command: "serve" }), undefined);
+  assert.match(logged.join("\n"), /SERVINGSTUDIO_UI_DIR is not set/);
 });
 
 test("a build without a checkout stops unless asked not to", () => {

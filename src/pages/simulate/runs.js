@@ -78,10 +78,11 @@ export function useRuns(extra) {
     });
   }, []);
 
-  /* Forget a run here, and ask the service to drop it: a run still on its
-     way stops, so stopping one removes it too. */
+  /* Forget a run here. One this browser started the service drops too (a
+     run still on its way stops, so stopping one removes it); one a link
+     named is someone's to keep, so it is only hidden. */
   const remove = useCallback((id) => {
-    deleteSimulation(id).catch(() => {});
+    if (savedRuns().includes(id)) deleteSimulation(id).catch(() => {});
     setIds((list) => {
       const next = list.filter((other) => other !== id);
       saveRuns(next);
@@ -91,14 +92,16 @@ export function useRuns(extra) {
 
   return {
     ids: shown.filter((id) => !records[id]?.gone),
+    // The runs this browser started, which it may stop.
+    own: ids,
     records,
     add,
     remove,
   };
 }
 
-/* What a run ran, in a reader's words: the deployment and its axis values
-   (`paramsText`). */
+/* What a run ran, in a reader's words: the model and its deployment;
+   `runParams` gives the axis values. */
 export function runName(record, presets) {
   const preset = presets.get(record.preset);
   return preset ? `${preset.checkpointName} · ${preset.name}` : record.preset;
