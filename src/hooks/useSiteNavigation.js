@@ -1,18 +1,13 @@
 import { prepareHero } from "../heroImages";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { PAGES } from "../sitePages";
 import { notifyUrl } from "../url";
 
 const base = import.meta.env.BASE_URL;
 const pages = new Map([
-  [base, "overview"],
+  ...PAGES.map((p) => [`${base}${p.file}`, p.id]),
   [`${base}index.html`, "overview"],
-  [`${base}features.html`, "features"],
-  [`${base}architecture.html`, "architecture"],
-  [`${base}models.html`, "models"],
-  [`${base}simulate.html`, "simulate"],
-  [`${base}kernels.html`, "kernels"],
-  [`${base}blog.html`, "blog"],
 ]);
 export function pageFromPath(pathname) {
   if (pages.has(pathname)) return pages.get(pathname);
@@ -150,7 +145,7 @@ export function useSiteNavigation(mainRef) {
     document.title =
       page === "overview"
         ? "ServingStudio | Simulate and improve LLM serving"
-        : `${{ features: "Features", models: "Models", simulate: "Simulate", kernels: "Kernels" }[page] || "Architecture"} | ServingStudio`;
+        : `${PAGES.find((p) => p.id === page).name} | ServingStudio`;
   }, [page]);
   return page;
 }

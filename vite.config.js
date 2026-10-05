@@ -3,8 +3,9 @@ import react from "@vitejs/plugin-react";
 import { blogContent } from "./scripts/blog-content.mjs";
 import { servingStudioUi } from "./scripts/servingstudio-ui.mjs";
 import { sitemap } from "./scripts/sitemap.mjs";
+import { PAGES } from "./src/sitePages.js";
 
-/* The Models and Kernels pages read ServingStudio Sim's read-only public API.
+/* The Models, Simulate and Kernels pages use ServingStudio Sim's public API.
    Pages request /api/public/v1 from their own origin and the server in front of
    the site forwards it: public/.htaccess on the CSE site, and here Vite, pointed
    at the service by PUBLIC_API_PROXY_TARGET (`uv run python -m public_api serve`
@@ -33,15 +34,7 @@ export default defineConfig(({ mode }) => {
       // Search Console. The cover template blog-overview.html is omitted.
       sitemap({
         origin: "https://servingstudio.cs.washington.edu",
-        pages: [
-          "",
-          "features.html",
-          "architecture.html",
-          "models.html",
-          "simulate.html",
-          "kernels.html",
-          "blog.html",
-        ],
+        pages: PAGES.map((p) => p.file),
       }),
     ],
     server: { proxy: publicApiProxy(env) },
@@ -49,14 +42,8 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         input: {
-          overview: "index.html",
+          ...Object.fromEntries(PAGES.map((p) => [p.id, p.file || "index.html"])),
           blogOverview: "blog-overview.html",
-          blog: "blog.html",
-          features: "features.html",
-          architecture: "architecture.html",
-          models: "models.html",
-          simulate: "simulate.html",
-          kernels: "kernels.html",
         },
       },
     },
