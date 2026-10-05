@@ -261,7 +261,7 @@ export function SeriesExplorer({ kernel, catalog, list, query, update }) {
                   })
                 }
               >
-                {archName(catalog, id)}
+                {archName(catalog.archNames, id)}
               </ToggleTag>
             ))}
           </Level>
@@ -532,7 +532,7 @@ function LinesView({
                     `${formatNumber(p.y)}× · ${formatNumber(p.abs)} ${metric.unit}`
                 : undefined
             }
-            describe={`${yLabel} of ${kernel.kind} over ${xName}, one line per ${view.series.label.toLowerCase()} of ${count}, ${backend}, ${archName(catalog, preset)} ${paramsText(params)}.`}
+            describe={`${yLabel} of ${kernel.kind} over ${xName}, one line per ${view.series.label.toLowerCase()} of ${count}, ${backend}, ${archName(catalog.archNames, preset)} ${paramsText(params)}.`}
             note={
               relative
                 ? `Each line is one config's grid for ${backend}, divided cell by cell by ${reference}'s, which leads the order and so lies flat at 1; a cell ${reference} did not measure is left out. The ticks along the bottom are its cells.`
@@ -576,7 +576,7 @@ function LinesView({
                 >
                   <strong>
                     {modelName(catalog.models, presetCheckpoint(preset))} ·{" "}
-                    {archName(catalog, preset)}
+                    {archName(catalog.archNames, preset)}
                   </strong>
                   {Object.keys(params).length > 0 && (
                     <span>{paramsText(params)}</span>

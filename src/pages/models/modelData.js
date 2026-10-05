@@ -118,7 +118,7 @@ export const paramsText = (params) =>
     .join(", ");
 
 /* "grouped_gemm 998, moe_finalize_routing 50": the rows a member lacks. */
-export const missingText = (missing) =>
+const missingText = (missing) =>
   Object.entries(missing)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([kind, count]) => `${kind} ${count.toLocaleString("en-US")}`)

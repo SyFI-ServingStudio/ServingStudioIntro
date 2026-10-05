@@ -239,10 +239,10 @@ const checkpointKey = (checkpoint) => checkpoint.split("/").at(-1);
 export const presetCheckpoint = (preset) => preset.split("/")[0];
 export const presetArch = (preset) => preset.split("/").slice(1).join("/");
 /* How a reader knows a preset's deployment ("vLLM, TP and EP"): its
-   `arch_name` from /models, which the Kernels page loads beside the catalog
-   (`catalog.archNames`); the arch tag when /models did not load. */
-export const archName = (catalog, preset) =>
-  catalog.archNames?.get(preset) ?? presetArch(preset);
+   `arch_name` from /models (`archNames`, modelData's map by preset id); the
+   arch tag when /models did not load. */
+export const archName = (archNames, preset) =>
+  archNames?.get(preset) ?? presetArch(preset);
 /* GPU names in the catalog's order (most rows first), then any it does not
    list; checkpoint keys in the model catalog's order, likewise. */
 const inOrder = (order) => (a, b) =>

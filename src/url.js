@@ -1,6 +1,6 @@
-/* The query string as page state. Pages that keep their view in it (the
-   kernel library, the Models page) read it with useSyncExternalStore over
-   subscribeUrl. pushState and replaceState fire no event, so whatever
+/* The query string as page state. Pages that keep their view in it (Kernels,
+   Models, Simulate) re-render on it through useQuery. pushState and
+   replaceState fire no event, so whatever
    changes the URL without a page load says so: setQuery here, and the site
    router (useSiteNavigation) through notifyUrl. Back and forward arrive as
    popstate. */
@@ -10,7 +10,7 @@ import { PAGES } from "./sitePages";
 
 const listeners = new Set();
 
-export function subscribeUrl(listener) {
+function subscribeUrl(listener) {
   listeners.add(listener);
   window.addEventListener("popstate", listener);
   return () => {

@@ -15,6 +15,7 @@ import {
   replays,
   routes,
   Setup,
+  shapeFields,
   trafficFacts,
 } from "./Setup";
 import { useStickyTop } from "../../hooks/useStickyTop";
@@ -235,10 +236,9 @@ function requestFor(preset, member, workload, workloads, limits) {
   if (workload.source === "capture" || routes(preset)) body.capture = capture?.name;
   if (workload.source === "generated") {
     const c = workload.custom;
-    const problem =
-      numberProblem(c.requests, { whole: true, max: limits.max_requests }) ??
-      numberProblem(c.prompt, { whole: true }) ??
-      numberProblem(c.output, { whole: true });
+    const problem = shapeFields(limits)
+      .map(([name, , rule]) => numberProblem(c[name], rule))
+      .find(Boolean);
     if (problem) return { blocked: `Requests of your shape: ${problem}` };
     body.generator = customGenerator(c);
   }

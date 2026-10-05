@@ -384,7 +384,7 @@ export function KernelCatalog({ catalog, unknownKind }) {
 const deployments = (catalog, kernel, key) =>
   kernel.used_by
     .filter((preset) => presetCheckpoint(preset) === key)
-    .map((preset) => archName(catalog, preset))
+    .map((preset) => archName(catalog.archNames, preset))
     .join("; ");
 
 /* The precision and GPU cells follow the filters: with B200 picked, the

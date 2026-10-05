@@ -110,7 +110,7 @@ function buildIndex(list, catalog) {
       if (!presets.has(use.preset))
         presets.set(use.preset, {
           preset: use.preset,
-          name: archName(catalog, use.preset),
+          name: archName(catalog.archNames, use.preset),
           members: new Map(),
           entries: new Map(),
         });
@@ -735,7 +735,7 @@ function ConfigFacts({ kernel, catalog, detail, entry }) {
               >
                 <strong>
                   {modelName(catalog.models, presetCheckpoint(use.preset))} ·{" "}
-                  {archName(catalog, use.preset)}
+                  {archName(catalog.archNames, use.preset)}
                 </strong>
                 {Object.keys(use.params).length > 0 && (
                   <span>{paramsText(use.params)}</span>

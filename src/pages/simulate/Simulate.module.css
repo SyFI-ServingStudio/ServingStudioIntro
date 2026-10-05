@@ -408,6 +408,7 @@
 
 /* The table scrolls inside its own box on a narrow screen; the page does not. */
 .tableScroll {
+  position: relative; /* holds the table's visually hidden labels */
   overflow-x: auto;
 }
 

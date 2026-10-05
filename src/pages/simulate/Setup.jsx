@@ -407,14 +407,18 @@ function Recordings({ preset, member, current, onPick }) {
   );
 }
 
+/* The fields of requests of one shape, each with its label and the rule its
+   number keeps (`numberProblem`). */
+export const shapeFields = (limits) => [
+  ["requests", "Requests", { whole: true, max: limits.max_requests }],
+  ["prompt", "Prompt tokens", { whole: true }],
+  ["output", "Output tokens", { whole: true }],
+];
+
 /* Requests of one shape: how many, and how long each prompt and output is. */
 function Shape({ limits, custom, set }) {
   const change = (name, text) => set({ custom: { ...custom, [name]: text } });
-  const fields = [
-    ["requests", "Requests", { whole: true, max: limits.max_requests }],
-    ["prompt", "Prompt tokens", { whole: true }],
-    ["output", "Output tokens", { whole: true }],
-  ];
+  const fields = shapeFields(limits);
   return (
     <>
       <div className={s.fields}>

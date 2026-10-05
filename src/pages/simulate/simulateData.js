@@ -7,7 +7,7 @@
    it until it is done. What a trace holds, which columns an upload needs and
    why a deployment cannot run are the service's answers. */
 
-import { load, send } from "../kernels/kernelData";
+import { archName, load, send } from "../kernels/kernelData";
 
 export const loadSimPresets = () => load("simulations/presets");
 export const loadWorkloads = () => load("workloads");
@@ -57,9 +57,7 @@ const DEPLOYMENTS = {
    presets' names from /models) and how they schedule requests. */
 export function presetName(preset, archNames) {
   const pools = Object.values(preset.pools);
-  const archs = [
-    ...new Set(pools.map((p) => archNames.get(p.arch_preset) ?? p.arch)),
-  ];
+  const archs = [...new Set(pools.map((p) => archName(archNames, p.arch_preset)))];
   const workers =
     preset.deployment === "unified"
       ? [...new Set(pools.map((p) => WORKERS[p.worker] ?? p.worker))]
@@ -75,8 +73,8 @@ export const draftTokens = (member) =>
 /* ---------- Saved runs ---------- */
 
 /* The runs this browser started, newest first, so a reader can compare them.
-   Only their ids are kept; the service keeps each run a day and forgets it
-   after, so a run it no longer has is dropped. A browser that keeps nothing
+   Only their ids are kept; the service keeps each run for its `keep_s` and
+   forgets it after, so a run it no longer has is dropped. A browser that keeps nothing
    (a private window) just shows the runs of this visit. */
 const SAVED = "servingstudio.simulations";
 const MAX_SAVED = 20;
