@@ -5,18 +5,6 @@
   padding-bottom: 120px;
 }
 
-/* PageHero caps its description at 700px, a measure for prose. The install
-   command under the prose is wider, so the paragraph holding it drops the cap
-   and the prose keeps it. */
-.page p:has(> .lede) {
-  max-width: none;
-}
-
-.lede {
-  display: block;
-  max-width: 700px;
-}
-
 .catalog {
   padding-top: 48px;
 }

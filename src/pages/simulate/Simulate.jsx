@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PageHero } from "../../components/PageHero";
 import { readQuery, setQuery, useQuery } from "../../url";
 import { archNames, loadModels, memberFromQuery } from "../models/modelData";
 import { UnmatchedNotice } from "../models/StatusParts";
@@ -27,7 +28,6 @@ import {
   presetName,
   startSimulation,
 } from "./simulateData";
-import detail from "../kernels/KernelDetail.module.css";
 import models from "../models/Models.module.css";
 import s from "./Simulate.module.css";
 
@@ -147,14 +147,14 @@ function Workbench({ catalog, workloads }) {
   };
 
   return (
-    <div className={detail.page}>
-      <header className={`wrap ${detail.header}`}>
-        <h1>Simulate</h1>
-        <p className={detail.summary}>
-          Send traffic to a deployment and read the latency and throughput its
-          clients would see.
-        </p>
-      </header>
+    <div className={s.page}>
+      <PageHero
+        compact
+        title="Simulate"
+        description="Send traffic to a deployment and read the latency and throughput its clients would see."
+        image="hero-simulate.webp"
+        skill="servingstudio-simulate"
+      />
       <div className={`wrap ${s.body}`}>
         {unmatched && <UnmatchedNotice />}
         <div className={s.layout}>

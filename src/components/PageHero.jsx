@@ -1,5 +1,6 @@
 import { ArrowDown } from "lucide-react";
 import s from "./PageHero.module.css";
+import { SkillInstall } from "./SkillInstall";
 
 export function PageHero({
   eyebrow,
@@ -9,6 +10,7 @@ export function PageHero({
   href,
   linkLabel,
   compact = false,
+  skill,
 }) {
   return (
     <header className={`${s.hero} ${compact ? s.compact : ""}`}>
@@ -27,6 +29,7 @@ export function PageHero({
         {eyebrow && <p className={s.eyebrow}>{eyebrow}</p>}
         <h1>{title}</h1>
         <p className={s.description}>{description}</p>
+        {skill && <SkillInstall skill={skill} />}
         {href && linkLabel && (
           <a className={s.link} href={href}>
             {linkLabel}

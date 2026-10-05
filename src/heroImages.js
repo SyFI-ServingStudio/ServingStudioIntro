@@ -5,6 +5,7 @@ const heroes = {
   architecture: "c",
   models: "models",
   kernels: "kernels",
+  simulate: "simulate",
   blog: "blog",
 };
 const pending = new Map();
@@ -23,7 +24,7 @@ export function prepareHero(page, search = "", priority = "high") {
     ? "shoreline-v3"
     : page === "blog"
       ? "hero-blog"
-      : page === "models" || page === "kernels"
+      : page === "models" || page === "kernels" || page === "simulate"
         ? `hero-${page}`
         : `hero-datacenter-${variant}`;
   const key = `${name}:${window.innerWidth}:${window.devicePixelRatio}`;

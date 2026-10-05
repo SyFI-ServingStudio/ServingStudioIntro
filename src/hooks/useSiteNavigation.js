@@ -36,6 +36,7 @@ export function preparePage(page, search = "") {
     ]);
   if (page === "simulate")
     return Promise.all([
+      hero,
       import("../pages/simulate/Simulate"),
       import("../pages/simulate/simulateData").then(({ loadSimPresets }) =>
         loadSimPresets().catch(() => {}),
