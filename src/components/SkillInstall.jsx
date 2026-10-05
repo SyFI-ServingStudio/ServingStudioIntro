@@ -2,12 +2,12 @@ import { Check, Copy, ExternalLink } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import s from "./SkillInstall.module.css";
 
-/* The agent skill that reads this library through the public API. The
-   `skills` CLI installs it from GitHub, finding it under public_api/. */
+/* The agent skills that read the public API. The `skills` CLI installs all
+   of them from GitHub, finding them under public_api/; each page links the
+   source of the one that does what the page does. */
 const SKILL_REPO =
   "https://github.com/SyFI-ServingStudio/ServingStudioSim/tree/main";
 const SKILL_INSTALL = `npx skills add ${SKILL_REPO}/public_api`;
-const SKILL_SOURCE = `${SKILL_REPO}/public_api/skills/servingstudio-kernel-performance`;
 
 const LABEL = { idle: "Copy", copied: "Copied", selected: "Selected" };
 const STATUS = {
@@ -17,10 +17,10 @@ const STATUS = {
     "Clipboard unavailable. The command is selected; copy it from the keyboard.",
 };
 
-/* A phrasing-content line, so it can sit inside the hero's description
-   paragraph. Without a clipboard (an insecure origin, a denied permission)
-   the button selects the command instead, ready for a manual copy. */
-export function SkillInstall() {
+/* One line under a hero's description. Without a clipboard (an insecure
+   origin, a denied permission) the button selects the command instead, ready
+   for a manual copy. */
+export function SkillInstall({ skill }) {
   const [state, setState] = useState("idle");
   const command = useRef(null);
   useEffect(() => {
@@ -41,7 +41,7 @@ export function SkillInstall() {
   };
 
   return (
-    <span className={s.install}>
+    <div className={s.install}>
       <span className={s.label}>Use it from your agent:</span>
       <span className={s.chip}>
         <code ref={command} className={s.command} tabIndex={0}>
@@ -56,13 +56,18 @@ export function SkillInstall() {
           {LABEL[state]}
         </button>
       </span>
-      <a className={s.source} href={SKILL_SOURCE} target="_blank" rel="noreferrer">
+      <a
+        className={s.source}
+        href={`${SKILL_REPO}/public_api/skills/${skill}`}
+        target="_blank"
+        rel="noreferrer"
+      >
         Skill source
         <ExternalLink size={14} aria-label="opens in a new tab" />
       </a>
       <span className="visually-hidden" role="status">
         {STATUS[state]}
       </span>
-    </span>
+    </div>
   );
 }

@@ -36,6 +36,7 @@ export function ModelCatalog({ catalog, unknownPreset }) {
         title="Models"
         description="Each model runs as an execution graph, which the simulator costs as a tree of measured kernels. Pick a model and how it is deployed to see how an iteration's time is put together, then time a batch of your own."
         image="hero-models.webp"
+        skill="servingstudio-timing-predict"
       />
 
       <div className={`wrap ${s.catalog}`}>

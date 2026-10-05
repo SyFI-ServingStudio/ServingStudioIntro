@@ -2,10 +2,20 @@
    (Models.module.css, KernelDetail.module.css); what is here is the layout
    and the run's numbers. */
 
+/* Under the hero, as the Models and Kernels lists sit under theirs. */
+.page {
+  --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  padding-bottom: 120px;
+}
+
+.page code {
+  font-family: var(--font-code);
+}
+
 .body {
   display: grid;
   gap: 28px;
-  padding-top: 32px;
+  padding-top: 48px;
 }
 
 /* The setup takes the width; the run panel sits beside it and stays in view

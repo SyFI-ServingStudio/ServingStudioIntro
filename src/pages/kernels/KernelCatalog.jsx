@@ -9,7 +9,6 @@ import {
   shortGpu,
 } from "./kernelData";
 import { openInPage, pageHref, setQuery, useQuery } from "../../url";
-import { SkillInstall } from "./SkillInstall";
 import { Tag, TagList, ToggleTag, tagColor } from "./Tag";
 import s from "./KernelCatalog.module.css";
 
@@ -125,16 +124,9 @@ export function KernelCatalog({ catalog, unknownKind }) {
       <PageHero
         compact
         title="Kernel Library"
-        description={
-          <>
-            <span className={s.lede}>
-              Explore measured GPU performance across the kernels, shapes, and
-              backends that power LLM serving.
-            </span>
-            <SkillInstall />
-          </>
-        }
+        description="Explore measured GPU performance across the kernels, shapes, and backends that power LLM serving."
         image="hero-kernels.webp"
+        skill="servingstudio-kernel-performance"
       />
       <div className={`wrap ${s.catalog}`}>
         {unknownKind && (
