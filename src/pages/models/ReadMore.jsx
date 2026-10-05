@@ -24,24 +24,25 @@ const LOADING = { margin: 0, padding: "48px 16px", textAlign: "center" };
 /* Whether this build has the viewer, and why not. */
 export const READ_MORE = ui;
 
-/* The Analyzer's routes for one prediction or run, as the viewer asks for
-   them, and where the data service forwards them. Nothing else is forwarded:
-   any other read fails with a message naming it, and is logged, so a gap
-   shows. */
-const ANALYZER = /^\/api\/analyzer\/v1\/(predictions|runs)\/(.+)$/;
+/* The Analyzer's routes for one prediction or run, and the kernel kinds'
+   DOC names by which the viewer names and groups kernels, as the viewer asks
+   for them; the data service forwards each under /analyzer. Nothing else is
+   forwarded: any other read fails with a message naming it, and is logged, so
+   a gap shows. */
+const ANALYZER = /^\/api\/analyzer\/v1\/((?:predictions|runs)\/.+|kernel-kinds)$/;
 
 export async function forwardedFetch(url, { signal } = {}) {
   const address = new URL(url, window.location.origin);
   const route = address.pathname.match(ANALYZER);
   if (!route) {
-    const detail = `The public site does not serve ${address.pathname}${address.search}: only the Analyzer's routes for one prediction or run are forwarded.`;
+    const detail = `The public site does not serve ${address.pathname}${address.search}: only the Analyzer's routes for one prediction or run, and its kernel kinds, are forwarded.`;
     console.error(`[read more] ${detail}`);
     return new Response(JSON.stringify({ detail }), {
       status: 404,
       headers: { "Content-Type": "application/json" },
     });
   }
-  const path = `${API_BASE}/analyzer/${route[1]}/${route[2]}`;
+  const path = `${API_BASE}/analyzer/${route[1]}`;
   return fetch(path + address.search, {
     signal,
     headers: { accept: "application/json" },
