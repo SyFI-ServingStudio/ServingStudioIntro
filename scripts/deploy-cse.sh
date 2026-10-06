@@ -27,9 +27,19 @@ npm run build
 # Written after the build, so only a deploy carries the internal host.
 sed "s|@CSE_PUBLIC_API_TARGET@|$target|" scripts/cse.htaccess > dist/.htaccess
 
-# --delete keeps the server an exact copy of the build. Owner, group and mode
-# are not copied: the directory is setgid tech_cs, and Apache needs files
-# world-readable whatever the local umask was.
-rsync -rlt --delete --itemize-changes \
+# --delete keeps the server an exact copy of the build, except logs/, the page
+# views public/visit.php writes there: excluded, so the sync neither copies nor
+# deletes it. Owner, group and mode are not copied: the directory is setgid
+# tech_cs, and Apache needs files world-readable whatever the local umask was.
+rsync -rlt --delete --itemize-changes --exclude=/logs/ \
   --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
   "$@" dist/ "$CSE_HOST:$CSE_DIR/"
+
+[[ " $* " == *" --dry-run "* || " $* " == *" -n "* ]] && exit 0
+# PHP runs as the web server's own user, so visit.php can write only into a
+# directory anyone may write. Sticky and unlistable (1733): it adds files but
+# cannot remove ours, and no one lists the logs. HTTP is denied the directory.
+# shellcheck disable=SC2029  # CSE_DIR is meant to expand here.
+ssh "$CSE_HOST" "mkdir -p '$CSE_DIR/logs' && chmod 1733 '$CSE_DIR/logs' \
+  && printf 'Require all denied\n' > '$CSE_DIR/logs/.htaccess' \
+  && chmod 644 '$CSE_DIR/logs/.htaccess'"

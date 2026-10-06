@@ -68,6 +68,18 @@ export CSE_PUBLIC_API_TARGET=http://<host>:<port>
 
 The deploy stops before building if it is not set.
 
+The site keeps its own page-view log, because the web server's access log is
+out of reach. On the first load and on each in-site navigation, the built site
+sends a beacon to `visit.php` (`src/visit.js`), which appends a JSON line to
+`logs/visits-<year>-<month>.jsonl` on the server: the UTC time, the client
+address, the page with its query, the referring site on the first load, and the
+user agent. The sync leaves `logs/` alone, and the deploy creates it writable by
+the web server and closed to HTTP. Read it over ssh:
+
+```bash
+ssh bicycle cat /cse/web/research/servingstudio/logs/visits-2026-10.jsonl
+```
+
 The Models, Simulate and Kernels pages use ServingStudio Sim's public API at
 `/api/public/v1` on the site's own origin: they read its catalogs, and Live
 predict and Simulate send it work (`POST /predict`, `POST /simulate`,

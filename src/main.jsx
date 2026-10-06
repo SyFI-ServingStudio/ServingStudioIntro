@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { pageFromPath } from "./hooks/useSiteNavigation";
+import { recordVisit } from "./visit";
 /* Layering, in the order it has to load: the reset flattens the browser
    defaults, the tokens define the scales, base styles the elements and the
    page frame, and each section's module comes after via its own component.
@@ -12,6 +13,7 @@ import "./styles/reset.css";
 import "./styles/tokens.css";
 import "./styles/base.css";
 
+recordVisit();
 const initialPage = pageFromPath(location.pathname) || "overview";
 const heroReady = prepareHero(initialPage, location.search);
 const pageReady = initialPage.startsWith("blog")

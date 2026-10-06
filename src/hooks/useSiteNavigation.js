@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { PAGES } from "../sitePages";
 import { notifyUrl } from "../url";
+import { recordVisit } from "../visit";
 
 const base = import.meta.env.BASE_URL;
 const pages = new Map([
@@ -73,6 +74,7 @@ export function useSiteNavigation(mainRef) {
           setPage(currentPage());
           if (push) notifyUrl();
         });
+        recordVisit();
         const hash = url.hash.slice(1);
         const target = hash ? document.getElementById(hash) : null;
         if (target) target.scrollIntoView({ behavior: "instant" });
