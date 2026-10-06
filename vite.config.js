@@ -7,9 +7,9 @@ import { PAGES } from "./src/sitePages.js";
 
 /* The Models, Simulate and Kernels pages use ServingStudio Sim's public API.
    Pages request /api/public/v1 from their own origin and the server in front of
-   the site forwards it: public/.htaccess on the CSE site, and here Vite, pointed
-   at the service by PUBLIC_API_PROXY_TARGET (`uv run python -m public_api serve`
-   in Sim). */
+   the site forwards it: on the CSE site the .htaccess scripts/deploy-cse.sh
+   writes, and here Vite, pointed at the service by PUBLIC_API_PROXY_TARGET
+   (`uv run python -m public_api serve` in Sim). */
 function publicApiProxy(env) {
   const target = env.PUBLIC_API_PROXY_TARGET;
   return target ? { "/api/public/v1": { target, changeOrigin: true } } : undefined;
