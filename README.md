@@ -55,15 +55,26 @@ npm run deploy:cse -- --dry-run # build, then list what would change
 ```
 
 The sync deletes server files that are not in the build, so put anything the
-server needs, such as an `.htaccess`, in `public/`.
+server needs in `public/`. The one exception is `.htaccess`: it names the
+internal host of the public API, which stays out of this public repository.
+`scripts/cse.htaccess` is its template, and the deploy writes `dist/.htaccess`
+from it after the build, filling in the environment variable
+`CSE_PUBLIC_API_TARGET`. Export the service's `http://HOST:PORT` in your shell
+profile:
+
+```bash
+export CSE_PUBLIC_API_TARGET=http://<host>:<port>
+```
+
+The deploy stops before building if it is not set.
 
 The Models, Simulate and Kernels pages use ServingStudio Sim's public API at
 `/api/public/v1` on the site's own origin: they read its catalogs, and Live
 predict and Simulate send it work (`POST /predict`, `POST /simulate`,
-`POST /workloads` for an uploaded trace). On the CSE site, `public/.htaccess`
-proxies that path to the service on cayenne (`10.158.48.50:5220`); if it is not
-running, the pages say the data service is not reachable. In development, point
-Vite at a running service:
+`POST /workloads` for an uploaded trace). On the CSE site, the deployed
+`.htaccess` proxies that path to the service at `CSE_PUBLIC_API_TARGET`; if it
+is not running, the pages say the data service is not reachable. In
+development, point Vite at a running service:
 
 ```bash
 PUBLIC_API_PROXY_TARGET=http://127.0.0.1:<port> npm run dev

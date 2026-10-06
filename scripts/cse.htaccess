@@ -1,0 +1,8 @@
+RewriteEngine On
+
+# Same-origin proxy for the Models, Simulate and Kernels pages' data. They
+# request /api/public/v1 from this site; ServingStudio Sim's public API
+# (`python -m public_api serve`) answers it on an internal host. The host is
+# kept out of this public repository: scripts/deploy-cse.sh fills in the
+# target below from CSE_PUBLIC_API_TARGET when it writes dist/.htaccess.
+RewriteRule ^api/public/v1(/.*)?$ @CSE_PUBLIC_API_TARGET@%{REQUEST_URI} [P,L]
