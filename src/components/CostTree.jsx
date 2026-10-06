@@ -177,7 +177,7 @@ export const backendLabels = {
 };
 
 /* The tree as rows, one per node, indented by depth, with its composition
-   (Sum, Max, Scale, Leaf) as a badge. A recorded tree (the example above) gives
+   (Sum, Max, Parallel, Scale, Leaf) as a badge. A recorded tree (the example above) gives
    each leaf its time and backends. A live tree may instead give a row:
    `toggle` and `open` to expand and collapse a composite, `note` under its
    name, `after` beside it, and `meta` in place of the recorded metrics. */

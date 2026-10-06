@@ -11,8 +11,8 @@ const PLACEHOLDERS = 8;
 
 /* The Analyzer's ranking of the batch Live predict last timed (`share`, the
    `kernel_time_share` /predict answers with), not recomputed here. By kernel:
-   every kernel call site, its layers summed, largest first; under a Max only
-   the slowest branch counts, so the shares add up to the whole time. By
+   every kernel call site, its layers summed, largest first; under a Max or a
+   Parallel only the slowest branch counts, so the shares add up to the whole time. By
    kernel type (`byKind`): the Analyzer's `kinds`, each opening on its call
    sites, which are the segments of that kind in the Analyzer's order. A call
    site is a slot name of the member's tree, which gives its kernel page. */
