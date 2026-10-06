@@ -389,6 +389,12 @@
   background: var(--cost-max-surface);
 }
 
+.row b[data-kind="Parallel"] {
+  color: var(--cost-parallel-ink);
+  border-color: var(--cost-parallel-border);
+  background: var(--cost-parallel-surface);
+}
+
 .row b[data-kind="Sum"] {
   color: var(--cost-sum-ink);
   border-color: var(--cost-sum-border);

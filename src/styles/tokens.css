@@ -20,6 +20,9 @@
   --cost-max-ink: #d9b57a;
   --cost-max-border: #6b5638;
   --cost-max-surface: #221d16;
+  --cost-parallel-ink: #e3a08a;
+  --cost-parallel-border: #74493c;
+  --cost-parallel-surface: #261a16;
   --diagram-stage: #141414;
   --diagram-group: #1e1e1e;
   --diagram-node: #292929;

@@ -17,7 +17,13 @@ import {
 import detail from "../kernels/KernelDetail.module.css";
 import s from "./Models.module.css";
 
-const KIND = { sum: "Sum", max: "Max", scale: "Scale", leaf: "Leaf" };
+const KIND = {
+  sum: "Sum",
+  max: "Max",
+  parallel: "Parallel",
+  scale: "Scale",
+  leaf: "Leaf",
+};
 // Past this many, a leaf's shape reads "…"; the kernel page has the rest.
 const SHAPE_ARGS = 5;
 

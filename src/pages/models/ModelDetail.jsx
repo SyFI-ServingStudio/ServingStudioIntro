@@ -229,6 +229,10 @@ function useKernelCatalog() {
 const LEGEND = [
   ["Sum", "Children run one after another. Their times add."],
   ["Max", "Children run in parallel, one per rank. The slowest sets the time."],
+  [
+    "Parallel",
+    "Children run at the same time on one GPU, on separate streams. The slowest sets the time.",
+  ],
   ["Scale", "One child repeated n times, such as the decoder layers. Costed once."],
   ["Leaf", "One kernel call, timed from measured rows. Opens the kernel's page."],
 ];
