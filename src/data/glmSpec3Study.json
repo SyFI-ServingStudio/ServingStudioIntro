@@ -82,7 +82,17 @@
       {
         "key": "hardware_optimal",
         "label": "Hardware limit",
-        "share": 0.2539283864703331
+        "share": 0.25392838647033317
+      },
+      {
+        "key": "hardware_gap",
+        "label": "Hardware peak gap",
+        "share": 0.03337749607534237
+      },
+      {
+        "key": "power_gap",
+        "label": "Power gap",
+        "share": 0.005280476630856983
       },
       {
         "key": "communication",
@@ -90,9 +100,9 @@
         "share": 0.09234520837047475
       },
       {
-        "key": "hardware_gap",
+        "key": "kernel_gap",
         "label": "Kernel efficiency gap",
-        "share": 0.6065160211901527
+        "share": 0.5678580484839533
       },
       {
         "key": "other",
@@ -107,7 +117,9 @@
         "kind": "nvfp4_fused_moe",
         "timeShare": 0.15794975328163294,
         "hardwareFloor": 0.5093214106681159,
-        "hardwareGap": 0.49067858933188413,
+        "hardwareGap": 0.06694751076067272,
+        "powerGap": 0.010591410609945088,
+        "kernelGap": 0.4131396679612663,
         "communication": 0.0
       },
       {
@@ -115,7 +127,9 @@
         "kind": "single_gemm",
         "timeShare": 0.056080515859292634,
         "hardwareFloor": 0.2909275491280555,
-        "hardwareGap": 0.7090724508719445,
+        "hardwareGap": 0.03824083342633744,
+        "powerGap": 0.006049879439621802,
+        "kernelGap": 0.6647817380059852,
         "communication": 0.0
       },
       {
@@ -123,7 +137,9 @@
         "kind": "nvfp4_fused_moe",
         "timeShare": 0.05264991776054432,
         "hardwareFloor": 0.5093214106681159,
-        "hardwareGap": 0.49067858933188413,
+        "hardwareGap": 0.06694751076067273,
+        "powerGap": 0.010591410609944882,
+        "kernelGap": 0.41313966796126655,
         "communication": 0.0
       },
       {
@@ -131,7 +147,9 @@
         "kind": "single_gemm",
         "timeShare": 0.04825134907998057,
         "hardwareFloor": 0.527528634054432,
-        "hardwareGap": 0.47247136594556804,
+        "hardwareGap": 0.06934075058536099,
+        "powerGap": 0.010970032389654806,
+        "kernelGap": 0.3921605829705523,
         "communication": 0.0
       },
       {
@@ -140,6 +158,8 @@
         "timeShare": 0.04003627208408729,
         "hardwareFloor": 0.0,
         "hardwareGap": 0.0,
+        "powerGap": 0.0,
+        "kernelGap": 0.0,
         "communication": 1.0
       },
       {
@@ -147,7 +167,9 @@
         "kind": "dsa_sparse_mla_attention",
         "timeShare": 0.03936907919126928,
         "hardwareFloor": 0.06225538357564056,
-        "hardwareGap": 0.9377446164243595,
+        "hardwareGap": 0.008183129306055935,
+        "powerGap": 0.0012946094868941044,
+        "kernelGap": 0.9282668776314095,
         "communication": 0.0
       },
       {
@@ -155,7 +177,9 @@
         "kind": "dsa_persistent_topk_decode",
         "timeShare": 0.034442775863155875,
         "hardwareFloor": 0.010407828091292327,
-        "hardwareGap": 0.9895921719087076,
+        "hardwareGap": 0.0013680520169434983,
+        "powerGap": 0.00021643225390425853,
+        "kernelGap": 0.9880076876378598,
         "communication": 0.0
       },
       {
@@ -163,7 +187,9 @@
         "kind": "single_gemm",
         "timeShare": 0.030742325382685443,
         "hardwareFloor": 0.2075999207116769,
-        "hardwareGap": 0.7924000792883231,
+        "hardwareGap": 0.02728787291217215,
+        "powerGap": 0.004317069647563184,
+        "kernelGap": 0.7607951367285877,
         "communication": 0.0
       },
       {
@@ -171,7 +197,9 @@
         "kind": "single_gemm",
         "timeShare": 0.029379772958846834,
         "hardwareFloor": 0.289167852983591,
-        "hardwareGap": 0.710832147016409,
+        "hardwareGap": 0.03800953100295712,
+        "powerGap": 0.006013286309970415,
+        "kernelGap": 0.6668093297034816,
         "communication": 0.0
       },
       {
@@ -179,7 +207,9 @@
         "kind": "dsa_paged_mqa_logits_decode",
         "timeShare": 0.026591094582389046,
         "hardwareFloor": 0.4515700110935637,
-        "hardwareGap": 0.5484299889064363,
+        "hardwareGap": 0.05935640549103651,
+        "powerGap": 0.009390462105952842,
+        "kernelGap": 0.47968312130944696,
         "communication": 0.0
       }
     ]

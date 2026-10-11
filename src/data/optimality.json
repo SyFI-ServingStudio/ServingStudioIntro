@@ -25,8 +25,8 @@
     },
     {
       "name": "Batching gap",
-      "gpuSeconds": 2.109258699599406,
-      "frac": 0.10217507765289496,
+      "gpuSeconds": 2.1092586969893707,
+      "frac": 0.10217507752646166,
       "necessary": false,
       "description": "The modeled gap between the observed batches and best profiled kernel throughput with batching unconstrained.",
       "key": "batching"
@@ -41,10 +41,26 @@
     },
     {
       "name": "Kernel efficiency gap",
-      "gpuSeconds": 4.41994477643036,
-      "frac": 0.21410754443684396,
+      "gpuSeconds": 0.1596969018747659,
+      "frac": 0.00773591373740922,
       "necessary": false,
-      "description": "The difference between profiled best kernel rates and the matching hardware peak.",
+      "description": "The difference between the modeled kernels and a GEMM or memory copy running back to back on the same GPU.",
+      "key": "kernel_gap"
+    },
+    {
+      "name": "Power gap",
+      "gpuSeconds": 1.548434706590382,
+      "frac": 0.07500807578338195,
+      "necessary": false,
+      "description": "The difference between that sustained rate and the fastest short measured kernel; back-to-back work hits the power limit and runs at a lower clock.",
+      "key": "power_gap"
+    },
+    {
+      "name": "Hardware peak gap",
+      "gpuSeconds": 2.7118131705752475,
+      "frac": 0.1313635550424861,
+      "necessary": false,
+      "description": "The difference between the fastest measured GEMM or memory copy and the matching hardware peak.",
       "key": "hardware_gap"
     },
     {

@@ -1416,6 +1416,8 @@
 
 .optimalityBreakdown {
   --optimality-hardware: #99baff;
+  --optimality-peak-gap: #89aae8;
+  --optimality-power-gap: #9a9be0;
   --optimality-communication: #7895c9;
   --optimality-gap: #596d8d;
   --optimality-imbalance: #414955;
@@ -1458,6 +1460,18 @@
 .optimalityBar [data-bucket="hardware_gap"],
 .kernelOptimalityBar [data-bucket="hardware_gap"],
 .optimalityLegend [data-bucket="hardware_gap"] {
+  background: var(--optimality-peak-gap);
+}
+
+.optimalityBar [data-bucket="power_gap"],
+.kernelOptimalityBar [data-bucket="power_gap"],
+.optimalityLegend [data-bucket="power_gap"] {
+  background: var(--optimality-power-gap);
+}
+
+.optimalityBar [data-bucket="kernel_gap"],
+.kernelOptimalityBar [data-bucket="kernel_gap"],
+.optimalityLegend [data-bucket="kernel_gap"] {
   background: var(--optimality-gap);
 }
 
@@ -1507,6 +1521,8 @@
 
 .kernelOptimality {
   --optimality-hardware: #99baff;
+  --optimality-peak-gap: #89aae8;
+  --optimality-power-gap: #9a9be0;
   --optimality-communication: #7895c9;
   --optimality-gap: #596d8d;
 
