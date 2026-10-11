@@ -699,7 +699,7 @@ const rows = [
     id: "optimization",
     name: "Optimization insights.",
     claim: "Break down the gap to a model-derived lower bound.",
-    body: "Every simulated GPU second is assigned to a named category and compared with a theoretical lower bound derived from the model’s computation and data movement. The breakdown separates required work from modeled gaps in batching, kernel efficiency, distance from the hardware peak, fusion, communication, load balance, and idle time.",
+    body: "Every simulated GPU second is assigned to a named category and compared with a theoretical lower bound derived from the model’s computation and data movement. The breakdown separates required work from modeled gaps in batching, kernel efficiency, power-limited clocks, distance from the hardware peak, fusion, communication, load balance, and idle time.",
     note: `Simulated workload: ${optimality.setup}. ${optimality.workload}.`,
     figure: <OptimalityFigure />,
   },

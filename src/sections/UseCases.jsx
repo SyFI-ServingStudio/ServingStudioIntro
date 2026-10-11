@@ -408,7 +408,7 @@ function OptimalityBreakdown() {
       <div
         className={s.optimalityBar}
         role="img"
-        aria-label="GPU time divided among the hardware limit, hardware peak gap, communication, kernel efficiency gap, and rank imbalance"
+        aria-label="GPU time divided among the hardware limit, hardware peak gap, power gap, communication, kernel efficiency gap, and rank imbalance"
       >
         {study.optimality.buckets.map((item) => (
           <i
@@ -449,9 +449,9 @@ function KernelOptimalityRow({ item }) {
           1,
         )}% hardware limit, ${(item.hardwareGap * 100).toFixed(
           1,
-        )}% hardware peak gap, ${(item.communication * 100).toFixed(
-          1,
-        )}% communication, ${(item.kernelGap * 100).toFixed(
+        )}% hardware peak gap, ${(item.powerGap * 100).toFixed(1)}% power gap, ${(
+          item.communication * 100
+        ).toFixed(1)}% communication, ${(item.kernelGap * 100).toFixed(
           1,
         )}% kernel efficiency gap`}
       >
@@ -465,6 +465,12 @@ function KernelOptimalityRow({ item }) {
           <i
             data-bucket="hardware_gap"
             style={{ "--bucket-width": `${item.hardwareGap * 100}%` }}
+          />
+        )}
+        {item.powerGap > 0 && (
+          <i
+            data-bucket="power_gap"
+            style={{ "--bucket-width": `${item.powerGap * 100}%` }}
           />
         )}
         {item.communication > 0 && (
@@ -621,7 +627,7 @@ export function UseCases() {
     study.optimality.hardwareOptimalShare * 100
   ).toFixed(
     1,
-  )}% of GPU time. The largest opportunity is kernel efficiency: the gap between the modeled kernels and the fastest GEMM or memory copy measured on a B200 accounts for ${optimalityShares.kernel_gap.toFixed(1)}%, while the gap from those fastest kernels to the spec-sheet peak is only ${optimalityShares.hardware_gap.toFixed(1)}%. Communication accounts for ${optimalityShares.communication.toFixed(1)}% and uneven work across GPU ranks for ${optimalityShares.other.toFixed(1)}%.`;
+  )}% of GPU time. The largest opportunity is kernel efficiency: the gap between the modeled kernels and a GEMM or memory copy running back to back on a B200 accounts for ${optimalityShares.kernel_gap.toFixed(1)}%. The power limit, which keeps that sustained rate below the clock a short measured kernel reaches, adds ${optimalityShares.power_gap.toFixed(1)}%, and the gap from the fastest measured kernels to the spec-sheet peak is only ${optimalityShares.hardware_gap.toFixed(1)}%. Communication accounts for ${optimalityShares.communication.toFixed(1)}% and uneven work across GPU ranks for ${optimalityShares.other.toFixed(1)}%.`;
   const concurrencyConclusion = `Among the tested points, concurrency ${bestConcurrency.concurrency} is the highest-throughput choice that stays above the 80 tok/s per-request target: ${formatNumber(bestConcurrency.outputThroughput)} tok/s total at ${formatNumber(bestConcurrency.perRequestDecode)} tok/s per request.${
     fasterPointBelowTarget
       ? ` Concurrency ${fasterPointBelowTarget.concurrency} reaches ${formatNumber(fasterPointBelowTarget.outputThroughput)} tok/s, but per-request speed drops to ${formatNumber(fasterPointBelowTarget.perRequestDecode)} tok/s—below the target.`
@@ -753,7 +759,7 @@ export function UseCases() {
                 intro="I’ll hold the iteration shape fixed and compare the modeled cost of each kernel with its B200 hardware limit."
                 execution="Running optimality analysis…"
                 executionComplete="Optimality analysis complete"
-                executionDetail="The Analyzer split the 128K iteration’s GPU time into the hardware limit and the four sources of overhead above it."
+                executionDetail="The Analyzer split the 128K iteration’s GPU time into the hardware limit and the five sources of overhead above it."
                 chart={
                   <StudyFigure
                     title="Distance from the hardware limit at this batch shape"

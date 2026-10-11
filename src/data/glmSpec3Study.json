@@ -90,6 +90,11 @@
         "share": 0.03337749607534237
       },
       {
+        "key": "power_gap",
+        "label": "Power gap",
+        "share": 0.005280476630856983
+      },
+      {
         "key": "communication",
         "label": "Communication",
         "share": 0.09234520837047475
@@ -97,7 +102,7 @@
       {
         "key": "kernel_gap",
         "label": "Kernel efficiency gap",
-        "share": 0.5731385251148102
+        "share": 0.5678580484839533
       },
       {
         "key": "other",
@@ -113,7 +118,8 @@
         "timeShare": 0.15794975328163294,
         "hardwareFloor": 0.5093214106681159,
         "hardwareGap": 0.06694751076067272,
-        "kernelGap": 0.42373107857121134,
+        "powerGap": 0.010591410609945088,
+        "kernelGap": 0.4131396679612663,
         "communication": 0.0
       },
       {
@@ -122,7 +128,8 @@
         "timeShare": 0.056080515859292634,
         "hardwareFloor": 0.2909275491280555,
         "hardwareGap": 0.03824083342633744,
-        "kernelGap": 0.6708316174456069,
+        "powerGap": 0.006049879439621802,
+        "kernelGap": 0.6647817380059852,
         "communication": 0.0
       },
       {
@@ -131,7 +138,8 @@
         "timeShare": 0.05264991776054432,
         "hardwareFloor": 0.5093214106681159,
         "hardwareGap": 0.06694751076067273,
-        "kernelGap": 0.4237310785712114,
+        "powerGap": 0.010591410609944882,
+        "kernelGap": 0.41313966796126655,
         "communication": 0.0
       },
       {
@@ -140,7 +148,8 @@
         "timeShare": 0.04825134907998057,
         "hardwareFloor": 0.527528634054432,
         "hardwareGap": 0.06934075058536099,
-        "kernelGap": 0.4031306153602071,
+        "powerGap": 0.010970032389654806,
+        "kernelGap": 0.3921605829705523,
         "communication": 0.0
       },
       {
@@ -149,6 +158,7 @@
         "timeShare": 0.04003627208408729,
         "hardwareFloor": 0.0,
         "hardwareGap": 0.0,
+        "powerGap": 0.0,
         "kernelGap": 0.0,
         "communication": 1.0
       },
@@ -158,7 +168,8 @@
         "timeShare": 0.03936907919126928,
         "hardwareFloor": 0.06225538357564056,
         "hardwareGap": 0.008183129306055935,
-        "kernelGap": 0.9295614871183034,
+        "powerGap": 0.0012946094868941044,
+        "kernelGap": 0.9282668776314095,
         "communication": 0.0
       },
       {
@@ -167,7 +178,8 @@
         "timeShare": 0.034442775863155875,
         "hardwareFloor": 0.010407828091292327,
         "hardwareGap": 0.0013680520169434983,
-        "kernelGap": 0.9882241198917642,
+        "powerGap": 0.00021643225390425853,
+        "kernelGap": 0.9880076876378598,
         "communication": 0.0
       },
       {
@@ -176,7 +188,8 @@
         "timeShare": 0.030742325382685443,
         "hardwareFloor": 0.2075999207116769,
         "hardwareGap": 0.02728787291217215,
-        "kernelGap": 0.765112206376151,
+        "powerGap": 0.004317069647563184,
+        "kernelGap": 0.7607951367285877,
         "communication": 0.0
       },
       {
@@ -185,7 +198,8 @@
         "timeShare": 0.029379772958846834,
         "hardwareFloor": 0.289167852983591,
         "hardwareGap": 0.03800953100295712,
-        "kernelGap": 0.672822616013452,
+        "powerGap": 0.006013286309970415,
+        "kernelGap": 0.6668093297034816,
         "communication": 0.0
       },
       {
@@ -194,7 +208,8 @@
         "timeShare": 0.026591094582389046,
         "hardwareFloor": 0.4515700110935637,
         "hardwareGap": 0.05935640549103651,
-        "kernelGap": 0.4890735834153998,
+        "powerGap": 0.009390462105952842,
+        "kernelGap": 0.47968312130944696,
         "communication": 0.0
       }
     ]
