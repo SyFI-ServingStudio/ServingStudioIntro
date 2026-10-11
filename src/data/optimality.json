@@ -41,10 +41,18 @@
     },
     {
       "name": "Kernel efficiency gap",
-      "gpuSeconds": 4.41994477643036,
-      "frac": 0.21410754443684396,
+      "gpuSeconds": 1.708131608465148,
+      "frac": 0.08274398952079118,
       "necessary": false,
-      "description": "The difference between profiled best kernel rates and the matching hardware peak.",
+      "description": "The difference between the modeled kernels and the fastest GEMM or memory copy measured on the same GPU.",
+      "key": "kernel_gap"
+    },
+    {
+      "name": "Hardware peak gap",
+      "gpuSeconds": 2.7118131705752475,
+      "frac": 0.1313635550424861,
+      "necessary": false,
+      "description": "The difference between the fastest measured GEMM or memory copy and the matching hardware peak.",
       "key": "hardware_gap"
     },
     {

@@ -82,7 +82,12 @@
       {
         "key": "hardware_optimal",
         "label": "Hardware limit",
-        "share": 0.2539283864703331
+        "share": 0.25392838647033317
+      },
+      {
+        "key": "hardware_gap",
+        "label": "Hardware peak gap",
+        "share": 0.03337749607534237
       },
       {
         "key": "communication",
@@ -90,9 +95,9 @@
         "share": 0.09234520837047475
       },
       {
-        "key": "hardware_gap",
+        "key": "kernel_gap",
         "label": "Kernel efficiency gap",
-        "share": 0.6065160211901527
+        "share": 0.5731385251148102
       },
       {
         "key": "other",
@@ -107,7 +112,8 @@
         "kind": "nvfp4_fused_moe",
         "timeShare": 0.15794975328163294,
         "hardwareFloor": 0.5093214106681159,
-        "hardwareGap": 0.49067858933188413,
+        "hardwareGap": 0.06694751076067272,
+        "kernelGap": 0.42373107857121134,
         "communication": 0.0
       },
       {
@@ -115,7 +121,8 @@
         "kind": "single_gemm",
         "timeShare": 0.056080515859292634,
         "hardwareFloor": 0.2909275491280555,
-        "hardwareGap": 0.7090724508719445,
+        "hardwareGap": 0.03824083342633744,
+        "kernelGap": 0.6708316174456069,
         "communication": 0.0
       },
       {
@@ -123,7 +130,8 @@
         "kind": "nvfp4_fused_moe",
         "timeShare": 0.05264991776054432,
         "hardwareFloor": 0.5093214106681159,
-        "hardwareGap": 0.49067858933188413,
+        "hardwareGap": 0.06694751076067273,
+        "kernelGap": 0.4237310785712114,
         "communication": 0.0
       },
       {
@@ -131,7 +139,8 @@
         "kind": "single_gemm",
         "timeShare": 0.04825134907998057,
         "hardwareFloor": 0.527528634054432,
-        "hardwareGap": 0.47247136594556804,
+        "hardwareGap": 0.06934075058536099,
+        "kernelGap": 0.4031306153602071,
         "communication": 0.0
       },
       {
@@ -140,6 +149,7 @@
         "timeShare": 0.04003627208408729,
         "hardwareFloor": 0.0,
         "hardwareGap": 0.0,
+        "kernelGap": 0.0,
         "communication": 1.0
       },
       {
@@ -147,7 +157,8 @@
         "kind": "dsa_sparse_mla_attention",
         "timeShare": 0.03936907919126928,
         "hardwareFloor": 0.06225538357564056,
-        "hardwareGap": 0.9377446164243595,
+        "hardwareGap": 0.008183129306055935,
+        "kernelGap": 0.9295614871183034,
         "communication": 0.0
       },
       {
@@ -155,7 +166,8 @@
         "kind": "dsa_persistent_topk_decode",
         "timeShare": 0.034442775863155875,
         "hardwareFloor": 0.010407828091292327,
-        "hardwareGap": 0.9895921719087076,
+        "hardwareGap": 0.0013680520169434983,
+        "kernelGap": 0.9882241198917642,
         "communication": 0.0
       },
       {
@@ -163,7 +175,8 @@
         "kind": "single_gemm",
         "timeShare": 0.030742325382685443,
         "hardwareFloor": 0.2075999207116769,
-        "hardwareGap": 0.7924000792883231,
+        "hardwareGap": 0.02728787291217215,
+        "kernelGap": 0.765112206376151,
         "communication": 0.0
       },
       {
@@ -171,7 +184,8 @@
         "kind": "single_gemm",
         "timeShare": 0.029379772958846834,
         "hardwareFloor": 0.289167852983591,
-        "hardwareGap": 0.710832147016409,
+        "hardwareGap": 0.03800953100295712,
+        "kernelGap": 0.672822616013452,
         "communication": 0.0
       },
       {
@@ -179,7 +193,8 @@
         "kind": "dsa_paged_mqa_logits_decode",
         "timeShare": 0.026591094582389046,
         "hardwareFloor": 0.4515700110935637,
-        "hardwareGap": 0.5484299889064363,
+        "hardwareGap": 0.05935640549103651,
+        "kernelGap": 0.4890735834153998,
         "communication": 0.0
       }
     ]
