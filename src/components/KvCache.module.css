@@ -1,0 +1,396 @@
+/* A deployment's KV cache: the Models page's card of the arch's layout, and
+   the Simulate page's pool capacity. Numbers and tables follow the Models
+   page's stats and the Simulate page's run table. */
+
+.card {
+  display: grid;
+  gap: 16px;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.card h2 {
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.lead {
+  max-width: 72ch;
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  line-height: 1.55;
+}
+
+.pool {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.pool + .pool {
+  padding-top: 20px;
+  border-top: 1px solid var(--c-line-100);
+}
+
+.pool h3 {
+  color: var(--c-ink-1600);
+  font-size: var(--fs-md);
+  font-weight: 500;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 40px;
+}
+
+.stats div {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+}
+
+.stats dt {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+}
+
+.stats dd {
+  color: var(--ink);
+  font-size: var(--fs-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.stats dd span {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  letter-spacing: 0;
+}
+
+.stats dd.secondary {
+  color: var(--c-ink-1300);
+  font-size: var(--fs-lg);
+  line-height: var(--fs-num);
+}
+
+.stats dd[data-short] {
+  color: var(--cost-max-ink);
+}
+
+.warn {
+  max-width: 72ch;
+  color: var(--cost-max-ink);
+  font-size: var(--fs-fine);
+  line-height: 1.55;
+}
+
+/* One request, part by part: a bar of shares over the table that names
+   them. */
+.request {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.request figcaption {
+  color: var(--muted);
+  font-size: var(--fs-fine);
+}
+
+.request figcaption b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* The context length picker: the slider and the length it stands at on
+   the left, what one request holds there on the right, the parts' shares
+   under both. */
+.picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px 40px;
+  padding: 16px 18px;
+  border: 1px solid var(--c-line-100);
+  border-radius: var(--r-md);
+  background: var(--c-surface-200);
+  --bar-gap: var(--c-surface-200);
+}
+
+.picker .shares {
+  grid-column: 1 / -1;
+}
+
+.length,
+.total {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.total {
+  justify-items: end;
+  text-align: right;
+}
+
+.pickerLabel {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+}
+
+.pickerValue {
+  color: var(--ink);
+  font-size: var(--fs-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.pickerValue span {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  letter-spacing: 0;
+}
+
+.length input {
+  width: 100%;
+  min-width: 0;
+  margin: 6px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.length input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ends {
+  display: flex;
+  justify-content: space-between;
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The share bar between its labels: even parts are named above it, odd
+   ones below, each tied to its segment's middle by a short leader. */
+.shares {
+  position: relative;
+  min-width: 0;
+  padding-block: 26px;
+}
+
+.shareLabel {
+  position: absolute;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  white-space: nowrap;
+  transition:
+    left 160ms ease-out,
+    transform 160ms ease-out;
+}
+
+.shareLabel[data-side="above"] {
+  top: 0;
+}
+
+.shareLabel[data-side="below"] {
+  bottom: 0;
+}
+
+.shareLabel code {
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.leader {
+  position: absolute;
+  width: 1px;
+  height: 7px;
+  background: var(--c-line-500);
+  transition: left 160ms ease-out;
+}
+
+.leader[data-side="above"] {
+  top: 19px;
+}
+
+.leader[data-side="below"] {
+  bottom: 19px;
+}
+
+.bar {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  border-radius: var(--r-xs);
+}
+
+.bar span {
+  flex: none;
+  min-width: 3px;
+  box-shadow: inset -2px 0 0 var(--bar-gap, var(--surface));
+  transition: width 160ms ease-out;
+}
+
+.bar span:last-child {
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shareLabel,
+  .leader,
+  .bar span {
+    transition: none;
+  }
+}
+
+[data-tone="0"] {
+  background: var(--accent);
+}
+
+[data-tone="1"] {
+  background: var(--cost-sum-ink);
+}
+
+[data-tone="2"] {
+  background: var(--cost-max-ink);
+}
+
+[data-tone="3"] {
+  background: var(--cost-scale-ink);
+}
+
+[data-tone="4"] {
+  background: var(--cost-parallel-ink);
+}
+
+/* The tables scroll inside their own box on a narrow screen. */
+.table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+}
+
+.table thead th {
+  padding: 0 16px 8px 0;
+  color: var(--subtle);
+  font-weight: 400;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 8px 16px 8px 0;
+  color: var(--c-ink-1300);
+  white-space: nowrap;
+}
+
+/* The Models page's one table of the parts spans the card and scrolls in
+   its own box; a rule parts what the slider moves from the layout's facts. */
+.scroll {
+  overflow-x: auto;
+}
+
+.table.wide {
+  display: table;
+  min-width: 760px;
+  overflow: visible;
+}
+
+.table .layout {
+  padding-left: 16px;
+  border-left: 1px solid var(--c-line-100);
+}
+
+.table td.strong {
+  color: var(--ink);
+}
+
+.table td small {
+  display: block;
+  margin-top: 2px;
+  color: var(--subtle);
+}
+
+/* Words wrap; numbers stay on one line. */
+.table td:not(.num) {
+  min-width: 12ch;
+  white-space: normal;
+}
+
+.table tbody tr {
+  border-top: 1px solid var(--c-line-100);
+}
+
+.table tbody th {
+  padding: 8px 16px 8px 0;
+  font-weight: 400;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table tbody th i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 2px;
+  vertical-align: 0;
+}
+
+.table code {
+  color: var(--c-ink-1600);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.table .num {
+  text-align: right;
+}
+
+.note {
+  max-width: 72ch;
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+  line-height: 1.55;
+}
+
+.details summary {
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  cursor: pointer;
+}
+
+.details[open] summary {
+  margin-bottom: 12px;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .picker {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .total {
+    justify-items: start;
+    text-align: left;
+  }
+}

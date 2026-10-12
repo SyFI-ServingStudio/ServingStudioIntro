@@ -18,6 +18,7 @@ import { CostTreeExplorer } from "./CostTreeExplorer";
 import { StatusLine, UnmatchedNotice } from "./StatusParts";
 import { LivePredict } from "./LivePredict";
 import { MemberPicker } from "./MemberPicker";
+import { KvLayout } from "../../components/KvCache";
 import detail from "../kernels/KernelDetail.module.css";
 import s from "./Models.module.css";
 
@@ -128,6 +129,14 @@ function Explorer({ catalog, checkpoint, preset }) {
         )}
         <MemberStatus member={member} workload={workload} />
       </section>
+
+      {tree.data?.kv_cache && (
+        <KvLayout
+          kv={tree.data.kv_cache}
+          partitions={tree.data.predict?.groups}
+          maxModelLen={member.predict?.max_model_len}
+        />
+      )}
 
       <Legend />
 

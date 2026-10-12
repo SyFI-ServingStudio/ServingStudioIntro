@@ -1,0 +1,424 @@
+{
+  "glm52_fp8_hp": {
+    "partitions": 8,
+    "gpu_name": "NVIDIA H200",
+    "attention_shards": 1,
+    "layout": {
+      "parts": [
+        {
+          "name": "mla",
+          "growth": {
+            "kind": "per_token",
+            "tokens_per_entry": 1
+          },
+          "bytes_per_entry": 89856,
+          "prefix_reusable": true,
+          "padded_bytes_per_entry": null,
+          "copies": null
+        },
+        {
+          "name": "indexer",
+          "growth": {
+            "kind": "per_token",
+            "tokens_per_entry": 1
+          },
+          "bytes_per_entry": 2772,
+          "prefix_reusable": true,
+          "padded_bytes_per_entry": null,
+          "copies": null
+        }
+      ],
+      "engine": {
+        "block_tokens": null,
+        "fixed_device_bytes": 0
+      }
+    },
+    "options": {
+      "kv_overhead": "vllm",
+      "prefix_caching": true,
+      "prefix_resume_points": "prompt_end",
+      "prefix_resume_interval_tokens": null,
+      "max_in_flight_tokens": 16384
+    },
+    "accounting": {
+      "budget_bytes": 5630000000,
+      "charged_fixed_device_bytes": 0,
+      "bytes_per_unit": 36,
+      "capacity_units": 156388888,
+      "reserved_units": 0,
+      "charged_block_tokens": 1,
+      "parts": [
+        {
+          "name": "mla",
+          "charged_bytes_per_entry": 89856,
+          "units_per_entry": 2496,
+          "charged_copies": 1,
+          "align_copy": null
+        },
+        {
+          "name": "indexer",
+          "charged_bytes_per_entry": 2772,
+          "units_per_entry": 77,
+          "charged_copies": 1,
+          "align_copy": null
+        }
+      ]
+    },
+    "result": {
+      "max_model_len": 1048576,
+      "units_per_request_at_max_model_len": 2697986048,
+      "request_parts": [
+        {
+          "name": "mla",
+          "tokens_held": 1048576,
+          "entries": 1048576,
+          "bytes": 94220845056
+        },
+        {
+          "name": "indexer",
+          "tokens_held": 1048576,
+          "entries": 1048576,
+          "bytes": 2906652672
+        }
+      ],
+      "max_concurrency_at_max_model_len": 0.05796504697121399,
+      "other_kv_overhead": "none",
+      "other_max_concurrency_at_max_model_len": 0.05796504697121399,
+      "capacity_tokens": 60780
+    }
+  },
+  "glm52_dp": {
+    "partitions": 4,
+    "gpu_name": "NVIDIA B200",
+    "attention_shards": 1,
+    "layout": {
+      "parts": [
+        {
+          "name": "mla",
+          "growth": {
+            "kind": "per_token",
+            "tokens_per_entry": 1
+          },
+          "bytes_per_entry": 44928,
+          "prefix_reusable": true,
+          "padded_bytes_per_entry": null,
+          "copies": null
+        },
+        {
+          "name": "indexer",
+          "growth": {
+            "kind": "per_token",
+            "tokens_per_entry": 1
+          },
+          "bytes_per_entry": 2772,
+          "prefix_reusable": true,
+          "padded_bytes_per_entry": null,
+          "copies": null
+        }
+      ],
+      "engine": {
+        "block_tokens": null,
+        "fixed_device_bytes": 0
+      }
+    },
+    "options": {
+      "kv_overhead": "vllm",
+      "prefix_caching": true,
+      "prefix_resume_points": "prompt_end",
+      "prefix_resume_interval_tokens": null,
+      "max_in_flight_tokens": 4096
+    },
+    "accounting": {
+      "budget_bytes": 19598791680,
+      "charged_fixed_device_bytes": 0,
+      "bytes_per_unit": 36,
+      "capacity_units": 544410880,
+      "reserved_units": 0,
+      "charged_block_tokens": 1,
+      "parts": [
+        {
+          "name": "mla",
+          "charged_bytes_per_entry": 44928,
+          "units_per_entry": 1248,
+          "charged_copies": 1,
+          "align_copy": null
+        },
+        {
+          "name": "indexer",
+          "charged_bytes_per_entry": 2772,
+          "units_per_entry": 77,
+          "charged_copies": 1,
+          "align_copy": null
+        }
+      ]
+    },
+    "result": {
+      "max_model_len": 8192,
+      "units_per_request_at_max_model_len": 10854400,
+      "request_parts": [
+        {
+          "name": "mla",
+          "tokens_held": 8192,
+          "entries": 8192,
+          "bytes": 368050176
+        },
+        {
+          "name": "indexer",
+          "tokens_held": 8192,
+          "entries": 8192,
+          "bytes": 22708224
+        }
+      ],
+      "max_concurrency_at_max_model_len": 50.15577830188679,
+      "other_kv_overhead": "none",
+      "other_max_concurrency_at_max_model_len": 50.15577830188679,
+      "capacity_tokens": 410876
+    }
+  },
+  "glm53_flash_tp": {
+    "partitions": 1,
+    "gpu_name": "NVIDIA B200",
+    "attention_shards": 4,
+    "layout": {
+      "parts": [
+        {
+          "name": "mla",
+          "growth": {
+            "kind": "per_token",
+            "tokens_per_entry": 1
+          },
+          "bytes_per_entry": 22528,
+          "prefix_reusable": true,
+          "padded_bytes_per_entry": null,
+          "copies": null
+        },
+        {
+          "name": "indexer",
+          "growth": {
+            "kind": "per_token",
+            "tokens_per_entry": 4
+          },
+          "bytes_per_entry": 5808,
+          "prefix_reusable": true,
+          "padded_bytes_per_entry": null,
+          "copies": null
+        },
+        {
+          "name": "kda",
+          "growth": {
+            "kind": "per_request"
+          },
+          "bytes_per_entry": 147619840,
+          "prefix_reusable": true,
+          "padded_bytes_per_entry": 208721920,
+          "copies": null
+        },
+        {
+          "name": "kpool_tail",
+          "growth": {
+            "kind": "per_request"
+          },
+          "bytes_per_entry": 90112,
+          "prefix_reusable": false,
+          "padded_bytes_per_entry": 52180480,
+          "copies": null
+        }
+      ],
+      "engine": {
+        "block_tokens": 2176,
+        "fixed_device_bytes": 52180480
+      }
+    },
+    "options": {
+      "kv_overhead": "vllm",
+      "prefix_caching": true,
+      "prefix_resume_points": "prompt_end",
+      "prefix_resume_interval_tokens": null,
+      "max_in_flight_tokens": 4096
+    },
+    "accounting": {
+      "budget_bytes": 274519999996,
+      "charged_fixed_device_bytes": 52180480,
+      "bytes_per_unit": 176,
+      "capacity_units": 1559476247,
+      "reserved_units": 0,
+      "charged_block_tokens": 2176,
+      "parts": [
+        {
+          "name": "mla",
+          "charged_bytes_per_entry": 22528,
+          "units_per_entry": 128,
+          "charged_copies": 1,
+          "align_copy": null
+        },
+        {
+          "name": "indexer",
+          "charged_bytes_per_entry": 5808,
+          "units_per_entry": 33,
+          "charged_copies": 1,
+          "align_copy": null
+        },
+        {
+          "name": "kda",
+          "charged_bytes_per_entry": 208721920,
+          "units_per_entry": 1185920,
+          "charged_copies": 2,
+          "align_copy": true
+        },
+        {
+          "name": "kpool_tail",
+          "charged_bytes_per_entry": 52180480,
+          "units_per_entry": 296480,
+          "charged_copies": 1,
+          "align_copy": false
+        }
+      ]
+    },
+    "result": {
+      "max_model_len": 8192,
+      "units_per_request_at_max_model_len": 3854240,
+      "request_parts": [
+        {
+          "name": "mla",
+          "tokens_held": 8704,
+          "entries": 8704,
+          "bytes": 196083712
+        },
+        {
+          "name": "indexer",
+          "tokens_held": 8704,
+          "entries": 2176,
+          "bytes": 12638208
+        },
+        {
+          "name": "kda",
+          "tokens_held": null,
+          "entries": 2,
+          "bytes": 417443840
+        },
+        {
+          "name": "kpool_tail",
+          "tokens_held": null,
+          "entries": 1,
+          "bytes": 52180480
+        }
+      ],
+      "max_concurrency_at_max_model_len": 404.613165500851,
+      "other_kv_overhead": "none",
+      "other_max_concurrency_at_max_model_len": 797.6659014435951,
+      "capacity_tokens": null
+    }
+  },
+  "inkling": {
+    "partitions": 1,
+    "gpu_name": "NVIDIA B200",
+    "attention_shards": 8,
+    "layout": {
+      "parts": [
+        {
+          "name": "global_attn",
+          "growth": {
+            "kind": "per_token",
+            "tokens_per_entry": 1
+          },
+          "bytes_per_entry": 45056,
+          "prefix_reusable": true,
+          "padded_bytes_per_entry": null,
+          "copies": null
+        },
+        {
+          "name": "swa_attn",
+          "growth": {
+            "kind": "sliding_window",
+            "window_tokens": 512
+          },
+          "bytes_per_entry": 450560,
+          "prefix_reusable": true,
+          "padded_bytes_per_entry": null,
+          "copies": null
+        },
+        {
+          "name": "sconv",
+          "growth": {
+            "kind": "sliding_window",
+            "window_tokens": 4
+          },
+          "bytes_per_entry": 2117632,
+          "prefix_reusable": true,
+          "padded_bytes_per_entry": 2162688,
+          "copies": null
+        }
+      ],
+      "engine": {
+        "block_tokens": null,
+        "fixed_device_bytes": 0
+      }
+    },
+    "options": {
+      "kv_overhead": "vllm",
+      "prefix_caching": true,
+      "prefix_resume_points": "prompt_end",
+      "prefix_resume_interval_tokens": null,
+      "max_in_flight_tokens": 4096
+    },
+    "accounting": {
+      "budget_bytes": 634366400000,
+      "charged_fixed_device_bytes": 0,
+      "bytes_per_unit": 45056,
+      "capacity_units": 14079509,
+      "reserved_units": 0,
+      "charged_block_tokens": 1,
+      "parts": [
+        {
+          "name": "global_attn",
+          "charged_bytes_per_entry": 45056,
+          "units_per_entry": 1,
+          "charged_copies": 1,
+          "align_copy": null
+        },
+        {
+          "name": "swa_attn",
+          "charged_bytes_per_entry": 450560,
+          "units_per_entry": 10,
+          "charged_copies": 1,
+          "align_copy": null
+        },
+        {
+          "name": "sconv",
+          "charged_bytes_per_entry": 2162688,
+          "units_per_entry": 48,
+          "charged_copies": 1,
+          "align_copy": null
+        }
+      ]
+    },
+    "result": {
+      "max_model_len": 131072,
+      "units_per_request_at_max_model_len": 373894,
+      "request_parts": [
+        {
+          "name": "global_attn",
+          "tokens_held": 131072,
+          "entries": 131072,
+          "bytes": 5905580032
+        },
+        {
+          "name": "swa_attn",
+          "tokens_held": 4607,
+          "entries": 4607,
+          "bytes": 2075729920
+        },
+        {
+          "name": "sconv",
+          "tokens_held": 4099,
+          "entries": 4099,
+          "bytes": 8864858112
+        }
+      ],
+      "max_concurrency_at_max_model_len": 37.65641866411336,
+      "other_kv_overhead": "none",
+      "other_max_concurrency_at_max_model_len": 103.23734418536442,
+      "capacity_tokens": null
+    }
+  }
+}
