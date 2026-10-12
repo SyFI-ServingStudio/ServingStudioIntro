@@ -78,8 +78,9 @@ export function blockerText({ error, missing }, notYet) {
 export const blockedReason = (member) => blockerText(member, "Cannot be timed yet");
 export const predictable = (member) => !blockedReason(member);
 
-/* The member a link names; one it does not fully name opens on the first
-   `usable` member that has the values it gives, and says so (`unmatched`). */
+/* The member a link names; one it does not fully name opens on the
+   `usable` member with the longest `max_model_len` among those that have the
+   values it gives (the first such, on a tie), and says so (`unmatched`). */
 export function memberFromQuery(preset, query, usable) {
   const names = preset.axes.map((axis) => axis.name);
   const named = preset.members.find((m) => memberMatches(m, query, names));
@@ -87,11 +88,18 @@ export function memberFromQuery(preset, query, usable) {
   const given = names.filter((name) => query[name] != null);
   const fits = preset.members.filter((m) => memberMatches(m, query, given));
   const pool = fits.length ? fits : preset.members;
+  const open = pool.filter(usable);
   return {
-    member: pool.find(usable) ?? pool[0],
+    member: longestContext(open.length ? open : pool),
     unmatched: given.length > 0,
   };
 }
+
+const contextOf = (member) => Number(member.params.max_model_len ?? 0);
+
+// The first of `members` serving the longest context.
+const longestContext = (members) =>
+  members.reduce((best, m) => (contextOf(m) > contextOf(best) ? m : best));
 
 /* The member a picked value moves to: of those that have it, the one that
    keeps the most of the other current values, earlier axes weighing more. */

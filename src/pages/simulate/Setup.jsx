@@ -3,6 +3,7 @@ import { useId, useState } from "react";
 import { formatBytes, shortGpu } from "../kernels/kernelData";
 import { Level } from "../kernels/Level";
 import { Tag, ToggleTag } from "../kernels/Tag";
+import { KvCapacity } from "../../components/KvCache";
 import { MemberPicker } from "../models/MemberPicker";
 import { StatusLine } from "../models/StatusParts";
 import { blockerText } from "../models/modelData";
@@ -179,6 +180,8 @@ export function Setup({
         </div>
       </section>
 
+      <KvCacheGroup preset={preset} member={member} />
+
       <Traffic
         preset={preset}
         member={member}
@@ -227,6 +230,31 @@ function MemberLine({ preset, member, capture, replayed }) {
         </>
       )}
     </StatusLine>
+  );
+}
+
+/* ---------- KV cache ---------- */
+
+/* How many requests each pool's cache holds at once, from the member's own
+   build; a pool that keeps no cache, or a member not built yet, shows none. */
+function KvCacheGroup({ preset, member }) {
+  const pools = Object.entries(member.pools).filter(([, pool]) => pool.kv_cache);
+  if (!pools.length) return null;
+  return (
+    <section
+      className={`${detail.controls} ${s.group}`}
+      aria-labelledby="kv-cache-title"
+    >
+      <h2 id="kv-cache-title">KV cache</h2>
+      {pools.map(([role, pool]) => (
+        <KvCapacity
+          key={role}
+          kv={pool.kv_cache}
+          role={pools.length > 1 || role === "stage" ? role : null}
+          gpu={shortGpu(preset.pools[role].gpu)}
+        />
+      ))}
+    </section>
   );
 }
 
