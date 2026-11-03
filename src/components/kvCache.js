@@ -141,7 +141,9 @@ export function requestRows(kv) {
     const tokens = held.tokens_held;
     let holds;
     if (tokens == null) {
-      const copies = charge.charged_copies;
+      // The copies a running request holds, plus align mode's previous-step
+      // copy that vLLM's concurrency estimate adds.
+      const copies = charge.held_copies + (charge.align_copy === true ? 1 : 0);
       holds =
         charge.align_copy === true
           ? `${copies} copies (${copies - 1} + the previous step's)`

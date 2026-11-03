@@ -52,14 +52,14 @@
           "name": "mla",
           "charged_bytes_per_entry": 89856,
           "units_per_entry": 2496,
-          "charged_copies": 1,
+          "held_copies": 1,
           "align_copy": null
         },
         {
           "name": "indexer",
           "charged_bytes_per_entry": 2772,
           "units_per_entry": 77,
-          "charged_copies": 1,
+          "held_copies": 1,
           "align_copy": null
         }
       ]
@@ -140,14 +140,14 @@
           "name": "mla",
           "charged_bytes_per_entry": 44928,
           "units_per_entry": 1248,
-          "charged_copies": 1,
+          "held_copies": 1,
           "align_copy": null
         },
         {
           "name": "indexer",
           "charged_bytes_per_entry": 2772,
           "units_per_entry": 77,
-          "charged_copies": 1,
+          "held_copies": 1,
           "align_copy": null
         }
       ]
@@ -248,28 +248,28 @@
           "name": "mla",
           "charged_bytes_per_entry": 22528,
           "units_per_entry": 128,
-          "charged_copies": 1,
+          "held_copies": 1,
           "align_copy": null
         },
         {
           "name": "indexer",
           "charged_bytes_per_entry": 5808,
           "units_per_entry": 33,
-          "charged_copies": 1,
+          "held_copies": 1,
           "align_copy": null
         },
         {
           "name": "kda",
           "charged_bytes_per_entry": 208721920,
           "units_per_entry": 1185920,
-          "charged_copies": 2,
+          "held_copies": 1,
           "align_copy": true
         },
         {
           "name": "kpool_tail",
           "charged_bytes_per_entry": 52180480,
           "units_per_entry": 296480,
-          "charged_copies": 1,
+          "held_copies": 1,
           "align_copy": false
         }
       ]
@@ -373,21 +373,21 @@
           "name": "global_attn",
           "charged_bytes_per_entry": 45056,
           "units_per_entry": 1,
-          "charged_copies": 1,
+          "held_copies": 1,
           "align_copy": null
         },
         {
           "name": "swa_attn",
           "charged_bytes_per_entry": 450560,
           "units_per_entry": 10,
-          "charged_copies": 1,
+          "held_copies": 1,
           "align_copy": null
         },
         {
           "name": "sconv",
           "charged_bytes_per_entry": 2162688,
           "units_per_entry": 48,
-          "charged_copies": 1,
+          "held_copies": 1,
           "align_copy": null
         }
       ]
