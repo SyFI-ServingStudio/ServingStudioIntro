@@ -107,9 +107,8 @@
   font-weight: 500;
 }
 
-/* The context length picker: the slider and the length it stands at on
-   the left, what one request holds there on the right, the parts' shares
-   under both. */
+/* The context length picker's panel: the slider and the length it stands
+   at, then what one request holds there. */
 .picker {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -193,6 +192,12 @@
   transition: width 160ms ease-out;
 }
 
+/* Segments keep their true widths here: a 3 px floor on a sliver would
+   push the last part out of the bar. */
+.track .bar span {
+  min-width: 0;
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -222,16 +227,10 @@
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
-.length,
-.total {
+.length {
   display: grid;
   gap: 4px;
   min-width: 0;
-}
-
-.total {
-  justify-items: end;
-  text-align: right;
 }
 
 .pickerLabel {
@@ -526,10 +525,5 @@
 
   .picker {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .total {
-    justify-items: start;
-    text-align: left;
   }
 }

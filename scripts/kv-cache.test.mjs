@@ -210,3 +210,11 @@ test("labels in one row spread apart and stay inside it", () => {
   // At the left edge: kept off it.
   assert.deepEqual(spreadLabels([5], [60], 300), [0]);
 });
+
+test("padding under one percent does not read as none", () => {
+  const pool = structuredClone(kv.glm52_dp);
+  pool.layout.parts[0].padded_bytes_per_entry = Math.round(
+    pool.layout.parts[0].bytes_per_entry * 1.002,
+  );
+  assert.equal(vllmAddsText(pool), "vLLM pads mla by under 1%.");
+});

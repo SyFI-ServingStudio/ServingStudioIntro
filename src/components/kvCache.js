@@ -211,10 +211,11 @@ export function vllmAddsText(kv) {
   for (const part of kv.layout.parts) {
     if (part.padded_bytes_per_entry != null && part.bytes_per_entry > 0) {
       const ratio = part.padded_bytes_per_entry / part.bytes_per_entry;
+      const percent = Math.round((ratio - 1) * 100);
       terms.push(
         ratio >= 2
           ? `pads ${part.name} to ${whole(ratio)}× its size`
-          : `pads ${part.name} by ${Math.round((ratio - 1) * 100)}%`,
+          : `pads ${part.name} by ${percent < 1 ? "under 1" : percent}%`,
       );
     }
     if (part.copies != null && part.copies > 1)

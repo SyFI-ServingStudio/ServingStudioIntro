@@ -125,7 +125,7 @@ function SizeBars({ sizes, gpus }) {
     gpus > 1
       ? [
           ["once", "Stored once", "the least the model needs"],
-          ["gpu", "Per GPU", "what each GPU must fit"],
+          ["gpu", "Per GPU", "one GPU's share"],
           ["partition", `All ${gpus} GPUs`, "what the deployment stores"],
         ]
       : [["gpu", "On the GPU", null]];
@@ -407,7 +407,8 @@ function ShareBar({ rows }) {
    what one of them holds part by part, and, folded, the layout behind it. */
 export function KvCapacity({ kv, role, gpu }) {
   const facts = capacity(kv);
-  if (!facts) return null;
+  // An API before the three sizes gives no per-GPU bytes to show.
+  if (!facts || !hasSizes(kv)) return null;
   const rows = requestRows(kv);
   const otherLabel =
     facts.otherMode === "none" ? "Without vLLM's overhead" : "With vLLM's overhead";
