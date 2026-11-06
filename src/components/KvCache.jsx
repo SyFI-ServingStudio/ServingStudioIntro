@@ -116,16 +116,17 @@ export function KvLayout({ kv, partitions, maxModelLen }) {
 }
 
 /* One decoding request at the picked length as bars on one scale, each
-   cut by part: stored once, over all the partition's GPUs (with the
-   amplification beside it) and on each GPU, so how much replication adds
-   reads off the lengths. A one-GPU cache has one size and one bar. */
+   cut by part, in the tables' order: stored once, on each GPU, and over all
+   the partition's GPUs (with the amplification beside it), so how much
+   replication adds reads off the lengths. A one-GPU cache has one size and
+   one bar. */
 function SizeBars({ sizes, gpus }) {
   const bars =
     gpus > 1
       ? [
           ["once", "Stored once", "the least the model needs"],
-          ["partition", `All ${gpus} GPUs`, "what the deployment stores"],
           ["gpu", "Per GPU", "what each GPU must fit"],
+          ["partition", `All ${gpus} GPUs`, "what the deployment stores"],
         ]
       : [["gpu", "On the GPU", null]];
   const scale = Math.max(...bars.map(([key]) => sizes.total[key]));
