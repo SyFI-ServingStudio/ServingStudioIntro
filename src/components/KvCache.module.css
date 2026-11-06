@@ -126,6 +126,102 @@
   grid-column: 1 / -1;
 }
 
+/* The Models page's picker: the slider across the top, the request's size
+   bars under it. */
+.picker.stacked {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+}
+
+/* One request as bars on one scale: a label column, the bars, the sizes.
+   Each row's cells sit in the shared grid so the bars start and end
+   aligned. */
+.sizeBars {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.barGrid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 14px 18px;
+}
+
+.barRow {
+  display: contents;
+}
+
+.barLabel,
+.barValue {
+  display: grid;
+  gap: 1px;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+  line-height: 1.3;
+}
+
+.barLabel small,
+.barValue small {
+  color: var(--subtle);
+  font-size: var(--fs-fine);
+}
+
+.barValue {
+  color: var(--ink);
+  font-size: var(--fs-md);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.barRow[data-size="gpu"] .barLabel {
+  color: var(--ink);
+}
+
+.track {
+  display: block;
+  min-width: 0;
+  padding: 3px 0;
+  border-radius: var(--r-xs);
+  background: linear-gradient(var(--c-line-100), var(--c-line-100)) center / 100%
+    1px no-repeat;
+}
+
+.track .bar {
+  height: 18px;
+  transition: width 160ms ease-out;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--c-ink-1300);
+  font-size: var(--fs-fine);
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.legend code {
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
 .length,
 .total {
   display: grid;
@@ -136,13 +232,6 @@
 .total {
   justify-items: end;
   text-align: right;
-}
-
-/* Under the request's per-GPU size, the other two sizes. */
-.totalSizes {
-  color: var(--muted);
-  font-size: var(--fs-fine);
-  font-variant-numeric: tabular-nums;
 }
 
 .pickerLabel {
@@ -254,6 +343,7 @@
 @media (prefers-reduced-motion: reduce) {
   .shareLabel,
   .leader,
+  .track .bar,
   .bar span {
     transition: none;
   }
@@ -328,7 +418,6 @@
    three sizes side by side, read across. */
 .table.sizes {
   display: table;
-  justify-self: start;
   width: auto;
 }
 
@@ -424,6 +513,17 @@
 }
 
 @media (max-width: 767px) {
+  /* Each bar's label goes above it, so the bars keep the width. */
+  .barGrid {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 4px 12px;
+  }
+
+  .barLabel {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+  }
+
   .picker {
     grid-template-columns: minmax(0, 1fr);
   }

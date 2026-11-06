@@ -73,7 +73,7 @@ export function KvLayout({ kv, partitions, maxModelLen }) {
 
       <SizeTable sizes={sizes} gpus={gpus} />
 
-      <div className={s.picker}>
+      <div className={`${s.picker} ${s.stacked}`}>
         <label className={s.length}>
           <span className={s.pickerLabel}>Context length</span>
           <output className={s.pickerValue}>
@@ -100,22 +100,7 @@ export function KvLayout({ kv, partitions, maxModelLen }) {
             <span>{stops[stops.length - 1].toLocaleString("en-US")}</span>
           </span>
         </label>
-        <div className={s.total}>
-          <span className={s.pickerLabel}>One decoding request holds</span>
-          <span className={s.pickerValue}>
-            {bytesText(sizes.total.gpu)}
-            {gpus > 1 && <span> per GPU</span>}
-          </span>
-          {gpus > 1 && (
-            <span className={s.totalSizes}>
-              {bytesText(sizes.total.partition)} over {gpus} GPUs ·{" "}
-              {bytesText(sizes.total.once)} stored once
-            </span>
-          )}
-        </div>
-        {sizes.rows.length > 1 && (
-          <ShareBar rows={sizes.rows.map((row) => ({ ...row, bytes: row.gpu }))} />
-        )}
+        <SizeBars sizes={sizes} gpus={gpus} />
       </div>
 
       <PartsAtLength sizes={sizes} gpus={gpus} tokens={tokens} />
@@ -127,6 +112,74 @@ export function KvLayout({ kv, partitions, maxModelLen }) {
         page charges all of it for each deployment.
       </p>
     </section>
+  );
+}
+
+/* One decoding request at the picked length as bars on one scale, each
+   cut by part: stored once, over all the partition's GPUs (with the
+   amplification beside it) and on each GPU, so how much replication adds
+   reads off the lengths. A one-GPU cache has one size and one bar. */
+function SizeBars({ sizes, gpus }) {
+  const bars =
+    gpus > 1
+      ? [
+          ["once", "Stored once", "the least the model needs"],
+          ["partition", `All ${gpus} GPUs`, "what the deployment stores"],
+          ["gpu", "Per GPU", "what each GPU must fit"],
+        ]
+      : [["gpu", "On the GPU", null]];
+  const scale = Math.max(...bars.map(([key]) => sizes.total[key]));
+  const parts = sizes.rows.length > 1;
+  return (
+    <figure className={s.sizeBars}>
+      <figcaption className={s.pickerLabel}>One decoding request holds</figcaption>
+      <div className={s.barGrid}>
+        {bars.map(([key, label, gloss]) => {
+          const total = sizes.total[key];
+          return (
+            <div className={s.barRow} key={key} data-size={key}>
+              <span className={s.barLabel}>
+                {label}
+                {gloss && <small>{gloss}</small>}
+              </span>
+              <span className={s.track}>
+                <span
+                  className={s.bar}
+                  style={{ width: `${scale > 0 ? (total / scale) * 100 : 0}%` }}
+                >
+                  {sizes.rows.map((row, index) => (
+                    <span
+                      key={row.name}
+                      data-tone={index % TONES}
+                      style={{
+                        width: `${total > 0 ? (row[key] / total) * 100 : 0}%`,
+                      }}
+                      title={`${row.name}: ${bytesText(row[key])}`}
+                    />
+                  ))}
+                </span>
+              </span>
+              <span className={s.barValue}>
+                {bytesText(total)}
+                {key === "partition" && sizes.total.once > 0 && (
+                  <small>{timesText(total / sizes.total.once)} stored once</small>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {parts && (
+        <ul className={s.legend}>
+          {sizes.rows.map((row, index) => (
+            <li key={row.name}>
+              <i data-tone={index % TONES} aria-hidden="true" />
+              <code>{row.name}</code>
+            </li>
+          ))}
+        </ul>
+      )}
+    </figure>
   );
 }
 
@@ -188,24 +241,26 @@ function SizeTable({ sizes, gpus }) {
     ["State per request", sizes.request],
   ].filter(([, size]) => size != null);
   return (
-    <table className={`${s.table} ${s.sizes}`}>
-      <thead>
-        <tr>
-          <th scope="col">
-            <span className={s.visuallyHidden}>Figure</span>
-          </th>
-          <SizeHeads gpus={gpus} />
-        </tr>
-      </thead>
-      <tbody>
-        {lines.map(([label, size]) => (
-          <tr key={label}>
-            <th scope="row">{label}</th>
-            <SizeCells size={size} gpus={gpus} strong />
+    <div className={s.scroll}>
+      <table className={`${s.table} ${s.sizes}`}>
+        <thead>
+          <tr>
+            <th scope="col">
+              <span className={s.visuallyHidden}>Figure</span>
+            </th>
+            <SizeHeads gpus={gpus} />
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {lines.map(([label, size]) => (
+            <tr key={label}>
+              <th scope="row">{label}</th>
+              <SizeCells size={size} gpus={gpus} strong />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
