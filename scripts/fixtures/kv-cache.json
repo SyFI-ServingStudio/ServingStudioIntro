@@ -12,9 +12,15 @@
             "tokens_per_entry": 1
           },
           "bytes_per_entry": 89856,
+          "one_copy_bytes_per_entry": 89856,
+          "per_gpu_bytes_per_entry": 89856.0,
           "prefix_reusable": true,
           "padded_bytes_per_entry": null,
-          "copies": null
+          "copies": null,
+          "placement": {
+            "shards": 1,
+            "replicas": 1
+          }
         },
         {
           "name": "indexer",
@@ -23,9 +29,15 @@
             "tokens_per_entry": 1
           },
           "bytes_per_entry": 2772,
+          "one_copy_bytes_per_entry": 2772,
+          "per_gpu_bytes_per_entry": 2772.0,
           "prefix_reusable": true,
           "padded_bytes_per_entry": null,
-          "copies": null
+          "copies": null,
+          "placement": {
+            "shards": 1,
+            "replicas": 1
+          }
         }
       ],
       "engine": {
@@ -67,20 +79,30 @@
     "result": {
       "max_model_len": 1048576,
       "units_per_request_at_max_model_len": 2697986048,
+      "admission_units_at_max_model_len": 2697986048,
       "request_parts": [
         {
           "name": "mla",
           "tokens_held": 1048576,
           "entries": 1048576,
-          "bytes": 94220845056
+          "bytes": 94220845056,
+          "per_gpu_bytes": 94220845056.0,
+          "one_copy_bytes": 94220845056
         },
         {
           "name": "indexer",
           "tokens_held": 1048576,
           "entries": 1048576,
-          "bytes": 2906652672
+          "bytes": 2906652672,
+          "per_gpu_bytes": 2906652672.0,
+          "one_copy_bytes": 2906652672
         }
       ],
+      "one_copy_bytes_at_max_model_len": 97127497728,
+      "bytes_at_max_model_len": 97127497728,
+      "per_gpu_bytes_at_max_model_len": 97127497728.0,
+      "replication_at_max_model_len": 1.0,
+      "amplification_at_max_model_len": 1.0,
       "max_concurrency_at_max_model_len": 0.05796504697121399,
       "other_kv_overhead": "none",
       "other_max_concurrency_at_max_model_len": 0.05796504697121399,
@@ -100,9 +122,15 @@
             "tokens_per_entry": 1
           },
           "bytes_per_entry": 44928,
+          "one_copy_bytes_per_entry": 44928,
+          "per_gpu_bytes_per_entry": 44928.0,
           "prefix_reusable": true,
           "padded_bytes_per_entry": null,
-          "copies": null
+          "copies": null,
+          "placement": {
+            "shards": 1,
+            "replicas": 1
+          }
         },
         {
           "name": "indexer",
@@ -111,9 +139,15 @@
             "tokens_per_entry": 1
           },
           "bytes_per_entry": 2772,
+          "one_copy_bytes_per_entry": 2772,
+          "per_gpu_bytes_per_entry": 2772.0,
           "prefix_reusable": true,
           "padded_bytes_per_entry": null,
-          "copies": null
+          "copies": null,
+          "placement": {
+            "shards": 1,
+            "replicas": 1
+          }
         }
       ],
       "engine": {
@@ -155,20 +189,30 @@
     "result": {
       "max_model_len": 8192,
       "units_per_request_at_max_model_len": 10854400,
+      "admission_units_at_max_model_len": 10854400,
       "request_parts": [
         {
           "name": "mla",
           "tokens_held": 8192,
           "entries": 8192,
-          "bytes": 368050176
+          "bytes": 368050176,
+          "per_gpu_bytes": 368050176.0,
+          "one_copy_bytes": 368050176
         },
         {
           "name": "indexer",
           "tokens_held": 8192,
           "entries": 8192,
-          "bytes": 22708224
+          "bytes": 22708224,
+          "per_gpu_bytes": 22708224.0,
+          "one_copy_bytes": 22708224
         }
       ],
+      "one_copy_bytes_at_max_model_len": 390758400,
+      "bytes_at_max_model_len": 390758400,
+      "per_gpu_bytes_at_max_model_len": 390758400.0,
+      "replication_at_max_model_len": 1.0,
+      "amplification_at_max_model_len": 1.0,
       "max_concurrency_at_max_model_len": 50.15577830188679,
       "other_kv_overhead": "none",
       "other_max_concurrency_at_max_model_len": 50.15577830188679,
@@ -188,9 +232,15 @@
             "tokens_per_entry": 1
           },
           "bytes_per_entry": 22528,
+          "one_copy_bytes_per_entry": 5632,
+          "per_gpu_bytes_per_entry": 5632.0,
           "prefix_reusable": true,
           "padded_bytes_per_entry": null,
-          "copies": null
+          "copies": null,
+          "placement": {
+            "shards": 1,
+            "replicas": 4
+          }
         },
         {
           "name": "indexer",
@@ -199,9 +249,15 @@
             "tokens_per_entry": 4
           },
           "bytes_per_entry": 5808,
+          "one_copy_bytes_per_entry": 1452,
+          "per_gpu_bytes_per_entry": 1452.0,
           "prefix_reusable": true,
           "padded_bytes_per_entry": null,
-          "copies": null
+          "copies": null,
+          "placement": {
+            "shards": 1,
+            "replicas": 4
+          }
         },
         {
           "name": "kda",
@@ -209,9 +265,15 @@
             "kind": "per_request"
           },
           "bytes_per_entry": 147619840,
+          "one_copy_bytes_per_entry": 147619840,
+          "per_gpu_bytes_per_entry": 36904960.0,
           "prefix_reusable": true,
           "padded_bytes_per_entry": 208721920,
-          "copies": null
+          "copies": null,
+          "placement": {
+            "shards": 4,
+            "replicas": 1
+          }
         },
         {
           "name": "kpool_tail",
@@ -219,9 +281,15 @@
             "kind": "per_request"
           },
           "bytes_per_entry": 90112,
+          "one_copy_bytes_per_entry": 22528,
+          "per_gpu_bytes_per_entry": 22528.0,
           "prefix_reusable": false,
           "padded_bytes_per_entry": 52180480,
-          "copies": null
+          "copies": null,
+          "placement": {
+            "shards": 1,
+            "replicas": 4
+          }
         }
       ],
       "engine": {
@@ -277,32 +345,46 @@
     "result": {
       "max_model_len": 8192,
       "units_per_request_at_max_model_len": 3854240,
+      "admission_units_at_max_model_len": 2668320,
       "request_parts": [
         {
           "name": "mla",
           "tokens_held": 8704,
           "entries": 8704,
-          "bytes": 196083712
+          "bytes": 196083712,
+          "per_gpu_bytes": 49020928.0,
+          "one_copy_bytes": 46137344
         },
         {
           "name": "indexer",
           "tokens_held": 8704,
           "entries": 2176,
-          "bytes": 12638208
+          "bytes": 12638208,
+          "per_gpu_bytes": 3159552.0,
+          "one_copy_bytes": 2973696
         },
         {
           "name": "kda",
           "tokens_held": null,
           "entries": 2,
-          "bytes": 417443840
+          "bytes": 417443840,
+          "per_gpu_bytes": 104360960.0,
+          "one_copy_bytes": 147619840
         },
         {
           "name": "kpool_tail",
           "tokens_held": null,
           "entries": 1,
-          "bytes": 52180480
+          "bytes": 52180480,
+          "per_gpu_bytes": 13045120.0,
+          "one_copy_bytes": 22528
         }
       ],
+      "one_copy_bytes_at_max_model_len": 196753408,
+      "bytes_at_max_model_len": 678346240,
+      "per_gpu_bytes_at_max_model_len": 169586560.0,
+      "replication_at_max_model_len": 1.7491646802885366,
+      "amplification_at_max_model_len": 3.4476975361971873,
       "max_concurrency_at_max_model_len": 404.613165500851,
       "other_kv_overhead": "none",
       "other_max_concurrency_at_max_model_len": 797.6659014435951,
@@ -322,9 +404,15 @@
             "tokens_per_entry": 1
           },
           "bytes_per_entry": 45056,
+          "one_copy_bytes_per_entry": 45056,
+          "per_gpu_bytes_per_entry": 5632.0,
           "prefix_reusable": true,
           "padded_bytes_per_entry": null,
-          "copies": null
+          "copies": null,
+          "placement": {
+            "shards": 8,
+            "replicas": 1
+          }
         },
         {
           "name": "swa_attn",
@@ -333,9 +421,15 @@
             "window_tokens": 512
           },
           "bytes_per_entry": 450560,
+          "one_copy_bytes_per_entry": 450560,
+          "per_gpu_bytes_per_entry": 56320.0,
           "prefix_reusable": true,
           "padded_bytes_per_entry": null,
-          "copies": null
+          "copies": null,
+          "placement": {
+            "shards": 8,
+            "replicas": 1
+          }
         },
         {
           "name": "sconv",
@@ -344,9 +438,15 @@
             "window_tokens": 4
           },
           "bytes_per_entry": 2117632,
+          "one_copy_bytes_per_entry": 2117632,
+          "per_gpu_bytes_per_entry": 264704.0,
           "prefix_reusable": true,
           "padded_bytes_per_entry": 2162688,
-          "copies": null
+          "copies": null,
+          "placement": {
+            "shards": 8,
+            "replicas": 1
+          }
         }
       ],
       "engine": {
@@ -395,26 +495,38 @@
     "result": {
       "max_model_len": 131072,
       "units_per_request_at_max_model_len": 373894,
+      "admission_units_at_max_model_len": 373894,
       "request_parts": [
         {
           "name": "global_attn",
           "tokens_held": 131072,
           "entries": 131072,
-          "bytes": 5905580032
+          "bytes": 5905580032,
+          "per_gpu_bytes": 738197504.0,
+          "one_copy_bytes": 5905580032
         },
         {
           "name": "swa_attn",
           "tokens_held": 4607,
           "entries": 4607,
-          "bytes": 2075729920
+          "bytes": 2075729920,
+          "per_gpu_bytes": 259466240.0,
+          "one_copy_bytes": 230686720
         },
         {
           "name": "sconv",
           "tokens_held": 4099,
           "entries": 4099,
-          "bytes": 8864858112
+          "bytes": 8864858112,
+          "per_gpu_bytes": 1108107264.0,
+          "one_copy_bytes": 8470528
         }
       ],
+      "one_copy_bytes_at_max_model_len": 6144737280,
+      "bytes_at_max_model_len": 16846168064,
+      "per_gpu_bytes_at_max_model_len": 2105771008.0,
+      "replication_at_max_model_len": 1.0,
+      "amplification_at_max_model_len": 2.741560346091802,
       "max_concurrency_at_max_model_len": 37.65641866411336,
       "other_kv_overhead": "none",
       "other_max_concurrency_at_max_model_len": 103.23734418536442,
