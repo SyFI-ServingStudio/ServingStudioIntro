@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import {
+  amplificationText,
   bytesText,
   capacity,
   concurrencyText,
@@ -11,6 +12,7 @@ import {
   optionsText,
   spreadLabels,
   requestRows,
+  timesText,
 } from "./kvCache";
 import s from "./KvCache.module.css";
 
@@ -303,6 +305,12 @@ export function KvCapacity({ kv, role, gpu }) {
           <dt>KV memory per GPU</dt>
           <dd className={s.secondary}>{bytesText(facts.budget)}</dd>
         </div>
+        {facts.oneCopy != null && (
+          <div>
+            <dt>One request, stored once</dt>
+            <dd className={s.secondary}>{bytesText(facts.oneCopy)}</dd>
+          </div>
+        )}
         {facts.tokens != null && (
           <div>
             <dt>Tokens it holds</dt>
@@ -323,6 +331,7 @@ export function KvCapacity({ kv, role, gpu }) {
         <b>{bytesText(facts.perRequest)}</b> per GPU
         {gpu && <> on {gpu}</>}
       </RequestParts>
+      <Amplification facts={facts} />
 
       <p className={s.note}>
         {optionsText(kv)} KV memory per GPU is the budget this deployment gives the
@@ -338,10 +347,30 @@ export function KvCapacity({ kv, role, gpu }) {
 
 const TONES = 5;
 
+/* How many times over the partition stores one request: the simulator's
+   split into replication across GPUs and the engine's overhead. Hidden when
+   the API sends no amplification. */
+function Amplification({ facts }) {
+  if (facts.oneCopy == null || facts.amplification == null) return null;
+  const split = amplificationText(facts);
+  const gpus = facts.gpusPerPartition;
+  return (
+    <p className={s.note}>
+      {gpus > 1 ? `The partition's ${gpus} GPUs together hold` : "The GPU holds"}{" "}
+      <b>{timesText(facts.amplification)}</b> the request stored once.
+      {split && <> That is {split}.</>} Replication comes from parts that every GPU
+      keeps whole instead of a slice of; engine overhead is vLLM's padding, extra
+      state copies, block rounding and tokens in flight.
+    </p>
+  );
+}
+
 /* One request part by part: a bar of shares over the table that names them.
    A one-part cache needs no shares. */
 function RequestParts({ rows, children }) {
   const parts = rows.length > 1;
+  // One copy is the model's bytes over all its GPUs, not per GPU.
+  const amplified = rows.every((row) => row.oneCopy != null);
   return (
     <figure className={s.request}>
       <figcaption>{children}</figcaption>
@@ -359,6 +388,24 @@ function RequestParts({ rows, children }) {
                 Share
               </th>
             )}
+            {amplified && (
+              <th
+                scope="col"
+                className={s.num}
+                title="The model's bytes, stored once"
+              >
+                One copy
+              </th>
+            )}
+            {amplified && (
+              <th
+                scope="col"
+                className={s.num}
+                title="All its GPUs hold, over one copy"
+              >
+                Amplified
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -371,6 +418,8 @@ function RequestParts({ rows, children }) {
               <td>{row.holds}</td>
               <td className={s.num}>{bytesText(row.bytes)}</td>
               {parts && <td className={s.num}>{sharePercent(row.share)}</td>}
+              {amplified && <td className={s.num}>{bytesText(row.oneCopy)}</td>}
+              {amplified && <td className={s.num}>{timesText(row.amplified)}</td>}
             </tr>
           ))}
         </tbody>
@@ -393,6 +442,7 @@ function LayoutTable({ kv }) {
   const rows = layoutRows(kv);
   const engine = engineText(kv);
   const overhead = rows.some((row) => row.overhead);
+  const placed = rows.every((row) => row.placement);
   return (
     <>
       <table className={s.table}>
@@ -405,6 +455,7 @@ function LayoutTable({ kv }) {
             </th>
             {overhead && <th scope="col">vLLM adds</th>}
             <th scope="col">Prefix reuse</th>
+            {placed && <th scope="col">On its GPUs</th>}
           </tr>
         </thead>
         <tbody>
@@ -417,6 +468,7 @@ function LayoutTable({ kv }) {
               <td className={s.num}>{row.bytes}</td>
               {overhead && <td>{row.overhead || "-"}</td>}
               <td>{row.reusable ? "Yes" : "No"}</td>
+              {placed && <td>{row.placement}</td>}
             </tr>
           ))}
         </tbody>

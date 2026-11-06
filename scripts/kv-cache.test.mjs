@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
+  amplificationText,
   bytesText,
   capacity,
   engineText,
@@ -9,6 +10,7 @@ import {
   layoutRows,
   layoutTotals,
   lengthStops,
+  placementText,
   spreadLabels,
   requestRows,
 } from "../src/components/kvCache.js";
@@ -90,6 +92,27 @@ test("a pool whose cache cannot hold one full-length request reads below one", (
   assert.equal(facts.maxModelLen, 1048576);
   assert.ok(facts.concurrency < 1);
   assert.ok(facts.perRequest > facts.budget);
+});
+
+test("placement and amplification print as the simulator's report does", () => {
+  assert.equal(placementText({ shards: 4, replicas: 1 }), "4 shards");
+  assert.equal(placementText({ shards: 1, replicas: 4 }), "4 replicas");
+  assert.equal(placementText({ shards: 2, replicas: 2 }), "2 shards × 2 replicas");
+  // GLM-5.3 TP4's numbers from the simulator's --kv-report.
+  assert.equal(
+    amplificationText({ replication: 3.5255512, amplification: 3.9131768 }),
+    "3.53× replication × 1.11× engine overhead = 3.91×",
+  );
+});
+
+test("an API without placement or one-copy bytes hides them", () => {
+  const pool = kv.glm53_flash_tp;
+  assert.equal(layoutRows(pool)[0].placement, null);
+  assert.equal(requestRows(pool)[0].oneCopy, null);
+  assert.equal(requestRows(pool)[0].amplified, null);
+  const facts = capacity(pool);
+  assert.equal(facts.amplification, null);
+  assert.equal(amplificationText(facts), null);
 });
 
 test("the slider steps by powers of two and halves up to the longest context", () => {

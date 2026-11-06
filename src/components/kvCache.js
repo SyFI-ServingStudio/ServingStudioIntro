@@ -9,7 +9,13 @@
    A simulation member also carries what its worker makes of that layout
    (the run's `raw/kv_cache.json`): the memory budget, whether vLLM's own
    overhead is charged, and what one request at the longest context holds,
-   part by part, hence how many such requests fit. */
+   part by part, hence how many such requests fit.
+
+   A newer simulator also says how that request compares with the model's
+   own bytes stored once: each part's placement on the partition's GPUs
+   (sharded or replicated), each part's one-copy bytes, and the request's
+   replication and amplification. These are the simulator's numbers, shown
+   as they come; an older API lacks them and the site hides them. */
 
 /* Binary units to three significant figures, as the simulator prints them. */
 export function bytesText(bytes) {
@@ -29,6 +35,21 @@ const shards = (kv) => Math.max(1, kv.attention_shards ?? 1);
 
 /* Bytes over one partition, on one of its GPUs. */
 export const perGpu = (kv, bytes) => bytes / shards(kv);
+
+/* How a part sits on the partition's GPUs, as the simulator's text report
+   prints it: "4 shards", "4 replicas" or "2 shards × 2 replicas". Null when
+   the API predates placement. */
+export function placementText(placement) {
+  if (!placement) return null;
+  const { shards: shardCount, replicas } = placement;
+  const plural = (count, noun) => `${count} ${noun}${count === 1 ? "" : "s"}`;
+  if (replicas === 1) return plural(shardCount, "shard");
+  if (shardCount === 1) return plural(replicas, "replica");
+  return `${shardCount} shards × ${replicas} replicas`;
+}
+
+/* A ratio over one copy, two decimals as the simulator prints it. */
+export const timesText = (value) => (value == null ? "-" : `${value.toFixed(2)}×`);
 
 /* How a part grows, in words, and what one of its entries covers. */
 export function growthText(growth) {
@@ -53,7 +74,8 @@ export function growthText(growth) {
 }
 
 /* The layout as table rows, per GPU: what each part is, how it grows, its
-   own bytes, and what vLLM allocates on top of them. */
+   own bytes, what vLLM allocates on top of them, and how it sits on the
+   partition's GPUs (null without placement). */
 export function layoutRows(kv) {
   return kv.layout.parts.map((part) => {
     const { grows, per } = growthText(part.growth);
@@ -68,6 +90,7 @@ export function layoutRows(kv) {
       bytes: `${bytesText(perGpu(kv, part.bytes_per_entry))} ${per}`,
       overhead: extra.join(", "),
       reusable: part.prefix_reusable,
+      placement: placementText(part.placement),
     };
   });
 }
@@ -130,7 +153,10 @@ export function optionsText(kv) {
 /* One request at the longest context, part by part, per GPU: what each part
    holds and its share. vLLM keeps a window's last W − 1 tokens plus the
    tokens the step in flight adds; a per-request state may be kept twice, the
-   previous step's beside the current one, when prefix caching resumes it. */
+   previous step's beside the current one, when prefix caching resumes it.
+   `oneCopy` is the model's own bytes of the part, stored once, over the
+   whole model rather than per GPU; `amplified` is the partition's bytes
+   over it. Both are null without `one_copy_bytes`. */
 export function requestRows(kv) {
   const result = kv.result;
   const vllm = kv.options.kv_overhead === "vllm";
@@ -176,14 +202,19 @@ export function requestRows(kv) {
       holds,
       bytes: perGpu(kv, held.bytes),
       share: total > 0 ? held.bytes / total : 0,
+      oneCopy: held.one_copy_bytes ?? null,
+      amplified: held.one_copy_bytes > 0 ? held.bytes / held.one_copy_bytes : null,
     };
   });
 }
 
 /* The headline numbers of a simulation member's pool, or null before its
    build: requests of `max_model_len` that fit at once in one partition, the
-   same without vLLM's overhead, the budget, and the token pool when every
-   part grows per token. */
+   same without vLLM's overhead, the budget, the token pool when every part
+   grows per token, and what one such request holds: per GPU, stored once
+   (`oneCopy`), and how many times over the partition stores it
+   (`replication` by placement, `amplification` with the engine's overhead
+   too). The last three are null when the API does not send them. */
 export function capacity(kv) {
   const result = kv?.result;
   if (
@@ -209,9 +240,21 @@ export function capacity(kv) {
       result.request_parts.reduce((sum, part) => sum + part.bytes, 0),
     ),
     tokens: result.capacity_tokens,
+    oneCopy: result.one_copy_bytes_at_max_model_len ?? null,
+    replication: result.replication_at_max_model_len ?? null,
+    amplification: result.amplification_at_max_model_len ?? null,
     partitions: kv.partitions ?? 1,
     gpusPerPartition: shards(kv),
   };
+}
+
+/* The amplification split as the simulator's text report prints it:
+   "3.53× replication × 1.11× engine overhead = 3.91×", the overhead being
+   amplification over replication. Null unless the API sends both. */
+export function amplificationText(facts) {
+  const { replication, amplification } = facts;
+  if (replication == null || amplification == null || replication <= 0) return null;
+  return `${timesText(replication)} replication × ${timesText(amplification / replication)} engine overhead = ${timesText(amplification)}`;
 }
 
 /* A concurrency as vLLM logs it: two decimals, below one a request does not fit. */
