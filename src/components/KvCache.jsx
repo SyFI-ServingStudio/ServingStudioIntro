@@ -57,14 +57,17 @@ export function KvLayout({ kv, partitions, maxModelLen }) {
           <>
             {" "}
             One cache spans {gpus} GPUs. Each part is split across them or kept
-            whole on every one, so each size is given three ways: stored once,
-            which is the least the model needs; on each GPU; and over all {gpus}.
+            whole on every one, so each size is given three ways: stored once, which
+            is the least the model needs; on each GPU; and over all {gpus}.
           </>
         ) : (
           <> One GPU holds the whole cache.</>
         )}
         {partitions > 1 && (
-          <> A replica holds {partitions} such caches, one per attention partition.</>
+          <>
+            {" "}
+            A replica holds {partitions} such caches, one per attention partition.
+          </>
         )}
       </p>
 
@@ -132,7 +135,9 @@ export function KvLayout({ kv, partitions, maxModelLen }) {
 function SizeCells({ size, gpus, strong }) {
   const text = (bytes) => (bytes == null ? "-" : bytesText(bytes));
   if (gpus <= 1)
-    return <td className={`${s.num} ${strong ? s.strong : ""}`}>{text(size?.gpu)}</td>;
+    return (
+      <td className={`${s.num} ${strong ? s.strong : ""}`}>{text(size?.gpu)}</td>
+    );
   return (
     <>
       <td className={s.num}>{text(size?.once)}</td>

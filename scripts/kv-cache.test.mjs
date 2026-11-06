@@ -109,7 +109,11 @@ test("each size comes from the API: stored once, per GPU and over the partition"
   const three = (size) => [size.once, size.gpu, size.partition];
   // GLM-5.3-Flash on attention TP4: MLA, indexer and the kpool tail are kept
   // whole on each GPU, KDA heads split across them.
-  assert.deepEqual(three(sizes.token), [5632 + 1452 / 4, 5632 + 1452 / 4, 4 * (5632 + 1452 / 4)]);
+  assert.deepEqual(three(sizes.token), [
+    5632 + 1452 / 4,
+    5632 + 1452 / 4,
+    4 * (5632 + 1452 / 4),
+  ]);
   assert.deepEqual(three(sizes.request), [
     4 * 36904960 + 22528,
     36904960 + 22528,
@@ -137,7 +141,10 @@ test("one GPU's cache has one size, and placement says nothing", () => {
   assert.equal(sizes.total.once, sizes.total.gpu);
   assert.equal(sizes.total.gpu, sizes.total.partition);
   assert.equal(placementWords(sizes.rows[0].placement, 1), null);
-  assert.equal(placementWords({ shards: 2, replicas: 2 }, 4), "Split in 2, each slice on 2 GPUs");
+  assert.equal(
+    placementWords({ shards: 2, replicas: 2 }, 4),
+    "Split in 2, each slice on 2 GPUs",
+  );
 });
 
 test("what vLLM adds is named, not counted, on the Models page", () => {
@@ -156,7 +163,11 @@ test("the slider steps by powers of two and halves up to the longest context", (
 });
 
 const at = (pool, tokens) =>
-  layoutSizes(pool, tokens).rows.map((row) => [row.name, row.holds, bytesText(row.gpu)]);
+  layoutSizes(pool, tokens).rows.map((row) => [
+    row.name,
+    row.holds,
+    bytesText(row.gpu),
+  ]);
 
 test("a decoding request at a picked length holds the model's own bytes", () => {
   // No padding, blocks or extra copies: those are the Simulate page's.
