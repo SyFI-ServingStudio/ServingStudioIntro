@@ -6,13 +6,15 @@ import {
   bytesText,
   capacity,
   engineText,
-  layoutAt,
+  hasSizes,
   layoutRows,
-  layoutTotals,
+  layoutSizes,
   lengthStops,
   placementText,
+  placementWords,
   spreadLabels,
   requestRows,
+  vllmAddsText,
 } from "../src/components/kvCache.js";
 
 // Pools of /simulations/presets as the public API served them.
@@ -74,11 +76,6 @@ test("blocks round a per-token part up and a state keeps the previous step's cop
       ],
     ],
   );
-  assert.deepEqual(layoutTotals(kv.glm53_flash_tp), {
-    token: 5632 + 1452 / 4,
-    window: null,
-    request: 36904960 + 22528, // kda + kpool_tail
-  });
 });
 
 test("attention DP partitions each hold their own cache", () => {
@@ -105,14 +102,51 @@ test("placement and amplification print as the simulator's report does", () => {
   );
 });
 
-test("an API without placement or one-copy bytes hides them", () => {
+test("each size comes from the API: stored once, per GPU and over the partition", () => {
   const pool = kv.glm53_flash_tp;
-  assert.equal(layoutRows(pool)[0].placement, null);
-  assert.equal(requestRows(pool)[0].oneCopy, null);
-  assert.equal(requestRows(pool)[0].amplified, null);
-  const facts = capacity(pool);
-  assert.equal(facts.amplification, null);
-  assert.equal(amplificationText(facts), null);
+  assert.ok(hasSizes(pool));
+  const sizes = layoutSizes(pool, 8192);
+  const three = (size) => [size.once, size.gpu, size.partition];
+  // GLM-5.3-Flash on attention TP4: MLA, indexer and the kpool tail are kept
+  // whole on each GPU, KDA heads split across them.
+  assert.deepEqual(three(sizes.token), [5632 + 1452 / 4, 5632 + 1452 / 4, 4 * (5632 + 1452 / 4)]);
+  assert.deepEqual(three(sizes.request), [
+    4 * 36904960 + 22528,
+    36904960 + 22528,
+    4 * 36904960 + 4 * 22528,
+  ]);
+  assert.equal(sizes.window, null);
+  assert.deepEqual(
+    sizes.rows.map((row) => [row.name, placementWords(row.placement, 4)]),
+    [
+      ["mla", "A whole copy on each of the 4 GPUs"],
+      ["indexer", "A whole copy on each of the 4 GPUs"],
+      ["kda", "Split across the 4 GPUs"],
+      ["kpool_tail", "A whole copy on each of the 4 GPUs"],
+    ],
+  );
+  // The request's per-GPU bytes on the Simulate page are the API's too.
+  assert.equal(
+    capacity(pool).perRequest,
+    pool.result.request_parts.reduce((sum, part) => sum + part.per_gpu_bytes, 0),
+  );
+});
+
+test("one GPU's cache has one size, and placement says nothing", () => {
+  const sizes = layoutSizes(kv.glm52_dp, 8192);
+  assert.equal(sizes.total.once, sizes.total.gpu);
+  assert.equal(sizes.total.gpu, sizes.total.partition);
+  assert.equal(placementWords(sizes.rows[0].placement, 1), null);
+  assert.equal(placementWords({ shards: 2, replicas: 2 }, 4), "Split in 2, each slice on 2 GPUs");
+});
+
+test("what vLLM adds is named, not counted, on the Models page", () => {
+  assert.equal(
+    vllmAddsText(kv.glm53_flash_tp),
+    "vLLM pads kda by 41%, pads kpool_tail to 579× its size and allocates in blocks of 2,176 tokens.",
+  );
+  assert.equal(vllmAddsText(kv.inkling), "vLLM pads sconv by 2%.");
+  assert.equal(vllmAddsText(kv.glm52_dp), null);
 });
 
 test("the slider steps by powers of two and halves up to the longest context", () => {
@@ -122,42 +156,37 @@ test("the slider steps by powers of two and halves up to the longest context", (
 });
 
 const at = (pool, tokens) =>
-  layoutAt(pool, tokens).rows.map((row) => [
-    row.name,
-    row.holds,
-    bytesText(row.bytes),
-  ]);
+  layoutSizes(pool, tokens).rows.map((row) => [row.name, row.holds, bytesText(row.gpu)]);
 
-test("a decoding request at a picked length holds what vLLM allocates", () => {
-  // The server's own split at max_model_len, less the prefix-caching copy
-  // of kda and the prefill chunk in each window.
+test("a decoding request at a picked length holds the model's own bytes", () => {
+  // No padding, blocks or extra copies: those are the Simulate page's.
   assert.deepEqual(at(kv.glm53_flash_tp, 8192), [
-    ["mla", "8,704 tokens (4 blocks of 2,176)", "46.8 MiB"],
-    ["indexer", "8,704 tokens, 2,176 entries", "3.01 MiB"],
-    ["kda", "1 copy", "49.8 MiB"],
-    ["kpool_tail", "1 copy", "12.4 MiB"],
+    ["mla", "8,192 tokens", "44 MiB"],
+    ["indexer", "8,192 tokens, 2,048 entries", "2.84 MiB"],
+    ["kda", "1 state", "35.2 MiB"],
+    ["kpool_tail", "1 state", "22 KiB"],
   ]);
   assert.deepEqual(at(kv.inkling, 131072), [
     ["global_attn", "131,072 tokens", "704 MiB"],
     ["swa_attn", "512 tokens, a full window", "27.5 MiB"],
-    ["sconv", "4 tokens, a full window", "1.03 MiB"],
+    ["sconv", "4 tokens, a full window", "1.01 MiB"],
   ]);
   assert.deepEqual(at(kv.inkling, 300), [
     ["global_attn", "300 tokens", "1.61 MiB"],
     ["swa_attn", "300 tokens", "16.1 MiB"],
-    ["sconv", "4 tokens, a full window", "1.03 MiB"],
+    ["sconv", "4 tokens, a full window", "1.01 MiB"],
   ]);
   // Every part grows per token: the shares stay put and bytes scale.
-  const short = layoutAt(kv.glm52_dp, 1024);
-  const long = layoutAt(kv.glm52_dp, 8192);
-  assert.equal(long.total, short.total * 8);
+  const short = layoutSizes(kv.glm52_dp, 1024);
+  const long = layoutSizes(kv.glm52_dp, 8192);
+  assert.equal(long.total.gpu, short.total.gpu * 8);
   assert.equal(long.rows[0].share, short.rows[0].share);
-  // At the longest context the per-token parts match the server's split.
+  // Without overhead, the longest context matches the server's split.
   const server = kv.glm52_fp8_hp.result.request_parts.reduce(
     (sum, part) => sum + part.bytes,
     0,
   );
-  assert.equal(layoutAt(kv.glm52_fp8_hp, 1048576).total, server);
+  assert.equal(layoutSizes(kv.glm52_fp8_hp, 1048576).total.partition, server);
 });
 
 test("labels in one row spread apart and stay inside it", () => {

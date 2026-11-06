@@ -138,6 +138,13 @@
   text-align: right;
 }
 
+/* Under the request's per-GPU size, the other two sizes. */
+.totalSizes {
+  color: var(--muted);
+  font-size: var(--fs-fine);
+  font-variant-numeric: tabular-nums;
+}
+
 .pickerLabel {
   color: var(--subtle);
   font-size: var(--fs-fine);
@@ -315,6 +322,38 @@
 
 .table td.strong {
   color: var(--ink);
+}
+
+/* The sizes that do not move with the slider: a label column, then the
+   three sizes side by side, read across. */
+.table.sizes {
+  display: table;
+  justify-self: start;
+  width: auto;
+}
+
+.table.sizes thead th.num,
+.table.sizes td.num {
+  min-width: 11ch;
+}
+
+.table.sizes td.strong {
+  font-size: var(--fs-md);
+}
+
+.table tfoot tr {
+  border-top: 1px solid var(--c-line-500);
+}
+
+.table tfoot th {
+  padding: 8px 16px 8px 0;
+  color: var(--muted);
+  font-weight: 400;
+  text-align: left;
+}
+
+.table tfoot td.strong {
+  font-weight: 500;
 }
 
 .table td small {
