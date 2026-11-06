@@ -1,16 +1,20 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import {
+  amplificationText,
   bytesText,
   capacity,
   concurrencyText,
   engineText,
-  layoutAt,
+  hasSizes,
   layoutRows,
-  layoutTotals,
+  layoutSizes,
   lengthStops,
   optionsText,
+  placementWords,
   spreadLabels,
   requestRows,
+  timesText,
+  vllmAddsText,
 } from "./kvCache";
 import s from "./KvCache.module.css";
 
@@ -20,16 +24,18 @@ const GROWTH_NOTE = {
   per_request: "one per request",
 };
 
-/* The arch's cache on its own, per GPU: what a token of context, the
-   windows and a request's state cost, then one table of the parts the arch
-   declares and what each holds at a context the reader slides to. The
-   Models page shows it; there is no worker yet, so no budget or
-   concurrency. */
+/* The arch's cache on its own, in the model's own bytes and in the three
+   sizes the API gives: stored once (the least the model needs), on each GPU
+   and over the KV partition's GPUs. First what a token, a full window and a
+   request's state cost; then one decoding request at a context the reader
+   slides to, part by part, with where each part sits on the GPUs. The
+   Models page shows it; there is no worker yet, so vLLM's overhead, the
+   budget and concurrency are the Simulate page's. */
 export function KvLayout({ kv, partitions, maxModelLen }) {
-  const totals = layoutTotals(kv);
-  const shards = Math.max(1, kv.attention_shards);
+  const gpus = Math.max(1, kv.attention_shards);
   const stops = lengthStops(maxModelLen ?? DEFAULT_LONGEST);
   const [picked, setPicked] = useState(null);
+  if (!hasSizes(kv)) return null;
   // A length picked on another member snaps to this one's nearest stop.
   const index =
     picked == null
@@ -40,42 +46,34 @@ export function KvLayout({ kv, partitions, maxModelLen }) {
           0,
         );
   const tokens = stops[index];
-  const held = layoutAt(kv, tokens);
-  const engine = engineText(kv);
+  const sizes = layoutSizes(kv, tokens);
+  const adds = vllmAddsText(kv);
   return (
     <section className={s.card} aria-labelledby="kv-layout-title">
       <h2 id="kv-layout-title">KV cache</h2>
       <p className={s.lead}>
-        What one request keeps on each GPU between steps.
-        {shards > 1 && (
-          <> A KV partition spans {shards} GPUs; the bytes are each GPU's share.</>
+        What one request keeps between decoding steps, in the model's own bytes.
+        {gpus > 1 ? (
+          <>
+            {" "}
+            One cache spans {gpus} GPUs. Each part is split across them or kept
+            whole on every one, so each size is given three ways: stored once, which
+            is the least the model needs; on each GPU; and over all {gpus}.
+          </>
+        ) : (
+          <> One GPU holds the whole cache.</>
         )}
         {partitions > 1 && (
-          <> A replica holds {partitions} partitions, each with its own cache.</>
+          <>
+            {" "}
+            A replica holds {partitions} such caches, one per attention partition.
+          </>
         )}
       </p>
-      <dl className={s.stats}>
-        {totals.token != null && (
-          <div>
-            <dt>Per token of context</dt>
-            <dd>{bytesText(totals.token)}</dd>
-          </div>
-        )}
-        {totals.window != null && (
-          <div>
-            <dt>Sliding windows, when full</dt>
-            <dd>{bytesText(totals.window)}</dd>
-          </div>
-        )}
-        {totals.request != null && (
-          <div>
-            <dt>State per request</dt>
-            <dd>{bytesText(totals.request)}</dd>
-          </div>
-        )}
-      </dl>
 
-      <div className={s.picker}>
+      <SizeTable sizes={sizes} gpus={gpus} />
+
+      <div className={`${s.picker} ${s.stacked}`}>
         <label className={s.length}>
           <span className={s.pickerLabel}>Context length</span>
           <output className={s.pickerValue}>
@@ -102,33 +100,176 @@ export function KvLayout({ kv, partitions, maxModelLen }) {
             <span>{stops[stops.length - 1].toLocaleString("en-US")}</span>
           </span>
         </label>
-        <div className={s.total}>
-          <span className={s.pickerLabel}>One decoding request holds</span>
-          <span className={s.pickerValue}>
-            {bytesText(held.total)}
-            <span> per GPU</span>
-          </span>
-        </div>
-        {held.rows.length > 1 && <ShareBar rows={held.rows} />}
+        <SizeBars sizes={sizes} gpus={gpus} />
       </div>
 
-      <PartsAtLength kv={kv} held={held} tokens={tokens} />
+      <PartsAtLength sizes={sizes} gpus={gpus} tokens={tokens} />
       <p className={s.note}>
-        {engine && <>{engine} </>}A prefill chunk adds its tokens to each window,
-        and prefix caching keeps one more copy of a reusable state. Those, and how
-        many requests fit, depend on the server's settings and the memory it leaves
-        for this cache; the Simulate page shows them for each deployment.
+        {adds && <>{adds} </>}
+        {adds ? "That, a" : "A"} prefill chunk in each window and prefix caching's
+        extra copy of a reusable state are what the server adds on top; how many
+        requests fit depends on the memory it leaves for this cache. The Simulate
+        page charges all of it for each deployment.
       </p>
     </section>
   );
 }
 
-/* The layout's parts: what each holds at the picked length and its share,
-   which the slider moves and a narrow screen keeps in view, then what the
-   part is kept for and costs. */
-function PartsAtLength({ kv, held, tokens }) {
-  const rows = layoutRows(kv);
-  const parts = rows.length > 1;
+/* One decoding request at the picked length as bars on one scale, each
+   cut by part, in the tables' order: stored once, on each GPU, and over all
+   the partition's GPUs (with the amplification beside it), so how much
+   replication adds reads off the lengths. A one-GPU cache has one size and
+   one bar. */
+function SizeBars({ sizes, gpus }) {
+  const bars =
+    gpus > 1
+      ? [
+          ["once", "Stored once", "the least the model needs"],
+          ["gpu", "Per GPU", "one GPU's share"],
+          ["partition", `All ${gpus} GPUs`, "what the deployment stores"],
+        ]
+      : [["gpu", "On the GPU", null]];
+  const scale = Math.max(...bars.map(([key]) => sizes.total[key]));
+  const parts = sizes.rows.length > 1;
+  return (
+    <figure className={s.sizeBars}>
+      <figcaption className={s.pickerLabel}>One decoding request holds</figcaption>
+      <div className={s.barGrid}>
+        {bars.map(([key, label, gloss]) => {
+          const total = sizes.total[key];
+          return (
+            <div className={s.barRow} key={key} data-size={key}>
+              <span className={s.barLabel}>
+                {label}
+                {gloss && <small>{gloss}</small>}
+              </span>
+              <span className={s.track}>
+                <span
+                  className={s.bar}
+                  style={{ width: `${scale > 0 ? (total / scale) * 100 : 0}%` }}
+                >
+                  {sizes.rows.map((row, index) => (
+                    <span
+                      key={row.name}
+                      data-tone={index % TONES}
+                      style={{
+                        width: `${total > 0 ? (row[key] / total) * 100 : 0}%`,
+                      }}
+                      title={`${row.name}: ${bytesText(row[key])}`}
+                    />
+                  ))}
+                </span>
+              </span>
+              <span className={s.barValue}>
+                {bytesText(total)}
+                {key === "partition" && sizes.total.once > 0 && (
+                  <small>{timesText(total / sizes.total.once)} stored once</small>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {parts && (
+        <ul className={s.legend}>
+          {sizes.rows.map((row, index) => (
+            <li key={row.name}>
+              <i data-tone={index % TONES} aria-hidden="true" />
+              <code>{row.name}</code>
+            </li>
+          ))}
+        </ul>
+      )}
+    </figure>
+  );
+}
+
+/* The three sizes of a figure as table cells, or the one size a one-GPU
+   cache has. `amplified` is the partition's bytes over one copy. */
+function SizeCells({ size, gpus, strong }) {
+  const text = (bytes) => (bytes == null ? "-" : bytesText(bytes));
+  if (gpus <= 1)
+    return (
+      <td className={`${s.num} ${strong ? s.strong : ""}`}>{text(size?.gpu)}</td>
+    );
+  return (
+    <>
+      <td className={s.num}>{text(size?.once)}</td>
+      <td className={`${s.num} ${strong ? s.strong : ""}`}>{text(size?.gpu)}</td>
+      <td className={s.num}>{text(size?.partition)}</td>
+      <td className={s.num}>
+        {size && size.once > 0 ? timesText(size.partition / size.once) : "-"}
+      </td>
+    </>
+  );
+}
+
+function SizeHeads({ gpus }) {
+  if (gpus <= 1)
+    return (
+      <th scope="col" className={s.num}>
+        Bytes
+      </th>
+    );
+  return (
+    <>
+      <th scope="col" className={s.num} title="The model's bytes, stored once">
+        Stored once
+      </th>
+      <th scope="col" className={s.num}>
+        Per GPU
+      </th>
+      <th scope="col" className={s.num}>
+        All {gpus} GPUs
+      </th>
+      <th
+        scope="col"
+        className={s.num}
+        title="All the GPUs hold, over one copy stored once"
+      >
+        Amplified
+      </th>
+    </>
+  );
+}
+
+/* The cache's sizes that do not depend on the context picked: a token of
+   context, the windows when full, a request's state. */
+function SizeTable({ sizes, gpus }) {
+  const lines = [
+    ["Each token of context", sizes.token],
+    ["Sliding windows, when full", sizes.window],
+    ["State per request", sizes.request],
+  ].filter(([, size]) => size != null);
+  return (
+    <div className={s.scroll}>
+      <table className={`${s.table} ${s.sizes}`}>
+        <thead>
+          <tr>
+            <th scope="col">
+              <span className={s.visuallyHidden}>Figure</span>
+            </th>
+            <SizeHeads gpus={gpus} />
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map(([label, size]) => (
+            <tr key={label}>
+              <th scope="row">{label}</th>
+              <SizeCells size={size} gpus={gpus} strong />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* One request at the picked length, part by part: what each part holds,
+   where it sits on the GPUs, its three sizes and whether a later request
+   can reuse it. */
+function PartsAtLength({ sizes, gpus, tokens }) {
+  const parts = sizes.rows.length > 1;
   return (
     <div className={s.scroll}>
       <table className={`${s.table} ${s.wide}`}>
@@ -136,46 +277,44 @@ function PartsAtLength({ kv, held, tokens }) {
           <tr>
             <th scope="col">Part</th>
             <th scope="col">At {tokens.toLocaleString("en-US")} tokens</th>
-            <th scope="col" className={s.num}>
-              Per GPU
-            </th>
-            {parts && (
-              <th scope="col" className={s.num}>
-                Share
-              </th>
-            )}
+            {gpus > 1 && <th scope="col">On the GPUs</th>}
+            <SizeHeads gpus={gpus} />
             <th scope="col" className={s.layout}>
-              Kept for
+              Prefix reuse
             </th>
-            <th scope="col">Size per GPU</th>
-            <th scope="col">Prefix reuse</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, index) => (
+          {sizes.rows.map((row, index) => (
             <tr key={row.name}>
               <th scope="row">
                 {parts && <i data-tone={index % TONES} aria-hidden="true" />}
                 <code>{row.name}</code>
               </th>
-              <td>{held.rows[index].holds}</td>
-              <td className={`${s.num} ${s.strong}`}>
-                {bytesText(held.rows[index].bytes)}
+              <td title={GROWTH_NOTE[row.kind]}>
+                {row.holds}
+                <small>
+                  {bytesText(row.entry.gpu)} {row.perEntry}
+                  {gpus > 1 && " per GPU"}
+                </small>
               </td>
-              {parts && (
-                <td className={s.num}>{sharePercent(held.rows[index].share)}</td>
-              )}
-              <td className={s.layout} title={GROWTH_NOTE[row.kind]}>
-                {row.grows}
-              </td>
-              <td>
-                {row.bytes}
-                {row.overhead && <small>vLLM: {row.overhead}</small>}
-              </td>
-              <td>{row.reusable ? "Yes" : "No"}</td>
+              {gpus > 1 && <td>{placementWords(row.placement, gpus)}</td>}
+              <SizeCells size={row} gpus={gpus} strong />
+              <td className={s.layout}>{row.reusable ? "Yes" : "No"}</td>
             </tr>
           ))}
         </tbody>
+        {parts && (
+          <tfoot>
+            <tr>
+              <th scope="row">Total</th>
+              <td />
+              {gpus > 1 && <td />}
+              <SizeCells size={sizes.total} gpus={gpus} strong />
+              <td className={s.layout} />
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );
@@ -268,7 +407,8 @@ function ShareBar({ rows }) {
    what one of them holds part by part, and, folded, the layout behind it. */
 export function KvCapacity({ kv, role, gpu }) {
   const facts = capacity(kv);
-  if (!facts) return null;
+  // An API before the three sizes gives no per-GPU bytes to show.
+  if (!facts || !hasSizes(kv)) return null;
   const rows = requestRows(kv);
   const otherLabel =
     facts.otherMode === "none" ? "Without vLLM's overhead" : "With vLLM's overhead";
@@ -303,6 +443,12 @@ export function KvCapacity({ kv, role, gpu }) {
           <dt>KV memory per GPU</dt>
           <dd className={s.secondary}>{bytesText(facts.budget)}</dd>
         </div>
+        {facts.oneCopy != null && (
+          <div>
+            <dt>One request, stored once</dt>
+            <dd className={s.secondary}>{bytesText(facts.oneCopy)}</dd>
+          </div>
+        )}
         {facts.tokens != null && (
           <div>
             <dt>Tokens it holds</dt>
@@ -323,6 +469,7 @@ export function KvCapacity({ kv, role, gpu }) {
         <b>{bytesText(facts.perRequest)}</b> per GPU
         {gpu && <> on {gpu}</>}
       </RequestParts>
+      <Amplification facts={facts} />
 
       <p className={s.note}>
         {optionsText(kv)} KV memory per GPU is the budget this deployment gives the
@@ -338,10 +485,30 @@ export function KvCapacity({ kv, role, gpu }) {
 
 const TONES = 5;
 
+/* How many times over the partition stores one request: the simulator's
+   split into replication across GPUs and the engine's overhead. Hidden when
+   the API sends no amplification. */
+function Amplification({ facts }) {
+  if (facts.oneCopy == null || facts.amplification == null) return null;
+  const split = amplificationText(facts);
+  const gpus = facts.gpusPerPartition;
+  return (
+    <p className={s.note}>
+      {gpus > 1 ? `The partition's ${gpus} GPUs together hold` : "The GPU holds"}{" "}
+      <b>{timesText(facts.amplification)}</b> the request stored once.
+      {split && <> That is {split}.</>} Replication comes from parts that every GPU
+      keeps whole instead of a slice of; engine overhead is vLLM's padding, extra
+      state copies, block rounding and tokens in flight.
+    </p>
+  );
+}
+
 /* One request part by part: a bar of shares over the table that names them.
    A one-part cache needs no shares. */
 function RequestParts({ rows, children }) {
   const parts = rows.length > 1;
+  // One copy is the model's bytes over all its GPUs, not per GPU.
+  const amplified = rows.every((row) => row.oneCopy != null);
   return (
     <figure className={s.request}>
       <figcaption>{children}</figcaption>
@@ -359,6 +526,24 @@ function RequestParts({ rows, children }) {
                 Share
               </th>
             )}
+            {amplified && (
+              <th
+                scope="col"
+                className={s.num}
+                title="The model's bytes, stored once"
+              >
+                One copy
+              </th>
+            )}
+            {amplified && (
+              <th
+                scope="col"
+                className={s.num}
+                title="All its GPUs hold, over one copy"
+              >
+                Amplified
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -371,6 +556,8 @@ function RequestParts({ rows, children }) {
               <td>{row.holds}</td>
               <td className={s.num}>{bytesText(row.bytes)}</td>
               {parts && <td className={s.num}>{sharePercent(row.share)}</td>}
+              {amplified && <td className={s.num}>{bytesText(row.oneCopy)}</td>}
+              {amplified && <td className={s.num}>{timesText(row.amplified)}</td>}
             </tr>
           ))}
         </tbody>
@@ -393,6 +580,7 @@ function LayoutTable({ kv }) {
   const rows = layoutRows(kv);
   const engine = engineText(kv);
   const overhead = rows.some((row) => row.overhead);
+  const placed = rows.every((row) => row.placement);
   return (
     <>
       <table className={s.table}>
@@ -405,6 +593,7 @@ function LayoutTable({ kv }) {
             </th>
             {overhead && <th scope="col">vLLM adds</th>}
             <th scope="col">Prefix reuse</th>
+            {placed && <th scope="col">On its GPUs</th>}
           </tr>
         </thead>
         <tbody>
@@ -417,6 +606,7 @@ function LayoutTable({ kv }) {
               <td className={s.num}>{row.bytes}</td>
               {overhead && <td>{row.overhead || "-"}</td>}
               <td>{row.reusable ? "Yes" : "No"}</td>
+              {placed && <td>{row.placement}</td>}
             </tr>
           ))}
         </tbody>

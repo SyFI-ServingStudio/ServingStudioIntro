@@ -2,15 +2,19 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
+  amplificationText,
   bytesText,
   capacity,
   engineText,
-  layoutAt,
+  hasSizes,
   layoutRows,
-  layoutTotals,
+  layoutSizes,
   lengthStops,
+  placementText,
+  placementWords,
   spreadLabels,
   requestRows,
+  vllmAddsText,
 } from "../src/components/kvCache.js";
 
 // Pools of /simulations/presets as the public API served them.
@@ -72,11 +76,6 @@ test("blocks round a per-token part up and a state keeps the previous step's cop
       ],
     ],
   );
-  assert.deepEqual(layoutTotals(kv.glm53_flash_tp), {
-    token: 5632 + 1452 / 4,
-    window: null,
-    request: 36904960 + 22528, // kda + kpool_tail
-  });
 });
 
 test("attention DP partitions each hold their own cache", () => {
@@ -92,6 +91,71 @@ test("a pool whose cache cannot hold one full-length request reads below one", (
   assert.ok(facts.perRequest > facts.budget);
 });
 
+test("placement and amplification print as the simulator's report does", () => {
+  assert.equal(placementText({ shards: 4, replicas: 1 }), "4 shards");
+  assert.equal(placementText({ shards: 1, replicas: 4 }), "4 replicas");
+  assert.equal(placementText({ shards: 2, replicas: 2 }), "2 shards × 2 replicas");
+  // GLM-5.3 TP4's numbers from the simulator's --kv-report.
+  assert.equal(
+    amplificationText({ replication: 3.5255512, amplification: 3.9131768 }),
+    "3.53× replication × 1.11× engine overhead = 3.91×",
+  );
+});
+
+test("each size comes from the API: stored once, per GPU and over the partition", () => {
+  const pool = kv.glm53_flash_tp;
+  assert.ok(hasSizes(pool));
+  const sizes = layoutSizes(pool, 8192);
+  const three = (size) => [size.once, size.gpu, size.partition];
+  // GLM-5.3-Flash on attention TP4: MLA, indexer and the kpool tail are kept
+  // whole on each GPU, KDA heads split across them.
+  assert.deepEqual(three(sizes.token), [
+    5632 + 1452 / 4,
+    5632 + 1452 / 4,
+    4 * (5632 + 1452 / 4),
+  ]);
+  assert.deepEqual(three(sizes.request), [
+    4 * 36904960 + 22528,
+    36904960 + 22528,
+    4 * 36904960 + 4 * 22528,
+  ]);
+  assert.equal(sizes.window, null);
+  assert.deepEqual(
+    sizes.rows.map((row) => [row.name, placementWords(row.placement, 4)]),
+    [
+      ["mla", "A whole copy on each of the 4 GPUs"],
+      ["indexer", "A whole copy on each of the 4 GPUs"],
+      ["kda", "Split across the 4 GPUs"],
+      ["kpool_tail", "A whole copy on each of the 4 GPUs"],
+    ],
+  );
+  // The request's per-GPU bytes on the Simulate page are the API's too.
+  assert.equal(
+    capacity(pool).perRequest,
+    pool.result.request_parts.reduce((sum, part) => sum + part.per_gpu_bytes, 0),
+  );
+});
+
+test("one GPU's cache has one size, and placement says nothing", () => {
+  const sizes = layoutSizes(kv.glm52_dp, 8192);
+  assert.equal(sizes.total.once, sizes.total.gpu);
+  assert.equal(sizes.total.gpu, sizes.total.partition);
+  assert.equal(placementWords(sizes.rows[0].placement, 1), null);
+  assert.equal(
+    placementWords({ shards: 2, replicas: 2 }, 4),
+    "Split in 2, each slice on 2 GPUs",
+  );
+});
+
+test("what vLLM adds is named, not counted, on the Models page", () => {
+  assert.equal(
+    vllmAddsText(kv.glm53_flash_tp),
+    "vLLM pads kda by 41%, pads kpool_tail to 579× its size and allocates in blocks of 2,176 tokens.",
+  );
+  assert.equal(vllmAddsText(kv.inkling), "vLLM pads sconv by 2%.");
+  assert.equal(vllmAddsText(kv.glm52_dp), null);
+});
+
 test("the slider steps by powers of two and halves up to the longest context", () => {
   assert.deepEqual(lengthStops(8192), [1024, 1536, 2048, 3072, 4096, 6144, 8192]);
   assert.deepEqual(lengthStops(9216).slice(-3), [6144, 8192, 9216]);
@@ -99,42 +163,41 @@ test("the slider steps by powers of two and halves up to the longest context", (
 });
 
 const at = (pool, tokens) =>
-  layoutAt(pool, tokens).rows.map((row) => [
+  layoutSizes(pool, tokens).rows.map((row) => [
     row.name,
     row.holds,
-    bytesText(row.bytes),
+    bytesText(row.gpu),
   ]);
 
-test("a decoding request at a picked length holds what vLLM allocates", () => {
-  // The server's own split at max_model_len, less the prefix-caching copy
-  // of kda and the prefill chunk in each window.
+test("a decoding request at a picked length holds the model's own bytes", () => {
+  // No padding, blocks or extra copies: those are the Simulate page's.
   assert.deepEqual(at(kv.glm53_flash_tp, 8192), [
-    ["mla", "8,704 tokens (4 blocks of 2,176)", "46.8 MiB"],
-    ["indexer", "8,704 tokens, 2,176 entries", "3.01 MiB"],
-    ["kda", "1 copy", "49.8 MiB"],
-    ["kpool_tail", "1 copy", "12.4 MiB"],
+    ["mla", "8,192 tokens", "44 MiB"],
+    ["indexer", "8,192 tokens, 2,048 entries", "2.84 MiB"],
+    ["kda", "1 state", "35.2 MiB"],
+    ["kpool_tail", "1 state", "22 KiB"],
   ]);
   assert.deepEqual(at(kv.inkling, 131072), [
     ["global_attn", "131,072 tokens", "704 MiB"],
     ["swa_attn", "512 tokens, a full window", "27.5 MiB"],
-    ["sconv", "4 tokens, a full window", "1.03 MiB"],
+    ["sconv", "4 tokens, a full window", "1.01 MiB"],
   ]);
   assert.deepEqual(at(kv.inkling, 300), [
     ["global_attn", "300 tokens", "1.61 MiB"],
     ["swa_attn", "300 tokens", "16.1 MiB"],
-    ["sconv", "4 tokens, a full window", "1.03 MiB"],
+    ["sconv", "4 tokens, a full window", "1.01 MiB"],
   ]);
   // Every part grows per token: the shares stay put and bytes scale.
-  const short = layoutAt(kv.glm52_dp, 1024);
-  const long = layoutAt(kv.glm52_dp, 8192);
-  assert.equal(long.total, short.total * 8);
+  const short = layoutSizes(kv.glm52_dp, 1024);
+  const long = layoutSizes(kv.glm52_dp, 8192);
+  assert.equal(long.total.gpu, short.total.gpu * 8);
   assert.equal(long.rows[0].share, short.rows[0].share);
-  // At the longest context the per-token parts match the server's split.
+  // Without overhead, the longest context matches the server's split.
   const server = kv.glm52_fp8_hp.result.request_parts.reduce(
     (sum, part) => sum + part.bytes,
     0,
   );
-  assert.equal(layoutAt(kv.glm52_fp8_hp, 1048576).total, server);
+  assert.equal(layoutSizes(kv.glm52_fp8_hp, 1048576).total.partition, server);
 });
 
 test("labels in one row spread apart and stay inside it", () => {
@@ -146,4 +209,12 @@ test("labels in one row spread apart and stay inside it", () => {
   assert.deepEqual(spreadLabels([280, 295], [60, 60], 300), [172, 240]);
   // At the left edge: kept off it.
   assert.deepEqual(spreadLabels([5], [60], 300), [0]);
+});
+
+test("padding under one percent does not read as none", () => {
+  const pool = structuredClone(kv.glm52_dp);
+  pool.layout.parts[0].padded_bytes_per_entry = Math.round(
+    pool.layout.parts[0].bytes_per_entry * 1.002,
+  );
+  assert.equal(vllmAddsText(pool), "vLLM pads mla by under 1%.");
 });
