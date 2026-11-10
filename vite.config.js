@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import { agentContent } from "./scripts/agent-content.mjs";
 import { blogContent } from "./scripts/blog-content.mjs";
 import { servingStudioUi } from "./scripts/servingstudio-ui.mjs";
 import { sitemap } from "./scripts/sitemap.mjs";
@@ -35,6 +36,15 @@ export default defineConfig(({ mode }) => {
       sitemap({
         origin: "https://servingstudio.cs.washington.edu",
         pages: PAGES.map((p) => p.file),
+      }),
+      // Text for readers without JavaScript: the catalog pages' lists baked
+      // into their HTML and as Markdown, llms.txt, robots.txt and the agent
+      // skills. Reads the public API once; see scripts/agent-content.mjs.
+      agentContent({
+        origin: "https://servingstudio.cs.washington.edu",
+        pages: PAGES,
+        apiBase: env.PUBLIC_API_CATALOG_BASE,
+        allowMissing: env.ALLOW_NO_API_CATALOG === "1",
       }),
     ],
     server: { proxy: publicApiProxy(env) },

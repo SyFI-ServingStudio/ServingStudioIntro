@@ -23,6 +23,8 @@ agent-trace/
 *.md
 !/README.md
 !/content/blog/**/*.md
+# The agent skills the build publishes as /skills/<name>.md.
+!/content/skills/**/*.md
 
 # Scratch from picking the hero background: a comparison page and the image
 # prompts. Moved out of public/, because everything under public/ is copied
