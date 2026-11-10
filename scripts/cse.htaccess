@@ -6,3 +6,8 @@ RewriteEngine On
 # kept out of this public repository: scripts/deploy-cse.sh fills in the
 # target below from CSE_PUBLIC_API_TARGET when it writes dist/.htaccess.
 RewriteRule ^api/public/v1(/.*)?$ @CSE_PUBLIC_API_TARGET@%{REQUEST_URI} [P,L]
+
+# The Markdown pages, llms.txt and robots.txt the build writes for crawlers and
+# agents (scripts/agent-content.mjs) are UTF-8; say so, and name Markdown's type.
+AddType "text/markdown; charset=utf-8" .md
+AddCharset utf-8 .txt
