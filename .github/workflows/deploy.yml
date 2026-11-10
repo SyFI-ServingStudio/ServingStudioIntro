@@ -35,13 +35,14 @@ jobs:
       - run: npm ci
       - run: npm run lint:css
       - run: npm test
-      # The check has no UI checkout for Read more, and does not depend on the
-      # public API being up for the pages' text; the published redirects need
-      # neither.
+      # The check has no UI checkout for Read more and no Sim checkout for the
+      # agent skills, and does not depend on the public API being up for the
+      # pages' text; the published redirects need none of them.
       - run: npm run build
         env:
           ALLOW_NO_READ_MORE: "1"
           ALLOW_NO_API_CATALOG: "1"
+          ALLOW_NO_SKILLS: "1"
       - run: npm run build:github-redirects
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

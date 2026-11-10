@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -22,6 +24,21 @@ const links = {
   },
   skill: (name) => `${origin}/skills/${name}.md`,
 };
+
+/* A stand-in Sim checkout: public_api/skills with two skills and a directory
+   that holds no SKILL.md, which is not a skill. */
+const SKILL_TEXT = (name) =>
+  `---\nname: ${name}\ndescription: >-\n  Do ${name} things through\n  the API.\n---\n\n# ${name}\n`;
+function fakeSim({ skills = ["skill-b", "skill-a"] } = {}) {
+  const simDir = mkdtempSync(path.join(tmpdir(), "agent-content-sim-"));
+  const directory = path.join(simDir, "public_api", "skills");
+  mkdirSync(path.join(directory, "not-a-skill"), { recursive: true });
+  for (const name of skills) {
+    mkdirSync(path.join(directory, name));
+    writeFileSync(path.join(directory, name, "SKILL.md"), SKILL_TEXT(name));
+  }
+  return simDir;
+}
 
 // The smallest answers of each catalog route the renderers read.
 const catalogs = {
@@ -185,6 +202,8 @@ test("the real page bodies name every entry", async () => {
       { id: "simulate", name: "Simulate", file: "simulate.html" },
     ],
     fetchCatalogs: async () => catalogs,
+    simDir: fakeSim(),
+    log: { log() {}, warn() {} },
   });
   plugin.configResolved({ base: "/", root });
   await plugin.buildStart();
@@ -220,7 +239,12 @@ test("the real page bodies name every entry", async () => {
     /\[Models\]\(https:\/\/example\.org\/models\.md\)/,
   );
   assert.match(emitted["llms.txt"], /api\/public\/v1\/openapi\.json/);
-  assert.ok(emitted["skills/servingstudio-simulate.md"].startsWith("---\nname:"));
+  assert.equal(String(emitted["skills/skill-a.md"]), SKILL_TEXT("skill-a"));
+  assert.equal(emitted["skills/not-a-skill.md"], undefined);
+  assert.match(
+    emitted["llms.txt"],
+    /- \[skill-a\]\(https:\/\/example\.org\/skills\/skill-a\.md\): Do skill-a things through the API\.\n- \[skill-b\]/,
+  );
   assert.match(
     emitted["robots.txt"],
     /Sitemap: https:\/\/example\.org\/sitemap\.xml/,
@@ -267,6 +291,7 @@ test("the plugin stops a build without catalogs unless allowed", async () => {
     origin,
     pages: [],
     fetchCatalogs: unreachable,
+    simDir: fakeSim(),
     log: quiet,
   });
   strict.configResolved({ base: "/", root });
@@ -277,6 +302,7 @@ test("the plugin stops a build without catalogs unless allowed", async () => {
     pages: [],
     fetchCatalogs: unreachable,
     allowMissing: true,
+    simDir: fakeSim(),
     log: quiet,
   });
   lenient.configResolved({ base: "/", root });
@@ -302,17 +328,55 @@ test("injectStaticContent puts the text in #root and hides it from scripted brow
   );
 });
 
-test("readSkills reads every published skill with its description", () => {
-  const skills = readSkills(root);
+test("readSkills finds every skill directory of a Sim checkout", () => {
+  const skills = readSkills(fakeSim());
   assert.deepEqual(
-    skills.map((skill) => skill.name),
+    skills.map((skill) => [skill.name, skill.description]),
     [
-      "servingstudio-kernel-performance",
-      "servingstudio-simulate",
-      "servingstudio-timing-predict",
+      ["skill-a", "Do skill-a things through the API."],
+      ["skill-b", "Do skill-b things through the API."],
     ],
   );
-  for (const skill of skills) assert.ok(skill.description.length > 40, skill.name);
+  assert.throws(() => readSkills(undefined), /SERVINGSTUDIO_SIM_DIR is not set/);
+  assert.throws(() => readSkills(root), /has no public_api\/skills directory/);
+  assert.throws(
+    () => readSkills(fakeSim({ skills: [] })),
+    /holds no <name>\/SKILL\.md/,
+  );
+});
+
+test("the plugin stops a build without skills unless allowed", async () => {
+  const { agentContent } = await import("./agent-content.mjs");
+  const quiet = { log() {}, warn() {} };
+  const options = {
+    origin,
+    pages: [
+      { id: "models", name: "Models", file: "models.html" },
+      { id: "kernels", name: "Kernels", file: "kernels.html" },
+      { id: "simulate", name: "Simulate", file: "simulate.html" },
+    ],
+    fetchCatalogs: async () => catalogs,
+    log: quiet,
+  };
+  const strict = agentContent(options);
+  strict.configResolved({ base: "/", root });
+  await assert.rejects(
+    strict.buildStart(),
+    /No agent skills to publish: SERVINGSTUDIO_SIM_DIR is not set.*ALLOW_NO_SKILLS=1/,
+  );
+
+  const lenient = agentContent({ ...options, allowMissingSkills: true });
+  lenient.configResolved({ base: "/", root });
+  await lenient.buildStart();
+  const emitted = {};
+  lenient.generateBundle.call({
+    emitFile: ({ fileName, source }) => (emitted[fileName] = source),
+  });
+  assert.match(emitted["llms.txt"], /without the skills \(ALLOW_NO_SKILLS=1\)/);
+  assert.deepEqual(
+    Object.keys(emitted).filter((name) => name.startsWith("skills/")),
+    [],
+  );
 });
 
 test("robots.txt allows everything and names llms.txt and the sitemap", () => {

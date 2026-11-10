@@ -10,7 +10,8 @@
      replaces #root's children on its first render anyway;
    - `llms.txt` (https://llmstxt.org/): what ServingStudio is, in the site's
      own words, and links to the Markdown, the API, its docs and the skills;
-   - the agent skills of content/skills as `skills/<name>.md`;
+   - the agent skills of a ServingStudio Sim checkout, every
+     `public_api/skills/<name>/SKILL.md` byte for byte, as `skills/<name>.md`;
    - `robots.txt`, allowing every crawler and naming the sitemap.
 
    The catalogs come from PUBLIC_API_CATALOG_BASE (default: the public API of
@@ -19,11 +20,15 @@
    so in the log and in the generated text, as ALLOW_NO_READ_MORE does for
    Read more (scripts/servingstudio-ui.mjs).
 
+   The skills come from the checkout SERVINGSTUDIO_SIM_DIR names, which has no
+   default, like SERVINGSTUDIO_UI_DIR. Without it, or with no skill in it, the
+   build stops; ALLOW_NO_SKILLS=1 builds without them, and llms.txt says so.
+
    Wording is taken from the pages (their PageHero copy and meta
    descriptions) and from the API's own fields; add no claims here that the
    site does not make. */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -365,11 +370,15 @@ export function renderLlmsText({ links, pages, posts, skills, catalogs }) {
     "",
     "## Agent skills",
     "",
-    `Install all three with \`${SKILL_INSTALL}\`.`,
+    `Install them all with \`${SKILL_INSTALL}\`.`,
     "",
-    ...skills.map(
-      (skill) => `- [${skill.name}](${skill.url}): ${skill.description}`,
-    ),
+    ...(skills.length
+      ? skills.map(
+          (skill) => `- [${skill.name}](${skill.url}): ${skill.description}`,
+        )
+      : [
+          "This build was made without the skills (ALLOW_NO_SKILLS=1), so they are not included here; the install command above fetches them from GitHub.",
+        ]),
     "",
     "## Optional",
     "",
@@ -392,28 +401,43 @@ Sitemap: ${origin}/sitemap.xml
 `;
 }
 
-/* The skills under content/skills/<name>/SKILL.md, with the one-line
-   description of their front matter (a folded `description: >-` block). */
-export function readSkills(root) {
-  const directory = path.join(root, "content/skills");
-  return readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+/* Every skill of a ServingStudio Sim checkout: each directory of
+   public_api/skills that holds a SKILL.md, with its bytes (published as they
+   are) and the one-line description of its front matter (a folded
+   `description: >-` block). Throws, naming the cause, when `simDir` is unset
+   or holds no skill. */
+export function readSkills(simDir) {
+  if (!simDir)
+    throw new Error(
+      "SERVINGSTUDIO_SIM_DIR is not set; point it at a ServingStudio Sim checkout.",
+    );
+  const directory = path.join(path.resolve(simDir), "public_api", "skills");
+  if (!existsSync(directory))
+    throw new Error(`${path.resolve(simDir)} has no public_api/skills directory.`);
+  const skills = readdirSync(directory, { withFileTypes: true })
+    .filter(
+      (entry) =>
+        entry.isDirectory() &&
+        existsSync(path.join(directory, entry.name, "SKILL.md")),
+    )
     .map(({ name }) => {
-      const source = readFileSync(path.join(directory, name, "SKILL.md"), "utf8");
+      const file = path.join(directory, name, "SKILL.md");
+      const bytes = readFileSync(file);
+      const source = bytes.toString("utf8");
       const frontMatter = source.match(/^---\n([\s\S]*?)\n---\n/);
-      if (!frontMatter)
-        throw new Error(`content/skills/${name}/SKILL.md has no front matter`);
+      if (!frontMatter) throw new Error(`${file} has no front matter`);
       const description = frontMatter[1]
         .match(/^description:\s*>-?\n((?:[ \t]+.*\n?)+)/m)?.[1]
         .split("\n")
         .map((line) => line.trim())
         .filter(Boolean)
         .join(" ");
-      if (!description)
-        throw new Error(`content/skills/${name}/SKILL.md has no description`);
-      return { name, description, source };
+      if (!description) throw new Error(`${file} has no description`);
+      return { name, description, bytes };
     })
     .sort((first, second) => first.name.localeCompare(second.name));
+  if (!skills.length) throw new Error(`${directory} holds no <name>/SKILL.md.`);
+  return skills;
 }
 
 /* A page's meta description, the one sentence each page already has. */
@@ -449,11 +473,14 @@ export function agentContent({
   pages,
   apiBase,
   allowMissing = false,
+  simDir,
+  allowMissingSkills = false,
   log = console,
   fetchCatalogs: readCatalogs = fetchCatalogs,
 }) {
   let config;
   let catalogs = null;
+  let skills = [];
   const links = {
     origin,
     // The URL readers and agents use, whichever base the build read from.
@@ -476,6 +503,19 @@ export function agentContent({
       config = value;
     },
     async buildStart() {
+      try {
+        skills = readSkills(simDir);
+        log.log(
+          `[agent-content] skills from ${path.resolve(simDir)}: ${skills.map((skill) => skill.name).join(", ")}`,
+        );
+      } catch (error) {
+        if (!allowMissingSkills)
+          throw new Error(
+            `No agent skills to publish: ${error.message} To build the site without them, set ALLOW_NO_SKILLS=1.`,
+          );
+        log.warn(`[agent-content] no skills: ${error.message}`);
+        skills = [];
+      }
       const base = apiBase || DEFAULT_API_BASE;
       try {
         catalogs = await readCatalogs(base);
@@ -510,11 +550,7 @@ export function agentContent({
       for (const page of CATALOG_PAGES)
         emit(`${page.id}.md`, renderCatalogPage(page, catalogs, links));
 
-      const skills = readSkills(config.root).map((skill) => ({
-        ...skill,
-        url: links.skill(skill.name),
-      }));
-      for (const skill of skills) emit(`skills/${skill.name}.md`, skill.source);
+      for (const skill of skills) emit(`skills/${skill.name}.md`, skill.bytes);
 
       const pageEntries = pages.map((page) => ({
         name: page.name,
@@ -530,7 +566,10 @@ export function agentContent({
           links,
           pages: pageEntries,
           posts: readBlogPosts(config.root, config.base),
-          skills,
+          skills: skills.map((skill) => ({
+            ...skill,
+            url: links.skill(skill.name),
+          })),
           catalogs,
         }),
       );

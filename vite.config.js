@@ -45,6 +45,8 @@ export default defineConfig(({ mode }) => {
         pages: PAGES,
         apiBase: env.PUBLIC_API_CATALOG_BASE,
         allowMissing: env.ALLOW_NO_API_CATALOG === "1",
+        simDir: env.SERVINGSTUDIO_SIM_DIR,
+        allowMissingSkills: env.ALLOW_NO_SKILLS === "1",
       }),
     ],
     server: { proxy: publicApiProxy(env) },

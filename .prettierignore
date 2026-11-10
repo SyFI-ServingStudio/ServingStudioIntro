@@ -2,5 +2,3 @@ dist/
 node_modules/
 public/
 .refactor/
-# Verbatim copies of ServingStudio Sim's public_api/skills.
-content/skills/
