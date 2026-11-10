@@ -6,11 +6,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   fetchCatalogs,
-  injectStaticContent,
   readSkills,
   renderCatalogPage,
   renderRobotsText,
 } from "./agent-content.mjs";
+import { injectStaticContent, removeInjected } from "./static-markup.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const origin = "https://example.org";
@@ -23,6 +23,8 @@ const links = {
     return `${origin}/${id}.html${query ? `?${query}` : ""}`;
   },
   skill: (name) => `${origin}/skills/${name}.md`,
+  file: (fileName) => `${origin}/${fileName}`,
+  footer: (fileName) => `\n---\n\nThis page as Markdown: ${origin}/${fileName}.\n`,
 };
 
 /* A stand-in Sim checkout: public_api/skills with two skills and a directory
@@ -146,6 +148,55 @@ const catalogs = {
   },
 };
 
+/* The per-kind and per-tree answers (agent-detail-pages.mjs), and a
+   prerender that renders nothing: the plugin tests need no API or App. */
+const details = {
+  kernels: new Map([
+    [
+      "all_reduce",
+      {
+        title: "All-reduce",
+        summary: "Sum one buffer across the GPUs of a tensor-parallel group.",
+        category: "Communication",
+        method: "Timed with NCCL.",
+        args: [
+          {
+            name: "num_gpus",
+            type: "number",
+            unit: "GPUs",
+            doc: "GPUs in the group.",
+          },
+        ],
+        backends: {
+          nccl: { summary: "NCCL all-reduce.", supports: { compute: [] } },
+        },
+        reference: null,
+      },
+    ],
+  ]),
+  trees: new Map([
+    [
+      "Llama-3.1-8B/llama3_dense_tp",
+      {
+        params: { tp_size: 1 },
+        sections: [
+          {
+            section: "iter",
+            slots: [
+              {
+                name: "unified.attn_block.qkv_proj",
+                kernel: "single_gemm",
+                backends: ["torch"],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  ]),
+};
+const stubs = { fetchDetails: async () => details, prerender: async () => ({}) };
+
 const page = (id) => ({
   id,
   title: id,
@@ -158,6 +209,7 @@ test("only the catalog pages get static text; without catalogs it says why", asy
   const module = await import("./agent-content.mjs");
   const plugin = module.agentContent({
     origin,
+    ...stubs,
     pages: [
       { id: "models", name: "Models", file: "models.html" },
       { id: "kernels", name: "Kernels", file: "kernels.html" },
@@ -196,6 +248,7 @@ test("the real page bodies name every entry", async () => {
   const module = await import("./agent-content.mjs");
   const plugin = module.agentContent({
     origin,
+    ...stubs,
     pages: [
       { id: "models", name: "Models", file: "models.html" },
       { id: "kernels", name: "Kernels", file: "kernels.html" },
@@ -227,7 +280,7 @@ test("the real page bodies name every entry", async () => {
   assert.doesNotMatch(emitted["kernels.md"], /## GEMM/);
   assert.match(
     emitted["simulate.md"],
-    /main: TP on NVIDIA H200, worker `barebone`; sweeps `replicas` 1, 2; 2 configurations; captures: `c32_long` \(64 requests, mean 1,856 prompt and 192 output tokens\)/,
+    /main: \[TP\]\(https:\/\/example\.org\/models\/Llama-3\.1-8B\/llama3_dense_tp\.md\) on NVIDIA H200, worker `barebone`; sweeps `replicas` 1, 2; 2 configurations; captures: `c32_long` \(64 requests, mean 1,856 prompt and 192 output tokens\)/,
   );
   assert.match(
     emitted["simulate.md"],
@@ -245,6 +298,45 @@ test("the real page bodies name every entry", async () => {
     emitted["llms.txt"],
     /- \[skill-a\]\(https:\/\/example\.org\/skills\/skill-a\.md\): Do skill-a things through the API\.\n- \[skill-b\]/,
   );
+  // One page per documented kind and per deployment, linked from the lists.
+  assert.match(
+    emitted["kernels.md"],
+    /Details: \[Markdown\]\(https:\/\/example\.org\/kernels\/all_reduce\.md\)/,
+  );
+  assert.match(
+    emitted["kernels/all_reduce.md"],
+    /^# All-reduce \(`all_reduce`\) \| ServingStudio Kernel Library\n/,
+  );
+  assert.match(
+    emitted["kernels/all_reduce.md"],
+    /\| `num_gpus` \| number \| GPUs \| GPUs in the group\. \|/,
+  );
+  assert.match(
+    emitted["kernels/all_reduce.md"],
+    /\| NVIDIA H200 \| `nccl` \|  \| 57 \|/,
+  );
+  assert.match(
+    emitted["kernels/all_reduce.md"],
+    /https:\/\/example\.org\/api\/public\/v1\/kernels\/all_reduce\/rows/,
+  );
+  const deployment = emitted["models/Llama-3.1-8B/llama3_dense_tp.md"];
+  assert.match(deployment, /^# Llama 3\.1 8B: TP \| ServingStudio Models\n/);
+  assert.match(deployment, /\| tp_size 2 \| /);
+  assert.match(
+    deployment,
+    /\| `unified\.attn_block\.qkv_proj` \| \[single_gemm\]\(https:\/\/example\.org\/kernels\/single_gemm\.md\) \| `torch` \|/,
+  );
+  assert.match(deployment, /llama3_dense_tp_barebone/);
+  assert.match(
+    emitted["llms.txt"],
+    /## Kernel kinds\n\n- \[All-reduce \(all_reduce\)\]\(https:\/\/example\.org\/kernels\/all_reduce\.md\)/,
+  );
+  assert.match(
+    emitted["llms.txt"],
+    /## Model deployments\n\n- \[Llama 3\.1 8B: TP\]/,
+  );
+  assert.match(emitted["llms.txt"], /introducing-servingstudio\/index\.md\)/);
+  assert.ok(emitted["blog/introducing-servingstudio/index.md"]);
   assert.match(
     emitted["robots.txt"],
     /Sitemap: https:\/\/example\.org\/sitemap\.xml/,
@@ -289,6 +381,7 @@ test("the plugin stops a build without catalogs unless allowed", async () => {
   const quiet = { log() {}, warn() {} };
   const strict = agentContent({
     origin,
+    ...stubs,
     pages: [],
     fetchCatalogs: unreachable,
     simDir: fakeSim(),
@@ -299,6 +392,7 @@ test("the plugin stops a build without catalogs unless allowed", async () => {
 
   const lenient = agentContent({
     origin,
+    ...stubs,
     pages: [],
     fetchCatalogs: unreachable,
     allowMissing: true,
@@ -324,7 +418,12 @@ test("injectStaticContent puts the text in #root and hides it from scripted brow
   );
   assert.match(
     html,
-    /<div id="root"><main class="static-page wrap"><h1>Title<\/h1>\n<ul>\n<li><a href="https:\/\/example\.org\/">Item<\/a><\/li>/,
+    /<div id="root"><!-- agent-content --><main class="static-page wrap"><h1>Title<\/h1>\n<ul>\n<li><a href="https:\/\/example\.org\/">Item<\/a><\/li>/,
+  );
+  // A page reused as a template loses all of it again.
+  assert.equal(
+    removeInjected(html),
+    '<html><head><title>x</title>  \n  </head><body><div id="root"></div></body></html>',
   );
 });
 
@@ -350,6 +449,7 @@ test("the plugin stops a build without skills unless allowed", async () => {
   const quiet = { log() {}, warn() {} };
   const options = {
     origin,
+    ...stubs,
     pages: [
       { id: "models", name: "Models", file: "models.html" },
       { id: "kernels", name: "Kernels", file: "kernels.html" },

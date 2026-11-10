@@ -31,15 +31,10 @@ export default defineConfig(({ mode }) => {
       }),
       react(),
       blogContent(),
-      // Submit https://servingstudio.cs.washington.edu/sitemap.xml in Google
-      // Search Console. The cover template blog-overview.html is omitted.
-      sitemap({
-        origin: "https://servingstudio.cs.washington.edu",
-        pages: PAGES.map((p) => p.file),
-      }),
-      // Text for readers without JavaScript: the catalog pages' lists baked
-      // into their HTML and as Markdown, llms.txt, robots.txt and the agent
-      // skills. Reads the public API once; see scripts/agent-content.mjs.
+      // Text for readers without JavaScript: every page's text baked into its
+      // HTML and as Markdown, a Markdown page per kernel kind and per model
+      // deployment, llms.txt, robots.txt and the agent skills. Reads the
+      // public API once; see scripts/agent-content.mjs.
       agentContent({
         origin: "https://servingstudio.cs.washington.edu",
         pages: PAGES,
@@ -47,6 +42,13 @@ export default defineConfig(({ mode }) => {
         allowMissing: env.ALLOW_NO_API_CATALOG === "1",
         simDir: env.SERVINGSTUDIO_SIM_DIR,
         allowMissingSkills: env.ALLOW_NO_SKILLS === "1",
+      }),
+      // After agentContent, whose Markdown it lists. Submit
+      // https://servingstudio.cs.washington.edu/sitemap.xml in Google Search
+      // Console. The cover template blog-overview.html is omitted.
+      sitemap({
+        origin: "https://servingstudio.cs.washington.edu",
+        pages: PAGES.map((p) => p.file),
       }),
     ],
     server: { proxy: publicApiProxy(env) },

@@ -45,29 +45,46 @@ other read it makes with a 404 and logs it.
 
 ### Text for crawlers and agents
 
-The Models, Kernels and Simulate pages fill in from the public API in the
-browser, so their HTML alone is empty to a client that runs no JavaScript.
-`npm run build` therefore reads the API's catalogs once (`/health`, `/models`,
-`/kernels`, `/simulations/presets`, `/workloads`) and writes, in `dist/`:
+Every page is a React app that fills its `#root` in the browser, so its HTML
+alone is empty to a client that runs no JavaScript, and a detail view such as
+`kernels.html?kind=single_gemm` is, to a static host, the same file as
+`kernels.html`. `npm run build` therefore writes, in `dist/`:
 
-- the lists as text inside each of those pages' `#root`. A browser that runs
-  scripts never shows it (a `(scripting: enabled)` media query hides it, and
-  React replaces it on its first render), so the pages look as before;
-- the same text as Markdown: `models.md`, `kernels.md`, `simulate.md`;
-- `llms.txt`: what ServingStudio is, in the site's own words, with links to the
-  pages, the Markdown, the API and its docs, the skills and the blog posts;
+- each page's text inside its own `#root`, with a
+  `<link rel="alternate" type="text/markdown">` to the same text as Markdown
+  (`index.md`, `features.md`, `architecture.md`, `blog.md`, `models.md`,
+  `simulate.md`, `kernels.md`). A browser that runs scripts never shows it (a
+  `(scripting: enabled)` media query hides it, and React replaces it on its
+  first render), so the pages look as before. The Overview, Features,
+  Architecture and Blog text is the App itself, rendered at build time in a
+  Vite SSR server and turned into Markdown (`scripts/prerender-pages.mjs`), so
+  it follows the components with no copy of its own. The Models, Kernels and
+  Simulate lists come from the public API;
+- one Markdown page per kernel kind (`kernels/<kind>.md`: what it computes, how
+  it is measured, arguments, backends, rows per GPU and backend, API URLs) and
+  per model deployment (`models/<checkpoint>/<arch>.md`: configurations, the
+  `POST /predict` case fields, one configuration's kernels), linked from the
+  lists (`scripts/agent-detail-pages.mjs`);
+- each blog post's Markdown source beside its page, as `blog/<slug>/index.md`;
+- `llms.txt`: what ServingStudio is, in the site's own words, with links to
+  every Markdown page above, the API and its docs, and the skills;
 - `skills/<name>.md`: every agent skill of a ServingStudio Sim checkout, each
   `public_api/skills/<name>/SKILL.md` byte for byte, read at build time from
   the checkout `SERVINGSTUDIO_SIM_DIR` names;
 - `robots.txt`, which allows every crawler and names `llms.txt` and the
-  sitemap.
+  sitemap. `sitemap.xml` lists the Markdown pages too.
+
+The build reads the API once: its catalogs (`/health`, `/models`, `/kernels`,
+`/simulations/presets`, `/workloads`), then `/kernels/{kind}` for each kind and
+one configuration's `/models/{checkpoint}/{arch}/tree` per deployment, six
+requests at a time (a few seconds in all).
 
 See `scripts/agent-content.mjs`. The catalogs come from
 `PUBLIC_API_CATALOG_BASE`, by default
 `https://servingstudio.cs.washington.edu/api/public/v1`. As with Read more, a
 build that cannot read them stops, so a deploy never ships empty lists.
-`ALLOW_NO_API_CATALOG=1 npm run build` builds without the lists: the log warns,
-and the pages and Markdown say the lists were left out. The GitHub Actions
+`ALLOW_NO_API_CATALOG=1 npm run build` builds without the lists and the detail
+pages: the log warns, and the pages and Markdown say the lists were left out. The GitHub Actions
 check sets it.
 
 `SERVINGSTUDIO_SIM_DIR` has no default, like `SERVINGSTUDIO_UI_DIR`. A build
