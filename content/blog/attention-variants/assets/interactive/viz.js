@@ -2302,15 +2302,22 @@
      that script (agent note: a new figure type needs a branch here, or the
      script fails on the missing name). */
   function exportFigures() {
-    // every combination of a control list's toggles, except the amount/breakdown view
+    // Every block a figure exports goes into its full data file; blocks marked
+    // `detail` stay out of the short text under the figure (and the post's
+    // Markdown version), which keeps the initial view, the takeaways and the
+    // data flow. build_interactive.py does the split.
+    // every combination of a control list's toggles, except the amount/breakdown view;
+    // `initial` is true for the one the figure opens with
     const variantsOf = (controls) => {
-      let variants = [{ state: {}, label: "" }];
+      let variants = [{ state: {}, label: "", initial: true }];
       for (const control of controls ?? []) {
         if (control.type !== "toggle" || control.key === "scale") continue;
+        const initialValue = control.initial ?? control.options[0][0];
         variants = variants.flatMap((variant) =>
           control.options.map(([value, label]) => ({
             state: { ...variant.state, [control.key]: value },
             label: [variant.label, label].filter(Boolean).join(", "),
+            initial: variant.initial && value === initialValue,
           })),
         );
       }
@@ -2332,6 +2339,7 @@
         const byContext = contexts.map(rowsAt);
         blocks.push({
           type: "table",
+          detail: !variant.initial,
           title: withVariant(`Total per model by ${contextLabel.toLowerCase()} length`, variant),
           columns: ["Model", ...contexts.map(tokensText)],
           rows: data.models.map((model, modelIndex) => [
@@ -2353,7 +2361,7 @@
               rows.push([model.name, tokensText(contexts[contextIndex]), ...kinds.map((kind) => (row.values[kind.key] != null ? figure.format(row.values[kind.key]) : "—"))]);
             });
           });
-          blocks.push({ type: "table", title: withVariant("Breakdown by kind", variant), columns: ["Model", contextLabel, ...kinds.map((kind) => kind.label)], rows });
+          blocks.push({ type: "table", detail: true, title: withVariant("Breakdown by kind", variant), columns: ["Model", contextLabel, ...kinds.map((kind) => kind.label)], rows });
         }
       }
       const backendRows = figure.rows({ context: contexts[0], batch: 32, otherOps: true, baseline: true, scale: "amount" });
@@ -2389,7 +2397,7 @@
           });
           return [model.name, ...cells];
         });
-        blocks.push({ type: "table", title: withVariant(spec.axis ? "Per model by prompt length" : "Per model by context length", variant), columns: ["Model", ...CONTEXTS.map(tokensText)], rows });
+        blocks.push({ type: "table", detail: !variant.initial, title: withVariant(spec.axis ? "Per model by prompt length" : "Per model by context length", variant), columns: ["Model", ...CONTEXTS.map(tokensText)], rows });
       }
       if (spec.scale?.maxLabel) blocks.push({ type: "text", text: `Color scale: ${spec.scale.minLabel} to ${spec.scale.maxLabel}.` });
       return { title: spec.title, blocks };
@@ -2430,9 +2438,10 @@
           },
           {
             type: "text",
+            detail: true,
             text: "Storage parts behind the memory and decode-read figures, one copy per request (DP attention: each GPU runs all heads, a request sits on one GPU). Kept bytes = fixed + bytes per token × min(context, window). A decode step reads, per part, (readBytes, or bytes per token × tokens per entry) × the entries it reads, where entries = min(context, window) ÷ tokens per entry, capped at top-k for a sparse layer; a fixed state is read and written back.",
           },
-          { type: "table", title: "Storage parts per model", columns: ["Model", "Part", "Kind", "Bytes per token", "Window", "Fixed", "Tokens per entry", "Top-k read", "Read bytes per entry"], rows: storageRows },
+          { type: "table", detail: true, title: "Storage parts per model", columns: ["Model", "Part", "Kind", "Bytes per token", "Window", "Fixed", "Tokens per entry", "Top-k read", "Read bytes per entry"], rows: storageRows },
         ],
       };
     }
@@ -2472,7 +2481,7 @@
         for (const read of flow.cache?.reads ?? []) {
           if (read.only && read.only !== mode) continue;
           const label = resolveField(read.label, scale);
-          const what = read.block ?? (read.row != null ? resolveField(flow.cache.rows[read.row].label, scale) : "the cache");
+          const what = read.block ?? (read.row != null ? resolveField(flowRow(flow.cache.rows[read.row]).label, scale) : "the cache");
           flowItems.push(`${stepTitle(resolveField(read.step, scale))} reads ${what} from the cache${label ? `: ${label}` : ""}`);
         }
         blocks.push({ type: "list", title: `${modeLabel}: data flow`, items: flowItems });
@@ -2499,11 +2508,12 @@
             spec && bytes ? `${flowIntensityText(spec.flops / bytes)} FLOP/B` : "—",
           ];
         });
-        blocks.push({ type: "table", title: `${modeLabel} at ${sliderText}: every operation`, columns: ["Operation", "Kind", "Formula", "What it does", "Operands [axis size] dtype", "FLOPs", "Bytes", "Intensity"], rows });
+        blocks.push({ type: "table", detail: true, title: `${modeLabel} at ${sliderText}: every operation`, columns: ["Operation", "Kind", "Formula", "What it does", "Operands [axis size] dtype", "FLOPs", "Bytes", "Intensity"], rows });
       }
       if (flow.axes?.length) {
         blocks.push({
           type: "table",
+          detail: true,
           title: "Axes",
           columns: ["Symbol", "Meaning"],
           rows: flow.axes.map(([symbol, meaning]) => {
