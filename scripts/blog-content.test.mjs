@@ -119,3 +119,56 @@ test("rejects malformed author metadata and impossible dates", (t) => {
   f.post("experiment", { date: "2026-02-30" });
   assert.throws(() => readBlogPosts(f.root, "/"), /metadata.date/);
 });
+
+test("an interactive post shows its own HTML body and loads its assets in order", (t) => {
+  const f = fixture(t);
+  f.post("figures", {
+    interactive: {
+      body: "assets/interactive/body.html",
+      styles: ["assets/interactive/figures.css"],
+      scripts: ["assets/interactive/data.js", "assets/interactive/viz.js"],
+    },
+  });
+  const assets = path.join(f.root, "content/blog/figures/assets/interactive");
+  mkdirSync(assets, { recursive: true });
+  for (const name of ["figures.css", "data.js", "viz.js", "chart.png"])
+    writeFileSync(path.join(assets, name), "");
+  writeFileSync(
+    path.join(assets, "body.html"),
+    [
+      '<h2 id="memory">Memory &amp; bytes</h2>',
+      '<p>One two three.</p><img src="assets/interactive/chart.png" alt="">',
+      '<a href="https://example.com/">out</a><a href="#memory">up</a>',
+      `<details><p>${"table ".repeat(1000)}</p></details>`,
+    ].join(""),
+  );
+  const [post] = readBlogPosts(f.root, "/");
+  assert.match(post.html, /src="\/blog\/figures\/assets\/interactive\/chart.png"/);
+  assert.match(post.html, /href="https:\/\/example.com\/"/);
+  assert.match(post.html, /href="#memory"/);
+  assert.deepEqual(post.headings, [{ id: "memory", text: "Memory & bytes" }]);
+  assert.deepEqual(post.interactive, {
+    styles: ["/blog/figures/assets/interactive/figures.css"],
+    scripts: [
+      "/blog/figures/assets/interactive/data.js",
+      "/blog/figures/assets/interactive/viz.js",
+    ],
+  });
+  // the figures' data tables in <details> do not count toward reading time
+  assert.equal(post.readingMinutes, 1);
+});
+
+test("an interactive post fails on a missing script or a malformed list", (t) => {
+  const f = fixture(t);
+  const body = path.join(f.root, "content/blog/figures/assets/body.html");
+  f.post("figures", {
+    interactive: { body: "assets/body.html", scripts: ["assets/missing.js"] },
+  });
+  writeFileSync(body, "<p>Text.</p>");
+  assert.throws(() => readBlogPosts(f.root, "/"), /missing post asset/);
+  f.post("figures", {
+    interactive: { body: "assets/body.html", scripts: "assets/viz.js" },
+  });
+  writeFileSync(body, "<p>Text.</p>");
+  assert.throws(() => readBlogPosts(f.root, "/"), /interactive.scripts/);
+});

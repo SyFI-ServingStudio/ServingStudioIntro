@@ -1,0 +1,40 @@
+{
+  "title": "Beyond GQA: Characterizing Modern Attention Variants with ServingStudio",
+  "description": "How the attention designs of today's open models trade memory, bytes read per step and compute against GQA, with measured B200 kernel times.",
+  "authors": [
+    "Kan Zhu",
+    "Tan Ngo",
+    "Michael Gu",
+    "Mathew Jacob",
+    "Stephanie Wang",
+    "Arvind Krishnamurthy",
+    "Baris Kasikci"
+  ],
+  "date": "2026-11-13",
+  "tags": [
+    "Model Perf"
+  ],
+  "cover": "assets/cover.png",
+  "coverAlt": "Eleven attention designs in today's open models, and the best one on each measure against a GQA baseline at 128K tokens",
+  "interactive": {
+    "body": "assets/interactive/body.html",
+    "styles": [
+      "assets/interactive/figures.css"
+    ],
+    "scripts": [
+      "assets/interactive/models.js",
+      "assets/interactive/flows.js",
+      "assets/interactive/flows_mla.js",
+      "assets/interactive/flows_dsa.js",
+      "assets/interactive/flows_msa.js",
+      "assets/interactive/flows_qsa.js",
+      "assets/interactive/flows_swa.js",
+      "assets/interactive/flows_compressed.js",
+      "assets/interactive/flows_linear.js",
+      "assets/interactive/placeholder_data.js",
+      "assets/interactive/measured_data.js",
+      "assets/interactive/prefill_flops_data.js",
+      "assets/interactive/viz.js"
+    ]
+  }
+}

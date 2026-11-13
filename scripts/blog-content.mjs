@@ -85,6 +85,9 @@ export function readBlogPosts(root, base) {
       };
       const cover = localAsset(metadata.cover);
       const markdown = readFileSync(path.join(folder, "index.md"), "utf8");
+      const interactive = metadata.interactive
+        ? readInteractive(slug, folder, metadata.interactive, localAsset)
+        : null;
       const headings = [];
       const seen = new Map();
       const textOf = (node) =>
@@ -157,6 +160,12 @@ export function readBlogPosts(root, base) {
           markdown,
         ),
       );
+      if (interactive) {
+        // An interactive post's page shows its own HTML (with every figure's
+        // data as text inside it); index.md stays its Markdown version.
+        headings.length = 0;
+        headings.push(...interactive.headings);
+      }
       return {
         slug,
         href,
@@ -167,8 +176,15 @@ export function readBlogPosts(root, base) {
         tags: [...new Set(metadata.tags)],
         cover,
         coverAlt: metadata.coverAlt,
-        readingMinutes: Math.max(1, Math.ceil(markdown.split(/\s+/).length / 220)),
-        html,
+        readingMinutes: Math.max(
+          1,
+          Math.ceil((interactive?.prose ?? markdown).split(/\s+/).length / 220),
+        ),
+        html: interactive?.html ?? html,
+        interactive: interactive && {
+          styles: interactive.styles,
+          scripts: interactive.scripts,
+        },
         headings,
         assets: assets.map((file) => ({
           file,
@@ -181,6 +197,56 @@ export function readBlogPosts(root, base) {
       (a, b) =>
         (b.date || "").localeCompare(a.date || "") || a.slug.localeCompare(b.slug),
     );
+}
+
+/* An interactive post (metadata.interactive = { body, styles, scripts }, each
+   a path to one of the post's assets): the page shows `body`, an HTML
+   fragment the post's own build wrote, instead of rendering index.md, and
+   loads `styles` and then `scripts`, in order, once the article is on the
+   page (Blog.jsx). The fragment is trusted like the site's own code. Its
+   relative `src`/`href` must name post assets ("assets/…"), which resolve
+   under the post's URL; its <h2 id> headings make the contents column.
+   index.md is still the post's Markdown version, so crawlers and agents read
+   the text (and the figures' data, if the post writes it there) without
+   running the scripts. */
+function readInteractive(slug, folder, spec, localAsset) {
+  const list = (field) => {
+    const value = spec[field] ?? [];
+    if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string"))
+      throw new Error(
+        `${slug}: metadata.interactive.${field} must be a list of asset paths`,
+      );
+    return value.map(localAsset);
+  };
+  if (typeof spec.body !== "string")
+    throw new Error(`${slug}: metadata.interactive.body must be an asset path`);
+  localAsset(spec.body);
+  const body = readFileSync(path.join(folder, spec.body), "utf8");
+  const html = body.replace(
+    /\b(src|href)="(?![a-z]+:|\/|#)([^"]+)"/gi,
+    (_, attribute, url) => `${attribute}="${localAsset(url)}"`,
+  );
+  const plain = (fragment) =>
+    fragment
+      .replace(/<[^>]+>/g, "")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#0?39;/g, "'")
+      .trim();
+  const headings = [
+    ...body.matchAll(/<h2\b[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/h2>/g),
+  ].map(([, id, text]) => ({ id, text: plain(text) }));
+  // reading time counts the prose, not the figures' data tables
+  const prose = plain(body.replace(/<details[\s\S]*?<\/details>/g, " "));
+  return {
+    html,
+    headings,
+    prose,
+    styles: list("styles"),
+    scripts: list("scripts"),
+  };
 }
 
 export function blogContent() {

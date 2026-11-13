@@ -12,6 +12,25 @@ const formatDate = (date) =>
     timeZone: "UTC",
   });
 
+/* An interactive post (blog-content.mjs readInteractive) brings its own
+   stylesheets and scripts. They run once its HTML is on the page, in the
+   listed order (async = false keeps a script's place), and leave with it. */
+function useInteractivePost(post) {
+  useEffect(() => {
+    if (!post?.interactive) return undefined;
+    const added = [
+      ...post.interactive.styles.map((href) =>
+        Object.assign(document.createElement("link"), { rel: "stylesheet", href }),
+      ),
+      ...post.interactive.scripts.map((src) =>
+        Object.assign(document.createElement("script"), { src, async: false }),
+      ),
+    ];
+    document.head.append(...added);
+    return () => added.forEach((node) => node.remove());
+  }, [post]);
+}
+
 function PostMeta({ post }) {
   return (
     <div className={s.meta}>
@@ -26,6 +45,7 @@ export default function Blog({ slug }) {
   const [topic, setTopic] = useState("All Posts");
   const [query, setQuery] = useState("");
   const post = slug ? posts.find((item) => item.slug === slug) : null;
+  useInteractivePost(post);
   useEffect(() => {
     document.title = `${slug ? post?.title || "Post not found" : "Blog"} | ServingStudio`;
     const description = document.querySelector('meta[name="description"]');
@@ -76,9 +96,11 @@ export default function Blog({ slug }) {
               ))}
             </nav>
           </aside>
-          {/* Rendered at build time by react-markdown, without raw HTML support. */}
+          {/* Rendered at build time by react-markdown, without raw HTML support;
+              an interactive post's own HTML instead, which its styles address
+              as .interactive-prose. */}
           <div
-            className={s.prose}
+            className={post.interactive ? `${s.prose} interactive-prose` : s.prose}
             dangerouslySetInnerHTML={{ __html: post.html }}
           />
         </div>
