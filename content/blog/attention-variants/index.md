@@ -6,8 +6,8 @@
 
 ## Introduction
 
-A few years ago, most open LLMs used the same attention design: grouped-query attention (GQA), in which multiple Query vectors attends to the same Key-Value vector to save memory. The optimization of attention did not stop there. Recent models use much
-more diverse attention mechanisms, and these mechanisms drastically change the HBM consumption, the memory loading, and the TFLOPs spend on the attention. 
+A few years ago, most open LLMs used the same attention design: grouped-query attention (GQA), in which multiple Query vectors attend to the same Key-Value vector to save memory. The optimization of attention did not stop there. Recent models use much
+more diverse attention mechanisms, and these mechanisms drastically change the HBM consumption, the memory loading, and the TFLOPs spent on the attention. 
 
 In this post, we look at eleven recent models: DeepSeek V4.1 Flash, DeepSeek V4 Pro, GLM-5.3-Flash, Qwen3.8 Flash
 Next, MiMo V2.6 Flash, Inkling, GLM-5.3, MiniMax-M3.1 Flash, Kimi K3, Kimi K3.1 Pro and Qwen3.8 27B. We compare them with
@@ -119,8 +119,8 @@ folds the whole context into a state of fixed size.
 
 - Main row: x (N × 6,144) → Projection → QK-norm → RoPE → Scores → Causal mask → Softmax → Weighted sum → Output projection → out (to the MoE FFN)
 - Write: RoPE (k) and Projection (v (no norm, no RoPE)) → Write K, V → KV cache, kept for the whole request
-- Scores reads undefined from the cache: reads K: L earlier + N in chunk
-- Weighted sum reads undefined from the cache: reads V: L earlier + N in chunk
+- Scores reads K from the cache: reads K: L earlier + N in chunk
+- Weighted sum reads V from the cache: reads V: L earlier + N in chunk
 
 *Prefill at Chunk N = 8,192, Prefix L = 128K: every operation*
 
@@ -140,8 +140,8 @@ folds the whole context into a state of fixed size.
 
 - Main row: x (B × 6,144) → Projection → QK-norm → RoPE → Scores → Softmax → Weighted sum → Output projection → out (to the MoE FFN)
 - Write: RoPE (k) and Projection (v (no norm, no RoPE)) → Write K, V → KV cache, kept for the whole request
-- Scores reads undefined from the cache: reads K: all L tokens
-- Weighted sum reads undefined from the cache: reads V: all L tokens
+- Scores reads K from the cache: reads K: all L tokens
+- Weighted sum reads V from the cache: reads V: all L tokens
 
 *Decode at Batch B = 32, Context L = 128K: every operation*
 
@@ -196,7 +196,7 @@ reads every key, and the weighted sum reads every value.
 - Parallel branch: from Query up-projection → Expand K, V → joins Scores (K)
 - V goes from Expand K, V straight to Weighted sum
 - Write: RMSNorm (c_kv) and Down-projection (k_s, not normalized) → Write c_kv, k_s → Latent cache, kept for the whole request
-- Expand K, V reads undefined from the cache: reads c_kv, k_s: L earlier + N in chunk
+- Expand K, V reads c_kv, k_s from the cache: reads c_kv, k_s: L earlier + N in chunk
 
 *Prefill at Chunk N = 8,192, Prefix L = 128K: every operation*
 
@@ -221,8 +221,8 @@ reads every key, and the weighted sum reads every value.
 - Parallel branch: from x (x) → Gate projection → joins Output gate (g)
 - q_s goes from Query up-projection straight to Scores
 - Write: RMSNorm (c_kv) and Down-projection (k_s, not normalized) → Write c_kv, k_s → Latent cache, kept for the whole request
-- Scores reads undefined from the cache: reads c_kv, k_s: all L tokens
-- Weighted sum reads undefined from the cache: same c_kv, as the values
+- Scores reads c_kv, k_s from the cache: reads c_kv, k_s: all L tokens
+- Weighted sum reads c_kv, k_s from the cache: same c_kv, as the values
 
 *Decode at Batch B = 32, Context L = 128K: every operation*
 
@@ -293,8 +293,8 @@ Costs are for one whole layer on one GPU, as in the other figures.
 
 - Main row: x (N × 4,096) → Projection → RoPE → Scores → Window mask → Softmax → Weighted sum → Output projection → out (to the MoE FFN)
 - Write: RoPE (k, v) → Write K, V → Window cache: only the last 128 tokens
-- Scores reads undefined from the cache: reads K: last 127 + N in chunk
-- Weighted sum reads undefined from the cache: reads V: last 127 + N in chunk
+- Scores reads K from the cache: reads K: last 127 + N in chunk
+- Weighted sum reads V from the cache: reads V: last 127 + N in chunk
 
 *Prefill at Chunk N = 8,192, Prefix L = 128K: every operation*
 
@@ -313,8 +313,8 @@ Costs are for one whole layer on one GPU, as in the other figures.
 
 - Main row: x (B × 4,096) → Projection → RoPE → Scores → Softmax → Weighted sum → Output projection → out (to the MoE FFN)
 - Write: RoPE (k, v) → Write K, V → Window cache: only the last 128 tokens
-- Scores reads undefined from the cache: reads K: last 127 + this token
-- Weighted sum reads undefined from the cache: reads V: last 127 + this token
+- Scores reads K from the cache: reads K: last 127 + this token
+- Weighted sum reads V from the cache: reads V: last 127 + this token
 
 *Decode at Batch B = 32, Context L = 128K: every operation*
 
@@ -372,9 +372,9 @@ therefore compute this bias as well.
 - w goes from Down-projection straight to Index scores
 - q_s goes from Query up-projection straight to Sparse scores
 - Write: Norms (k_I, c_kv) and Down-projection (k_s, not normalized) → Write caches → Two caches, kept for the whole request
-- Index scores reads undefined from the cache: reads k_I: L earlier + N in chunk
-- Sparse scores reads undefined from the cache: reads only the 2,048 selected rows
-- Weighted sum reads undefined from the cache: same rows, as the values
+- Index scores reads k_I from the cache: reads k_I: L earlier + N in chunk
+- Sparse scores reads c_kv, k_s from the cache: reads only the 2,048 selected rows
+- Weighted sum reads c_kv, k_s from the cache: same rows, as the values
 
 *Prefill at Chunk N = 8,192, Prefix L = 128K: every operation*
 
@@ -403,9 +403,9 @@ therefore compute this bias as well.
 - w goes from Down-projection straight to Index scores
 - q_s goes from Query up-projection straight to Sparse scores
 - Write: Norms (k_I, c_kv) and Down-projection (k_s, not normalized) → Write caches → Two caches, kept for the whole request
-- Index scores reads undefined from the cache: reads every k_I: all L tokens
-- Sparse scores reads undefined from the cache: reads only the 2,048 selected rows
-- Weighted sum reads undefined from the cache: same rows, as the values
+- Index scores reads k_I from the cache: reads every k_I: all L tokens
+- Sparse scores reads c_kv, k_s from the cache: reads only the 2,048 selected rows
+- Weighted sum reads c_kv, k_s from the cache: same rows, as the values
 
 *Decode at Batch B = 32, Context L = 128K: every operation*
 
@@ -478,8 +478,8 @@ Costs are for one whole layer on one GPU, as in the other figures.
 - Main row: x (N × 6,144) → Projection → Norms, RoPE → Sparse attention → Output projection → out (to the MoE FFN)
 - Parallel branch: from Norms, RoPE (q_I) → Index scores → Top-k → joins Sparse attention (16 blocks per group)
 - Write: Norms, RoPE (k, k_I) and Projection (v (no norm, no RoPE)) → Write caches → Two caches, kept for the whole request
-- Index scores reads undefined from the cache: reads k_I: L earlier + N in chunk
-- Sparse attention reads undefined from the cache: reads 16 blocks per group
+- Index scores reads k_I from the cache: reads k_I: L earlier + N in chunk
+- Sparse attention reads K, V from the cache: reads 16 blocks per group
 
 *Prefill at Chunk N = 8,192, Prefix L = 128K: every operation*
 
@@ -498,8 +498,8 @@ Costs are for one whole layer on one GPU, as in the other figures.
 - Main row: x (B × 6,144) → Projection → Norms, RoPE → Sparse attention → Output projection → out (to the MoE FFN)
 - Parallel branch: from Norms, RoPE (q_I) → Index scores → Top-k → joins Sparse attention (16 blocks per group)
 - Write: Norms, RoPE (k, k_I) and Projection (v (no norm, no RoPE)) → Write caches → Two caches, kept for the whole request
-- Index scores reads undefined from the cache: reads every k_I: all L tokens
-- Sparse attention reads undefined from the cache: reads 16 blocks per group
+- Index scores reads k_I from the cache: reads every k_I: all L tokens
+- Sparse attention reads K, V from the cache: reads 16 blocks per group
 
 *Decode at Batch B = 32, Context L = 128K: every operation*
 

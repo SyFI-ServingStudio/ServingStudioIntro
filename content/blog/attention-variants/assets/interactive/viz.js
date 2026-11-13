@@ -2472,7 +2472,7 @@
         for (const read of flow.cache?.reads ?? []) {
           if (read.only && read.only !== mode) continue;
           const label = resolveField(read.label, scale);
-          const what = read.block ?? (read.row != null ? resolveField(flow.cache.rows[read.row].label, scale) : "the cache");
+          const what = read.block ?? (read.row != null ? resolveField(flowRow(flow.cache.rows[read.row]).label, scale) : "the cache");
           flowItems.push(`${stepTitle(resolveField(read.step, scale))} reads ${what} from the cache${label ? `: ${label}` : ""}`);
         }
         blocks.push({ type: "list", title: `${modeLabel}: data flow`, items: flowItems });
