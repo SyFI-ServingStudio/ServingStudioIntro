@@ -2,7 +2,13 @@
   "title": "Beyond GQA: Characterizing Modern Attention Variants with ServingStudio",
   "description": "How the attention designs of today's open models trade memory, bytes read per step and compute against GQA, with measured B200 kernel times.",
   "authors": [
-    "Kan Zhu"
+    "Kan Zhu",
+    "Tan Ngo",
+    "Michael Gu",
+    "Mathew Jacob",
+    "Stephanie Wang",
+    "Arvind Krishnamurthy",
+    "Baris Kasikci"
   ],
   "date": "2026-11-13",
   "tags": [
