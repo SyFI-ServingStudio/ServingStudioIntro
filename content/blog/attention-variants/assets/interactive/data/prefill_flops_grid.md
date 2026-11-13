@@ -1,0 +1,20 @@
+# Attention FLOPs to prefill one prompt as the prompt grows
+
+All the data behind this figure in "Beyond GQA: Characterizing Modern Attention Variants with ServingStudio".
+
+*Per model by prompt length*
+
+| Model | 4K | 8K | 16K | 32K | 64K | 128K | 256K | 512K | 1M |
+|---|---|---|---|---|---|---|---|---|---|
+| Qwen3-Coder-480B-A35B | 25.6 TFLOP | 102 TFLOP | 409 TFLOP | 1.64 PFLOP | 6.54 PFLOP | 26.2 PFLOP | 105 PFLOP | not supported beyond 256K | not supported beyond 256K |
+| MiMo V2.6 Flash | 3.92 TFLOP | 14.0 TFLOP | 52.8 TFLOP | 205 TFLOP | 805 TFLOP | 3.19 PFLOP | 12.7 PFLOP | 50.8 PFLOP | 203 PFLOP |
+| Inkling | 6.57 TFLOP | 19.4 TFLOP | 63.3 TFLOP | 224 TFLOP | 834 TFLOP | 3.22 PFLOP | 12.6 PFLOP | 50.0 PFLOP | 199 PFLOP |
+| GLM-5.3 | 69.8 TFLOP | 165 TFLOP | 365 TFLOP | 799 TFLOP | 1.80 PFLOP | 4.37 PFLOP | 11.7 PFLOP | 35.3 PFLOP | 118 PFLOP |
+| MiniMax-M3.1 Flash | 12.9 TFLOP | 30.9 TFLOP | 70.1 TFLOP | 161 TFLOP | 392 TFLOP | 1.05 PFLOP | 3.16 PFLOP | 10.6 PFLOP | 38.0 PFLOP |
+| DeepSeek V4 Pro | 26.3 TFLOP | 72.3 TFLOP | 174 TFLOP | 414 TFLOP | 1.05 PFLOP | 2.91 PFLOP | 9.03 PFLOP | 30.9 PFLOP | 113 PFLOP |
+| DeepSeek V4.1 Flash | 6.40 TFLOP | 13.6 TFLOP | 29.0 TFLOP | 63.9 TFLOP | 150 TFLOP | 389 TFLOP | 1.13 PFLOP | 3.67 PFLOP | 13.0 PFLOP |
+| Kimi K3 | 16.9 TFLOP | 58.5 TFLOP | 216 TFLOP | 828 TFLOP | 3.24 PFLOP | 12.8 PFLOP | 51.0 PFLOP | 203 PFLOP | 812 PFLOP |
+| Kimi K3.1 Pro | 37.7 TFLOP | 89.2 TFLOP | 202 TFLOP | 468 TFLOP | 1.16 PFLOP | 3.17 PFLOP | 9.73 PFLOP | 33.0 PFLOP | 120 PFLOP |
+| GLM-5.3-Flash | 10.7 TFLOP | 24.9 TFLOP | 54.3 TFLOP | 118 TFLOP | 263 TFLOP | 625 TFLOP | 1.64 PFLOP | 4.83 PFLOP | 15.9 PFLOP |
+| Qwen3.8 Flash Next | 3.06 TFLOP | 6.79 TFLOP | 14.4 TFLOP | 30.3 TFLOP | 64.4 TFLOP | 143 TFLOP | 339 TFLOP | 889 TFLOP | 2.62 PFLOP |
+| Qwen3.8 27B | 4.87 TFLOP | 16.3 TFLOP | 59.1 TFLOP | 224 TFLOP | 870 TFLOP | 3.43 PFLOP | 13.6 PFLOP | 54.2 PFLOP | 217 PFLOP |
