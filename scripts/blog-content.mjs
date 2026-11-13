@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import Markdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { removeInjected } from "./static-markup.mjs";
 
 // Blog categories, in filter order. Every post tag must be one of these.
 export const blogTags = ["Release", "Notes", "Model Perf", "Use Cases"];
@@ -245,7 +246,13 @@ export function blogContent() {
             fileName: asset.name,
             source: readFileSync(asset.file),
           });
-        let html = String(template)
+        // The blog index's own text for crawlers (static-markup.mjs) is not
+        // the post's; the post has its noscript article and its Markdown.
+        let html = removeInjected(String(template))
+          .replace(
+            "</head>",
+            `  <link rel="alternate" type="text/markdown" href="${post.href}index.md" />\n  </head>`,
+          )
           .replace(
             /<title>[^<]*<\/title>/,
             `<title>${escapeHtml(post.title)} | ServingStudio</title>`,

@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import { agentContent } from "./scripts/agent-content.mjs";
 import { blogContent } from "./scripts/blog-content.mjs";
 import { servingStudioUi } from "./scripts/servingstudio-ui.mjs";
 import { sitemap } from "./scripts/sitemap.mjs";
@@ -30,8 +31,21 @@ export default defineConfig(({ mode }) => {
       }),
       react(),
       blogContent(),
-      // Submit https://servingstudio.cs.washington.edu/sitemap.xml in Google
-      // Search Console. The cover template blog-overview.html is omitted.
+      // Text for readers without JavaScript: every page's text baked into its
+      // HTML and as Markdown, a Markdown page per kernel kind and per model
+      // deployment, llms.txt, robots.txt and the agent skills. Reads the
+      // public API once; see scripts/agent-content.mjs.
+      agentContent({
+        origin: "https://servingstudio.cs.washington.edu",
+        pages: PAGES,
+        apiBase: env.PUBLIC_API_CATALOG_BASE,
+        allowMissing: env.ALLOW_NO_API_CATALOG === "1",
+        simDir: env.SERVINGSTUDIO_SIM_DIR,
+        allowMissingSkills: env.ALLOW_NO_SKILLS === "1",
+      }),
+      // After agentContent, whose Markdown it lists. Submit
+      // https://servingstudio.cs.washington.edu/sitemap.xml in Google Search
+      // Console. The cover template blog-overview.html is omitted.
       sitemap({
         origin: "https://servingstudio.cs.washington.edu",
         pages: PAGES.map((p) => p.file),

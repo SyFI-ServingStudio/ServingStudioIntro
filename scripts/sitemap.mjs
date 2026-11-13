@@ -20,8 +20,11 @@ export function renderSitemap(entries) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
-// Emits sitemap.xml for search engines: the listed pages plus every published
-// blog post. `origin` is the scheme and host; the Vite base supplies the path.
+// Emits sitemap.xml for search engines: the listed pages, every published
+// blog post, and every Markdown file already in the bundle (the pages' text
+// for crawlers and agents, which agent-content.mjs emits; list that plugin
+// before this one). `origin` is the scheme and host; the Vite base supplies
+// the path.
 export function sitemap({ origin, pages }) {
   let config;
   return {
@@ -30,7 +33,7 @@ export function sitemap({ origin, pages }) {
     configResolved(value) {
       config = value;
     },
-    generateBundle() {
+    generateBundle(_, bundle) {
       const url = (path) => `${origin}${config.base}${path}`;
       const posts = readBlogPosts(config.root, config.base);
       this.emitFile({
@@ -42,6 +45,10 @@ export function sitemap({ origin, pages }) {
             loc: `${origin}${post.href}`,
             lastmod: post.date ?? undefined,
           })),
+          ...Object.keys(bundle)
+            .filter((fileName) => fileName.endsWith(".md"))
+            .sort()
+            .map((fileName) => ({ loc: url(fileName) })),
         ]),
       });
     },

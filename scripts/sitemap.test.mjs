@@ -21,3 +21,18 @@ test("renders absolute URLs, optional lastmod, and escapes XML", () => {
   );
   assert.equal(xml.match(/<url>/g).length, 2);
 });
+
+test("the sitemap lists every Markdown file already in the bundle", async () => {
+  const { sitemap } = await import("./sitemap.mjs");
+  const plugin = sitemap({ origin: "https://example.org", pages: [""] });
+  plugin.configResolved({ base: "/", root: process.cwd() });
+  let emitted;
+  plugin.generateBundle.call(
+    { emitFile: ({ source }) => (emitted = source) },
+    {},
+    { "kernels/x.md": {}, "index.md": {}, "index.html": {} },
+  );
+  assert.match(emitted, /<loc>https:\/\/example\.org\/index\.md<\/loc>/);
+  assert.match(emitted, /<loc>https:\/\/example\.org\/kernels\/x\.md<\/loc>/);
+  assert.doesNotMatch(emitted, /index\.html/);
+});
