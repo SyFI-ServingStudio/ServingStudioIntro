@@ -9,8 +9,11 @@ import {
 import logo from "../servingstudio-symbol.svg";
 import s from "./UseCases.module.css";
 import { useStudyReplay } from "../hooks/useStudyReplay";
-import specDepth from "../data/specDepth.json";
-import study from "../data/glmSpec3Study.json";
+// The experiment data lives in public/data/ so each file also has a plain URL
+// (/data/<name>): the download links point there, which works for a reader
+// without JavaScript and for the page's Markdown version, not only in a browser.
+import specDepth from "../../public/data/glm52-spec-depth-evidence.json";
+import study from "../../public/data/glm52-spec3-study.json";
 
 const bestDepth = specDepth.rows.reduce((best, row) =>
   row.throughput > best.throughput ? row : best,
@@ -35,12 +38,12 @@ const formatNumber = (value, digits = 1) =>
     maximumFractionDigits: digits,
   });
 
-function DownloadLink({ filename, data }) {
+function DownloadLink({ filename }) {
   return (
     <a
       className="text-link"
       download={filename}
-      href={`data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`}
+      href={`${import.meta.env.BASE_URL}data/${filename}`}
     >
       Download experiment data <ArrowRight size={17} />
     </a>
@@ -347,7 +350,7 @@ function SpeculationSearch() {
           independently at each depth across all eight requests, including the
           warm-up.
         </p>
-        <DownloadLink filename="glm52-spec-depth-evidence.json" data={specDepth} />
+        <DownloadLink filename="glm52-spec-depth-evidence.json" />
       </details>
     </div>
   );
@@ -633,7 +636,10 @@ export function UseCases() {
       ? ` Concurrency ${fasterPointBelowTarget.concurrency} reaches ${formatNumber(fasterPointBelowTarget.outputThroughput)} tok/s, but per-request speed drops to ${formatNumber(fasterPointBelowTarget.perRequestDecode)} tok/s—below the target.`
       : ""
   }`;
-  const [visibleRound, setVisibleRound] = useState(0);
+  // The prerendered text for readers without JavaScript (scripts/
+  // prerender-pages.mjs, an SSR render) shows every round; a browser starts at
+  // the first and reveals the rest on "continue".
+  const [visibleRound, setVisibleRound] = useState(import.meta.env.SSR ? 3 : 0);
 
   useEffect(() => {
     if (visibleRound === 0) return;
@@ -820,10 +826,7 @@ export function UseCases() {
                         </table>
                       </div>
                       <p className={s.specMethod}>{study.concurrency.method}</p>
-                      <DownloadLink
-                        filename="glm52-spec3-study.json"
-                        data={study}
-                      />
+                      <DownloadLink filename="glm52-spec3-study.json" />
                     </details>
                   </StudyFigure>
                 }
