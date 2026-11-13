@@ -2413,12 +2413,12 @@
             model.name,
             part.label,
             STORE_KINDS.find((kind) => kind.key === part.kind)?.label ?? part.kind,
-            part.perToken != null ? `${part.perToken.toLocaleString("en-US")} B` : "—",
+            part.perToken != null ? `${part.perToken.toLocaleString("en-US", { maximumFractionDigits: 1 })} B` : "—",
             part.window != null ? part.window.toLocaleString("en-US") : "—",
             part.fixed != null ? bytesText(part.fixed) : "—",
             part.tokensPerEntry ?? "—",
             part.readTopk != null ? part.readTopk.toLocaleString("en-US") : "—",
-            part.readBytes != null ? `${part.readBytes.toLocaleString("en-US")} B` : "—",
+            part.readBytes != null ? `${part.readBytes.toLocaleString("en-US", { maximumFractionDigits: 1 })} B` : "—",
           ].map(String));
         }
       }

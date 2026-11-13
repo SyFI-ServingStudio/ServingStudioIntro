@@ -36,7 +36,7 @@ Storage parts behind the memory and decode-read figures, one copy per request (D
 | MiniMax-M3.1 Flash | MSA K/V, 60 layers | Whole-context cache | 61,440 B | — | — | — | 2,048 | — |
 | MiniMax-M3.1 Flash | Index keys, 60 layers | Index | 7,680 B | — | — | — | — | — |
 | DeepSeek V4 Pro | CSA compressed cache, 30 layers (4 tokens an entry) | Whole-context cache | 4,380 B | — | — | 4 | 1,024 | — |
-| DeepSeek V4 Pro | HCA compressed cache, 31 layers (128 tokens an entry) | Whole-context cache | 141.438 B | — | — | 128 | — | — |
+| DeepSeek V4 Pro | HCA compressed cache, 31 layers (128 tokens an entry) | Whole-context cache | 141.4 B | — | — | 128 | — | — |
 | DeepSeek V4 Pro | Indexer keys, 30 CSA layers | Index | 990 B | — | — | 4 | — | — |
 | DeepSeek V4 Pro | 128-token windows, 61 layers | Window | 35,624 B | 128 | — | — | — | — |
 | DeepSeek V4 Pro | Compressor state (FP32) | Fixed state | — | — | 17.8 MiB | — | — | — |
