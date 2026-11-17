@@ -6,8 +6,12 @@
 
 ## Introduction
 
-A few years ago, most open LLMs used the same attention design: grouped-query attention (GQA), in which multiple Query vectors attend to the same Key-Value vector to save memory. The optimization of attention did not stop there. Recent models use much
-more diverse attention mechanisms, and these mechanisms drastically change the HBM consumption, the memory loading, and the TFLOPs spent on the attention. 
+Much of today's performance analysis of LLM inference still rests on models with grouped-query attention (GQA), in
+which multiple Query vectors attend to the same Key-Value vector to save memory. That analysis tells us when a step is
+bound by attention and when by the FFN, how many requests fit in memory, and which kernels are worth tuning. Today's
+open models, however, have moved beyond GQA. They combine latent caches, sliding windows, sparse attention, compressed
+caches and linear attention. These designs drastically change the HBM consumption, the memory loading, and the TFLOPs
+spent on the attention.
 
 In this post, we look at eleven recent models: DeepSeek V4.1 Flash, DeepSeek V4 Pro, GLM-5.3-Flash, Qwen3.8 Flash
 Next, MiMo V2.6 Flash, Inkling, GLM-5.3, MiniMax-M3.1 Flash, Kimi K3, Kimi K3.1 Pro and Qwen3.8 27B. We compare them with
@@ -20,9 +24,7 @@ At a 128K-token context, the new models need far less than the baseline:
 - **Prefill.** A prompt needs up to 183× fewer attention FLOPs (Qwen3.8 Flash Next), and its attention runs up to
   46× faster (DeepSeek V4.1 Flash).
 
-These changes matter beyond the numbers themselves. Much of today's performance analysis of LLM inference still
-rests on older GQA models: when a step is bound by attention and when by the FFN, how many requests fit in memory,
-and which kernels are worth tuning. The new attention designs change these answers.
+These changes matter beyond the numbers themselves: they change the answers that the analysis of GQA models gives.
 
 <div class="key-message">
 <p class="key-message-label">Our main takeaway</p>
@@ -624,7 +626,7 @@ ms per decode step, whole model · B200, DP attention (all heads on each GPU). H
 *Takeaways the figure shows as the slider moves*
 
 - 4K–16K, batch 32: At short contexts, fixed work decides. Kimi K3 and Kimi K3.1 Pro read and write their large linear-attention states at every step, so up to 8K tokens they are slower than the baseline. Inkling is slower too, because its 55 window layers take about 3.5 ms per step at any context.
-- 32K–128K, batch 32: The baseline's time grows with the bytes it reads, to 75.9 ms at 128K tokens. DeepSeek V4.1 Flash takes 1.7 ms there, 44× less. Inkling takes 42.3 ms: it reads less than Qwen3.8 27B but takes twice as long.
+- 32K–128K, batch 32: The baseline's time grows with the bytes it reads, to 75.9 ms at 128K tokens. DeepSeek V4.1 Flash takes 1.7 ms there, 44× less.
 - 256K–1M, batch 32: At long contexts, the indexer takes most of the time in GLM-5.3 and MiniMax-M3.1 Flash, and the models with full-attention layers slow down the most. At 1M tokens, Qwen3.8 Flash Next takes 4.1 ms per step and Inkling 303 ms.
 - 4K–32K, batch 1: With one request, a step reads too little to keep the GPU busy. Up to 32K tokens, every model takes 0.3 to 2.0 ms in attention kernels.
 - 64K–256K, batch 1: The baseline's time grows with the context, to 5.4 ms at 256K tokens. The other new models stay at or below 2.3 ms, but Inkling reaches 3.5 ms, twice the time of Qwen3.8 27B, which reads more bytes per step.
@@ -793,8 +795,8 @@ ms to prefill the prompt in 8K chunks, whole model · B200, DP attention (all he
 *Takeaways the figure shows as the slider moves*
 
 - 4K–16K: At short prompts, sparse attention saves little. At 8K tokens, the baseline's dense attention is still faster than the attention of GLM-5.3, DeepSeek V4 Pro, Kimi K3 and Kimi K3.1 Pro.
-- 32K–128K: The baseline's time grows with the square of the prompt, and from 32K tokens on it is slower than every new model. At 128K tokens, GLM-5.3 needs 1.4× the attention FLOPs of MiMo V2.6 Flash and takes 1.7× as long.
-- 256K–1M: At long prompts, the indexer takes a growing share of the time. At 1M tokens, it is most of the time in every sparse model except Qwen3.8 Flash Next, which takes 13.9 s in total against 86.8 s for GLM-5.3.
+- 32K–128K: The baseline's time grows with the square of the prompt, and from 32K tokens on it is slower than every new model. At 128K tokens, it takes 15.6 s, while the new models take 1.6× to 46× less.
+- 256K–1M: At long prompts, the indexer takes a growing share of the time. At 1M tokens, it is most of the time in every sparse model except Qwen3.8 Flash Next.
 
 All of this figure's data (every setting and operation): [data/prefill_time.md](assets/interactive/data/prefill_time.md)
 

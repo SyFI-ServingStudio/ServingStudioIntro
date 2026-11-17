@@ -322,7 +322,7 @@
           from: 32768,
           to: 131072,
           when: (state) => state.batch === 32,
-          text: "The baseline's time grows with the bytes it reads, to 75.9 ms at 128K tokens. DeepSeek V4.1 Flash takes 1.7 ms there, 44× less. Inkling takes 42.3 ms: it reads less than Qwen3.8 27B but takes twice as long.",
+          text: "The baseline's time grows with the bytes it reads, to 75.9 ms at 128K tokens. DeepSeek V4.1 Flash takes 1.7 ms there, 44× less.",
         },
         {
           from: 262144,
@@ -402,13 +402,13 @@
         {
           from: 32768,
           to: 131072,
-          text: "The baseline's time grows with the square of the prompt, and from 32K tokens on it is slower than every new model. At 128K tokens, GLM-5.3 needs 1.4× the attention FLOPs of MiMo V2.6 Flash and takes 1.7× as long.",
+          text: "The baseline's time grows with the square of the prompt, and from 32K tokens on it is slower than every new model. At 128K tokens, it takes 15.6 s, while the new models take 1.6× to 46× less.",
         },
         {
           from: 262144,
           to: 1048576,
           highlight: ["DeepSeek V4.1 Flash:indexer", "DeepSeek V4 Pro:indexer", "GLM-5.3-Flash:indexer", "GLM-5.3:indexer", "MiniMax-M3.1 Flash:indexer", "Kimi K3.1 Pro:indexer"],
-          text: "At long prompts, the indexer takes a growing share of the time. At 1M tokens, it is most of the time in every sparse model except Qwen3.8 Flash Next, which takes 13.9 s in total against 86.8 s for GLM-5.3.",
+          text: "At long prompts, the indexer takes a growing share of the time. At 1M tokens, it is most of the time in every sparse model except Qwen3.8 Flash Next.",
         },
       ],
       format: msText,
