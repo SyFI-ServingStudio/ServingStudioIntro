@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowUpRight, Search, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, ArrowUpRight, Check, Copy, Search, X } from "lucide-react";
 import posts, { tags as topics } from "virtual:blog-posts";
 import s from "./Blog.module.css";
 
@@ -29,6 +29,50 @@ function useInteractivePost(post) {
     document.head.append(...added);
     return () => added.forEach((node) => node.remove());
   }, [post]);
+}
+
+/* The post's BibTeX entry (blog-content.mjs postCitation) in a box with a copy
+   button. Without a clipboard (an insecure origin, a denied permission) the
+   button selects the entry instead, ready for a manual copy. */
+function Citation({ citation }) {
+  const [state, setState] = useState("idle");
+  const entry = useRef(null);
+  useEffect(() => {
+    if (state === "idle") return undefined;
+    const timer = setTimeout(() => setState("idle"), 1600);
+    return () => clearTimeout(timer);
+  }, [state]);
+  const select = () => {
+    window.getSelection()?.selectAllChildren(entry.current);
+    setState("selected");
+  };
+  const copy = () => {
+    if (!navigator.clipboard?.writeText) return select();
+    return navigator.clipboard
+      .writeText(citation.bibtex)
+      .then(() => setState("copied"), select);
+  };
+  return (
+    <section className={`${s.prose} ${s.citation}`}>
+      <h2 id={citation.id}>Citation</h2>
+      <div className={s.bibtex}>
+        <pre ref={entry} tabIndex={0} aria-label="BibTeX entry">
+          {citation.bibtex}
+        </pre>
+        <button type="button" className={s.copy} onClick={copy}>
+          {state === "copied" ? (
+            <Check size={14} aria-hidden="true" />
+          ) : (
+            <Copy size={14} aria-hidden="true" />
+          )}
+          {{ idle: "Copy", copied: "Copied", selected: "Selected" }[state]}
+        </button>
+      </div>
+      <span className="visually-hidden" role="status">
+        {state === "copied" ? "BibTeX copied." : ""}
+      </span>
+    </section>
+  );
 }
 
 function PostMeta({ post }) {
@@ -99,10 +143,15 @@ export default function Blog({ slug }) {
           {/* Rendered at build time by react-markdown, without raw HTML support;
               an interactive post's own HTML instead, which its styles address
               as .interactive-prose. */}
-          <div
-            className={post.interactive ? `${s.prose} interactive-prose` : s.prose}
-            dangerouslySetInnerHTML={{ __html: post.html }}
-          />
+          <div className={s.body}>
+            <div
+              className={
+                post.interactive ? `${s.prose} interactive-prose` : s.prose
+              }
+              dangerouslySetInnerHTML={{ __html: post.html }}
+            />
+            <Citation citation={post.citation} />
+          </div>
         </div>
         <a className={s.back} href={`${base}blog.html`}>
           <ArrowLeft size={18} aria-hidden="true" /> Back to all posts

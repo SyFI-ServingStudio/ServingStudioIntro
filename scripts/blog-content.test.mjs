@@ -91,7 +91,7 @@ test("renders GFM and unique section anchors without executing raw HTML", (t) =>
   const [post] = readBlogPosts(f.root, "/");
   assert.deepEqual(
     post.headings.map((h) => h.id),
-    ["results", "results-2"],
+    ["results", "results-2", "citation"],
   );
   assert.match(post.html, /<table>/);
   assert.doesNotMatch(post.html, /<h1|<script|href="javascript:/);
@@ -146,7 +146,10 @@ test("an interactive post shows its own HTML body and loads its assets in order"
   assert.match(post.html, /src="\/blog\/figures\/assets\/interactive\/chart.png"/);
   assert.match(post.html, /href="https:\/\/example.com\/"/);
   assert.match(post.html, /href="#memory"/);
-  assert.deepEqual(post.headings, [{ id: "memory", text: "Memory & bytes" }]);
+  assert.deepEqual(post.headings, [
+    { id: "memory", text: "Memory & bytes" },
+    { id: "citation", text: "Citation" },
+  ]);
   assert.deepEqual(post.interactive, {
     styles: ["/blog/figures/assets/interactive/figures.css"],
     scripts: [
@@ -171,4 +174,51 @@ test("an interactive post fails on a missing script or a malformed list", (t) =>
   });
   writeFileSync(body, "<p>Text.</p>");
   assert.throws(() => readBlogPosts(f.root, "/"), /interactive.scripts/);
+});
+
+test("ends every post with a citation built from its metadata", (t) => {
+  const f = fixture(t);
+  f.post("serving-experiment", {
+    title: "Prefill & decode: 50% faster",
+    authors: ["Ada Lovelace", "Alan Mathison Turing"],
+    date: "2026-11-17",
+  });
+  f.post("undated");
+  const [post, undated] = readBlogPosts(f.root, "/ServingStudioIntro/");
+  assert.equal(post.citation.key, "lovelace2026serving");
+  assert.equal(
+    post.citation.url,
+    "https://servingstudio.cs.washington.edu/blog/serving-experiment/",
+  );
+  assert.match(post.citation.bibtex, /^@misc\{lovelace2026serving,$/m);
+  assert.match(
+    post.citation.bibtex,
+    /title {8}= \{\{Prefill \\& decode: 50\\% faster\}\}/,
+  );
+  assert.match(
+    post.citation.bibtex,
+    /author {7}= \{Lovelace, Ada and Turing, Alan Mathison\}/,
+  );
+  assert.match(post.citation.bibtex, /month {8}= nov,/);
+  assert.equal(post.citation.id, "citation");
+  assert.deepEqual(post.headings.at(-1), { id: "citation", text: "Citation" });
+  assert.doesNotMatch(undated.citation.bibtex, /year|month/);
+  assert.equal(undated.citation.key, "teamundated");
+});
+
+test("keeps a post's own Citation heading and takes a citation key from metadata", (t) => {
+  const f = fixture(t);
+  f.post(
+    "experiment",
+    { citationKey: "servingstudio:exp" },
+    "# Title\n\n## Citation\n\nOld.",
+  );
+  const [post] = readBlogPosts(f.root, "/");
+  assert.equal(post.citation.key, "servingstudio:exp");
+  assert.deepEqual(
+    post.headings.map((h) => h.id),
+    ["citation", "cite-this-post"],
+  );
+  f.post("experiment", { citationKey: "bad key" });
+  assert.throws(() => readBlogPosts(f.root, "/"), /citationKey/);
 });

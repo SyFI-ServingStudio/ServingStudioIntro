@@ -20,6 +20,50 @@ const escapeHtml = (value) =>
       ],
   );
 
+// Every post ends with a Citation section, a BibTeX entry built from its
+// metadata (rendered with a copy button by src/pages/Blog.jsx), so a post can be
+// cited without the author writing one. The URL is the published site's,
+// whatever base this build uses.
+const siteOrigin = "https://servingstudio.cs.washington.edu";
+const months = "jan feb mar apr may jun jul aug sep oct nov dec".split(" ");
+const bibtexEscape = (value) =>
+  String(value).replace(/[&%$#_]/g, (char) => `\\${char}`);
+
+export function postCitation({ slug, title, authors, date, citationKey }) {
+  const url = `${siteOrigin}/blog/${slug}/`;
+  const [year, month] = date ? date.split("-") : [];
+  const surname = (name) => name.trim().split(/\s+/).at(-1);
+  const key =
+    citationKey ||
+    `${surname(authors[0])
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")}${year ?? ""}${slug.split("-")[0]}`;
+  const bibAuthor = (name) => {
+    const parts = name.trim().split(/\s+/);
+    return parts.length < 2
+      ? name
+      : `${parts.at(-1)}, ${parts.slice(0, -1).join(" ")}`;
+  };
+  const fields = [
+    // Double braces keep the title's capitals in any bibliography style.
+    ["title", `{{${bibtexEscape(title)}}}`],
+    ["author", `{${authors.map(bibAuthor).map(bibtexEscape).join(" and ")}}`],
+    ...(year
+      ? [
+          ["year", `{${year}}`],
+          ["month", months[Number(month) - 1]],
+        ]
+      : []),
+    ["howpublished", `{\\url{${url}}}`],
+    ["note", "{ServingStudio Blog}"],
+  ];
+  const width = Math.max(...fields.map(([name]) => name.length));
+  const bibtex = `@misc{${key},\n${fields
+    .map(([name, value]) => `  ${name.padEnd(width)} = ${value}`)
+    .join(",\n")}\n}`;
+  return { key, url, bibtex };
+}
+
 function filesIn(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const name = path.join(directory, entry.name);
@@ -56,6 +100,14 @@ export function readBlogPosts(root, base) {
             `${slug}: metadata.${field} must be a nonempty list of strings`,
           );
         }
+      }
+      if (
+        metadata.citationKey !== undefined &&
+        !/^[A-Za-z0-9:_-]+$/.test(String(metadata.citationKey))
+      ) {
+        throw new Error(
+          `${slug}: metadata.citationKey may hold only letters, digits, ":", "_" and "-"`,
+        );
       }
       const unknownTags = metadata.tags.filter((tag) => !blogTags.includes(tag));
       if (unknownTags.length) {
@@ -166,6 +218,17 @@ export function readBlogPosts(root, base) {
         headings.length = 0;
         headings.push(...interactive.headings);
       }
+      const citation = postCitation({
+        slug,
+        title: metadata.title,
+        authors: metadata.authors,
+        date: metadata.date ?? null,
+        citationKey: metadata.citationKey,
+      });
+      const citationId = headings.some((heading) => heading.id === "citation")
+        ? "cite-this-post"
+        : "citation";
+      headings.push({ id: citationId, text: "Citation" });
       return {
         slug,
         href,
@@ -181,6 +244,7 @@ export function readBlogPosts(root, base) {
           Math.ceil((interactive?.prose ?? markdown).split(/\s+/).length / 220),
         ),
         html: interactive?.html ?? html,
+        citation: { id: citationId, ...citation },
         interactive: interactive && {
           styles: interactive.styles,
           scripts: interactive.scripts,
