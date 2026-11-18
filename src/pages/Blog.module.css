@@ -222,6 +222,20 @@
   line-height: 1.6;
 }
 
+.meta sup {
+  margin-left: 1px;
+  font-size: 0.7em;
+}
+
+/* Its own line under the authors: "1 University of Washington  2 Arm". */
+.affiliations {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: -4px;
+}
+
 .postCopy .meta {
   margin-top: auto;
   padding-top: 24px;

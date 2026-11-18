@@ -75,12 +75,35 @@ function Citation({ citation }) {
   );
 }
 
-function PostMeta({ post }) {
+/* The post's own header numbers each author's affiliations and lists them
+   under the line; the index cards show names only. */
+function PostMeta({ post, affiliations = false }) {
+  const marks = affiliations ? post.affiliations?.marks : null;
   return (
     <div className={s.meta}>
       {post.date && <time dateTime={post.date}>{formatDate(post.date)}</time>}
-      <span>{post.authors.join(", ")}</span>
+      <span>
+        {marks
+          ? post.authors.map((author, i) => (
+              <span key={author}>
+                {i > 0 && ", "}
+                {author}
+                <sup>{marks[i].join(",")}</sup>
+              </span>
+            ))
+          : post.authors.join(", ")}
+      </span>
       <span>{post.readingMinutes} min read</span>
+      {marks && (
+        <span className={s.affiliations}>
+          {post.affiliations.names.map((name, i) => (
+            <span key={name}>
+              <sup>{i + 1}</sup>
+              {name}
+            </span>
+          ))}
+        </span>
+      )}
     </div>
   );
 }
@@ -127,7 +150,7 @@ export default function Blog({ slug }) {
           </div>
           <h1>{post.title}</h1>
           <p>{post.description}</p>
-          <PostMeta post={post} />
+          <PostMeta post={post} affiliations />
         </header>
         <div className={s.articleLayout}>
           <aside className={s.contents}>
