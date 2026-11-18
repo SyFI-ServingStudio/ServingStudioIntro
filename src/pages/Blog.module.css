@@ -408,6 +408,51 @@
   background: var(--surface);
 }
 
+/* The post column: the article, then its Citation section. */
+.body {
+  min-width: 0;
+}
+
+.citation h2:first-child {
+  margin-top: 56px;
+}
+
+.bibtex {
+  position: relative;
+}
+
+.bibtex pre {
+  margin: 0;
+  padding: 18px 24px;
+  border: 1px solid var(--line);
+  font-family: var(--font-code, ui-monospace, monospace);
+  font-size: 16px;
+  line-height: 1.6;
+
+  /* Long fields wrap inside the box; the copied text keeps its own lines. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bibtex .copy {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg, var(--surface));
+  color: var(--c-ink-1300);
+  font-size: 13px;
+}
+
+.bibtex .copy:hover {
+  color: var(--ink);
+}
+
 .prose blockquote {
   padding-left: 24px;
   border-left: 2px solid var(--accent);

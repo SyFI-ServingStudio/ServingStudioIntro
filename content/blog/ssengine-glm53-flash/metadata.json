@@ -1,0 +1,20 @@
+{
+  "title": "SSEngine-GLM5.3-Flash: Pipeline-Parallel Prefill with Tiered Prefix Caching for Agentic Workloads",
+  "description": "An open-source prefill engine for GLM-5.3-Flash on four B200 GPUs that combines pipeline parallelism, a prefix cache across HBM, DRAM and SSD, and a shortest-remaining-prefill-first scheduler.",
+  "authors": [
+    "Kan Zhu",
+    "Mathew Jacob",
+    "Ben Lundell",
+    "Parul Verma",
+    "Marty Butler",
+    "Stephanie Wang",
+    "Arvind Krishnamurthy",
+    "Baris Kasikci"
+  ],
+  "date": "2026-11-17",
+  "tags": [
+    "Release"
+  ],
+  "cover": "assets/teaser.png",
+  "coverAlt": "SSEngine-GLM5.3-Flash combines pipeline parallelism, a tiered prefix cache and a shortest-remaining-prefill-first scheduler, and its highest throughput is 3.1x and 3.2x the highest of any baseline on AgentX and TraceLab"
+}
