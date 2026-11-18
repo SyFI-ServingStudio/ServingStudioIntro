@@ -64,6 +64,41 @@ export function postCitation({ slug, title, authors, date, citationKey }) {
   return { key, url, bibtex };
 }
 
+/* Optional `affiliations`: [{ "name": "...", "authors": ["...", ...] }, ...],
+   numbered in this order. Every listed author must be in `authors`. Returns
+   null without them, or { names, marks } with marks[i] the numbers of
+   authors[i]. */
+function readAffiliations(slug, metadata) {
+  if (metadata.affiliations === undefined) return null;
+  const list = metadata.affiliations;
+  if (
+    !Array.isArray(list) ||
+    !list.length ||
+    list.some(
+      (item) =>
+        typeof item?.name !== "string" ||
+        !item.name.trim() ||
+        !Array.isArray(item.authors) ||
+        !item.authors.length,
+    )
+  )
+    throw new Error(
+      `${slug}: metadata.affiliations must be a nonempty list of { name, authors }`,
+    );
+  const marks = metadata.authors.map(() => []);
+  list.forEach((item, i) => {
+    for (const author of item.authors) {
+      const at = metadata.authors.indexOf(author);
+      if (at < 0)
+        throw new Error(
+          `${slug}: affiliation ${item.name} lists ${author}, who is not in authors`,
+        );
+      marks[at].push(i + 1);
+    }
+  });
+  return { names: list.map((item) => item.name), marks };
+}
+
 function filesIn(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const name = path.join(directory, entry.name);
@@ -109,6 +144,7 @@ export function readBlogPosts(root, base) {
           `${slug}: metadata.citationKey may hold only letters, digits, ":", "_" and "-"`,
         );
       }
+      const affiliations = readAffiliations(slug, metadata);
       const unknownTags = metadata.tags.filter((tag) => !blogTags.includes(tag));
       if (unknownTags.length) {
         throw new Error(
@@ -235,6 +271,7 @@ export function readBlogPosts(root, base) {
         title: metadata.title,
         description: metadata.description,
         authors: metadata.authors,
+        affiliations,
         date: metadata.date ?? null,
         tags: [...new Set(metadata.tags)],
         cover,

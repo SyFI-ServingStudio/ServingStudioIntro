@@ -11,10 +11,24 @@
     "Arvind Krishnamurthy",
     "Baris Kasikci"
   ],
-  "date": "2026-11-17",
-  "tags": [
-    "Release"
+  "affiliations": [
+    {
+      "name": "University of Washington",
+      "authors": [
+        "Kan Zhu",
+        "Mathew Jacob",
+        "Stephanie Wang",
+        "Arvind Krishnamurthy",
+        "Baris Kasikci"
+      ]
+    },
+    {
+      "name": "Arm",
+      "authors": ["Ben Lundell", "Parul Verma", "Marty Butler"]
+    }
   ],
+  "date": "2026-11-17",
+  "tags": ["Release"],
   "cover": "assets/teaser.png",
   "coverAlt": "SSEngine-GLM5.3-Flash combines pipeline parallelism, a tiered prefix cache and a shortest-remaining-prefill-first scheduler, and its highest throughput is 3.1x and 3.2x the highest of any baseline on AgentX and TraceLab"
 }

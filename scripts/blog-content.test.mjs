@@ -222,3 +222,37 @@ test("keeps a post's own Citation heading and takes a citation key from metadata
   f.post("experiment", { citationKey: "bad key" });
   assert.throws(() => readBlogPosts(f.root, "/"), /citationKey/);
 });
+
+test("numbers authors' affiliations in the order listed", (t) => {
+  const f = fixture(t);
+  f.post("experiment", {
+    authors: ["Ada Lovelace", "Alan Turing", "Grace Hopper"],
+    affiliations: [
+      {
+        name: "University of Washington",
+        authors: ["Ada Lovelace", "Grace Hopper"],
+      },
+      { name: "Arm", authors: ["Alan Turing", "Grace Hopper"] },
+    ],
+  });
+  f.post("plain");
+  const [post, plain] = readBlogPosts(f.root, "/");
+  assert.deepEqual(post.affiliations, {
+    names: ["University of Washington", "Arm"],
+    marks: [[1], [2], [1, 2]],
+  });
+  assert.equal(plain.affiliations, null);
+});
+
+test("rejects affiliations that name someone outside the authors", (t) => {
+  const f = fixture(t);
+  f.post("experiment", {
+    affiliations: [{ name: "Arm", authors: ["Nobody"] }],
+  });
+  assert.throws(
+    () => readBlogPosts(f.root, "/"),
+    /lists Nobody, who is not in authors/,
+  );
+  f.post("experiment", { affiliations: [{ name: "Arm" }] });
+  assert.throws(() => readBlogPosts(f.root, "/"), /affiliations must be/);
+});
