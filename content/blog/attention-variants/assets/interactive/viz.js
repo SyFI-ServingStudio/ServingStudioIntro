@@ -402,7 +402,7 @@
         {
           from: 32768,
           to: 131072,
-          text: "The baseline's time grows with the square of the prompt, and from 32K tokens on it is slower than every new model. At 128K tokens, it takes 15.6 s, while the new models take 1.6× to 46× less.",
+          text: "The baseline's attention time grows with the square of the prompt, and from 32K tokens on its attention is slower than every new model's. At 128K tokens, its attention takes 15.6 s, while the new models' take 1.6× to 46× less.",
         },
         {
           from: 262144,
