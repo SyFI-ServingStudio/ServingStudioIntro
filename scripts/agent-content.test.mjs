@@ -526,3 +526,21 @@ test("a deployment's GET /predict link spells one batch in its case form", async
   );
   assert.equal(predictUrl(api, "M/x", { params: {}, predict: null }), null);
 });
+
+test("a deployment's GET /attention link sizes its KV cache at a context length", async () => {
+  const { attentionUrl } = await import("./agent-detail-pages.mjs");
+  const api = "https://example.org/api/public/v1";
+  assert.equal(
+    attentionUrl(api, "Llama-3.1-8B/llama3_dense_tp", {
+      params: { tp_size: 2 },
+      predict: { selector: "iter", groups: 1, max_model_len: 131072 },
+    }),
+    `${api}/attention?preset=Llama-3.1-8B/llama3_dense_tp&tp_size=2&tokens=8192`,
+  );
+  assert.equal(
+    attentionUrl(api, "M/a", { params: {}, predict: { selector: "speculative_iter", max_model_len: 4096 } }),
+    `${api}/attention?preset=M/a&tokens=4096`,
+  );
+  // An FFN side keeps no KV cache.
+  assert.equal(attentionUrl(api, "M/f", { params: {}, predict: { selector: "ffn", groups: 2 } }), null);
+});
