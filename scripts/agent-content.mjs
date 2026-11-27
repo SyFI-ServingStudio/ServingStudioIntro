@@ -361,6 +361,8 @@ export function renderLlmsText({
     `- [OpenAPI schema](${links.api}/openapi.json): every route`,
     `- [Interactive API docs](${links.api}/docs)`,
     "",
+    "Calling the API needs a tool that makes HTTP requests. A coding agent with a shell and network access (Claude Code, Codex) can use `curl` directly; if its sandbox has no network (`curl` cannot resolve the host), ask the user to allow network access. A chat assistant's web browsing often cannot call it: it may open only links that already appear on a page or in the conversation, may refuse an API URL outright, and cannot send `POST`. If you cannot reach the API, do not report it as down; tell the user to ask again in an agent or work mode that can fetch URLs or run commands, or in a coding agent with network access. With only a URL fetcher, follow the ready `GET /predict` and `GET /attention` links on the deployment pages listed below.",
+    "",
     "## Agent skills",
     "",
     `Install them all with \`${SKILL_INSTALL}\`.`,
