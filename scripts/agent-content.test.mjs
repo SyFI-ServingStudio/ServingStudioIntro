@@ -327,6 +327,9 @@ test("the real page bodies name every entry", async () => {
     /\| `unified\.attn_block\.qkv_proj` \| \[single_gemm\]\(https:\/\/example\.org\/kernels\/single_gemm\.md\) \| `torch` \|/,
   );
   assert.match(deployment, /llama3_dense_tp_barebone/);
+  assert.match(deployment, /One batch is also a link: `GET https:\/\/example\.org\/api\/public\/v1\/predict`/);
+  assert.match(emitted["llms.txt"], /`GET \/predict` times one batch given in the query string/);
+  assert.match(emitted["llms.txt"], /`GET \/attention` sizes one request's KV cache/);
   assert.match(
     emitted["llms.txt"],
     /## Kernel kinds\n\n- \[All-reduce \(all_reduce\)\]\(https:\/\/example\.org\/kernels\/all_reduce\.md\)/,
@@ -490,4 +493,36 @@ Allow: /
 Sitemap: https://example.org/sitemap.xml
 `,
   );
+});
+
+test("a deployment's GET /predict link spells one batch in its case form", async () => {
+  const { predictUrl } = await import("./agent-detail-pages.mjs");
+  const api = "https://example.org/api/public/v1";
+  assert.equal(
+    predictUrl(api, "Llama-3.1-8B/llama3_dense_tp", {
+      params: { tp_size: 2 },
+      predict: { selector: "iter", groups: 1, max_model_len: 131072 },
+    }),
+    `${api}/predict?preset=Llama-3.1-8B/llama3_dense_tp&tp_size=2&decode_count=8&average_decode_length=4096`,
+  );
+  // A short member decodes at its own length; booleans read as the API spells them.
+  assert.equal(
+    predictUrl(api, "M/a", {
+      params: { enable_expert_parallel: true },
+      predict: { selector: "attn", groups: 1, max_model_len: 2048 },
+    }),
+    `${api}/predict?preset=M/a&enable_expert_parallel=true&decode_count=8&average_decode_length=2048`,
+  );
+  assert.equal(
+    predictUrl(api, "M/s", {
+      params: {},
+      predict: { selector: "speculative_iter", groups: 1, query_width: 8, max_model_len: 8192 },
+    }),
+    `${api}/predict?preset=M/s&decode_requests=${Array(8).fill("4096:8").join(",")}`,
+  );
+  assert.equal(
+    predictUrl(api, "M/f", { params: {}, predict: { selector: "ffn", groups: 2 } }),
+    `${api}/predict?preset=M/f&tokens_per_group=8,8`,
+  );
+  assert.equal(predictUrl(api, "M/x", { params: {}, predict: null }), null);
 });
