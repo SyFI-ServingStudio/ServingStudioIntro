@@ -57,6 +57,32 @@ export const shownMember = (preset) =>
   preset.members.find((member) => !member.error) ??
   null;
 
+/* A `GET /predict` link that times one small batch on `member`: eight decode
+   requests at 4,096 tokens of context (less when the member holds less), in
+   the member's case form, every value spelled as the route reads it. Null for
+   a case form the route cannot spell from a query string. */
+export const predictUrl = (apiBase, presetId, member) => {
+  const shape = member.predict;
+  if (!shape) return null;
+  const context = Math.min(4096, shape.max_model_len ?? 4096);
+  let fields;
+  if (shape.selector === "iter" || shape.selector === "attn")
+    fields = { decode_count: 8, average_decode_length: context };
+  else if (shape.selector === "speculative_iter") {
+    const width = shape.query_width;
+    const kv = Math.max(width, context);
+    fields = { decode_requests: Array(8).fill(`${kv}:${width}`).join(",") };
+  } else if (shape.selector === "ffn")
+    fields = { tokens_per_group: Array(shape.groups).fill(8).join(",") };
+  else return null;
+  const spell = (value) =>
+    encodeURIComponent(String(value)).replace(/%2F/g, "/").replace(/%3A/g, ":").replace(/%2C/g, ",");
+  const query = Object.entries({ preset: presetId, ...member.params, ...fields })
+    .map(([name, value]) => `${encodeURIComponent(name)}=${spell(value)}`)
+    .join("&");
+  return `${apiBase}/predict?${query}`;
+};
+
 export const treeUrl = (apiBase, presetId, params) => {
   const query = queryString(params);
   return `${apiBase}/models/${presetPath(presetId)}/tree${query ? `?${query}` : ""}`;
@@ -318,6 +344,16 @@ export function renderDeploymentPage({
       "```json",
       JSON.stringify({ preset: preset.id, params: example.params, cases: ["…"] }),
       "```",
+    );
+  const link = example && predictable(example) ? predictUrl(links.api, preset.id, example) : null;
+  lines.push(
+    "",
+    `One batch is also a link: \`GET ${links.api}/predict\` with \`preset\`, each parameter and the case's fields in the query string, each value spelled by its type (int \`64\`, int_list \`1,2\`, int_pair_list \`0:2048,128:64\`); a group's fields describe every group alike. It does not analyze, and its answer adds \`request\`, the POST body it equals.`,
+  );
+  if (link)
+    lines.push(
+      "",
+      `For example, configuration ${paramsText(example.params)} timing eight decoding requests: ${link}`,
     );
   for (const selector of selectors) {
     const fields = caseFields?.[selector]?.groups ?? [];

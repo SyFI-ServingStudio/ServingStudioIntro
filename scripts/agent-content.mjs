@@ -134,7 +134,7 @@ export async function fetchCatalogs(apiBase, fetchImplementation = fetch) {
 
 function modelsBody({ models }, links) {
   const lines = [
-    `ServingStudio publishes ${plural(models.checkpoints.length, "model")}. Each is listed with its deployments (public presets): how the model is split over GPUs, the GPU, the parameters the preset sweeps, and how many of its configurations could be timed when this text was generated. On the interactive page, a deployment shows its cost tree and times a batch you give it (\`POST ${links.apiPath}/predict\`).`,
+    `ServingStudio publishes ${plural(models.checkpoints.length, "model")}. Each is listed with its deployments (public presets): how the model is split over GPUs, the GPU, the parameters the preset sweeps, and how many of its configurations could be timed when this text was generated. On the interactive page, a deployment shows its cost tree and times a batch you give it (\`POST ${links.apiPath}/predict\`; one batch is also a link, \`GET ${links.apiPath}/predict\`, whose form each deployment's Markdown page gives).`,
   ];
   for (const checkpoint of models.checkpoints) {
     lines.push(
@@ -357,7 +357,7 @@ export function renderLlmsText({
     "",
     "## Public API",
     "",
-    `- [API base](${links.api}): JSON over HTTPS; \`/health\`, \`/models\`, \`/kernels\`, \`/simulations/presets\` and \`/workloads\` list what it serves; \`POST /predict\` and \`POST /simulate\` run work`,
+    `- [API base](${links.api}): JSON over HTTPS; \`/health\`, \`/models\`, \`/kernels\`, \`/simulations/presets\` and \`/workloads\` list what it serves; \`GET /predict\` times one batch given in the query string (each deployment's Markdown page has a ready link); \`POST /predict\` (up to 64 batches, or \`analyze\`) and \`POST /simulate\` run work`,
     `- [OpenAPI schema](${links.api}/openapi.json): every route`,
     `- [Interactive API docs](${links.api}/docs)`,
     "",
