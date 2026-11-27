@@ -357,7 +357,7 @@ export function renderLlmsText({
     "",
     "## Public API",
     "",
-    `- [API base](${links.api}): JSON over HTTPS; \`/health\`, \`/models\`, \`/kernels\`, \`/simulations/presets\` and \`/workloads\` list what it serves; \`GET /predict\` times one batch given in the query string (each deployment's Markdown page has a ready link); \`POST /predict\` (up to 64 batches, or \`analyze\`) and \`POST /simulate\` run work`,
+    `- [API base](${links.api}): JSON over HTTPS; \`/health\`, \`/models\`, \`/kernels\`, \`/simulations/presets\` and \`/workloads\` list what it serves; \`GET /predict\` times one batch given in the query string (each deployment's Markdown page has a ready link); \`GET /attention\` sizes one request's KV cache at a context length (\`tokens\`), stored once, per GPU and over the partition; \`POST /predict\` (up to 64 batches, or \`analyze\`) and \`POST /simulate\` run work`,
     `- [OpenAPI schema](${links.api}/openapi.json): every route`,
     `- [Interactive API docs](${links.api}/docs)`,
     "",

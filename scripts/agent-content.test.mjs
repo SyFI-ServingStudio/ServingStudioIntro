@@ -329,6 +329,7 @@ test("the real page bodies name every entry", async () => {
   assert.match(deployment, /llama3_dense_tp_barebone/);
   assert.match(deployment, /One batch is also a link: `GET https:\/\/example\.org\/api\/public\/v1\/predict`/);
   assert.match(emitted["llms.txt"], /`GET \/predict` times one batch given in the query string/);
+  assert.match(emitted["llms.txt"], /`GET \/attention` sizes one request's KV cache/);
   assert.match(
     emitted["llms.txt"],
     /## Kernel kinds\n\n- \[All-reduce \(all_reduce\)\]\(https:\/\/example\.org\/kernels\/all_reduce\.md\)/,
