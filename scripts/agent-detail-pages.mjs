@@ -75,12 +75,29 @@ export const predictUrl = (apiBase, presetId, member) => {
   } else if (shape.selector === "ffn")
     fields = { tokens_per_group: Array(shape.groups).fill(8).join(",") };
   else return null;
-  const spell = (value) =>
-    encodeURIComponent(String(value)).replace(/%2F/g, "/").replace(/%3A/g, ":").replace(/%2C/g, ",");
-  const query = Object.entries({ preset: presetId, ...member.params, ...fields })
-    .map(([name, value]) => `${encodeURIComponent(name)}=${spell(value)}`)
+  return `${apiBase}/predict?${queryText({ preset: presetId, ...member.params, ...fields })}`;
+};
+
+/* A query string as the API reads it, with `/`, `:` and `,` left readable. */
+const queryText = (values) =>
+  Object.entries(values)
+    .map(
+      ([name, value]) =>
+        `${encodeURIComponent(name)}=${encodeURIComponent(String(value))
+          .replace(/%2F/g, "/")
+          .replace(/%3A/g, ":")
+          .replace(/%2C/g, ",")}`,
+    )
     .join("&");
-  return `${apiBase}/predict?${query}`;
+
+/* A `GET /attention` link that sizes one request's KV cache on `member` at
+   8,192 tokens of context (less when the member holds less). Null for a
+   member without a KV cache: an FFN side, or one that does not build. */
+export const attentionUrl = (apiBase, presetId, member) => {
+  const shape = member.predict;
+  if (!shape || shape.selector === "ffn") return null;
+  const tokens = Math.min(8192, shape.max_model_len ?? 8192);
+  return `${apiBase}/attention?${queryText({ preset: presetId, ...member.params, tokens })}`;
 };
 
 export const treeUrl = (apiBase, presetId, params) => {
@@ -354,6 +371,14 @@ export function renderDeploymentPage({
     lines.push(
       "",
       `For example, configuration ${paramsText(example.params)} timing eight decoding requests: ${link}`,
+    );
+  const sizing = example ? attentionUrl(links.api, preset.id, example) : null;
+  if (sizing)
+    lines.push(
+      "",
+      "## KV cache at a context length",
+      "",
+      `\`GET ${links.api}/attention\` with \`preset\`, each parameter and \`tokens\` gives what one request of that context holds in the KV cache, part by part, each size three ways: \`one_copy\` (stored once), \`per_gpu\` (one GPU of the KV partition) and \`partition\` (over it, copies included). For example, configuration ${paramsText(example.params)} at ${Math.min(8192, example.predict.max_model_len ?? 8192).toLocaleString("en-US")} tokens: ${sizing}`,
     );
   for (const selector of selectors) {
     const fields = caseFields?.[selector]?.groups ?? [];

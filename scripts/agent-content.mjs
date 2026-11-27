@@ -134,7 +134,7 @@ export async function fetchCatalogs(apiBase, fetchImplementation = fetch) {
 
 function modelsBody({ models }, links) {
   const lines = [
-    `ServingStudio publishes ${plural(models.checkpoints.length, "model")}. Each is listed with its deployments (public presets): how the model is split over GPUs, the GPU, the parameters the preset sweeps, and how many of its configurations could be timed when this text was generated. On the interactive page, a deployment shows its cost tree and times a batch you give it (\`POST ${links.apiPath}/predict\`; one batch is also a link, \`GET ${links.apiPath}/predict\`, whose form each deployment's Markdown page gives).`,
+    `ServingStudio publishes ${plural(models.checkpoints.length, "model")}. Each is listed with its deployments (public presets): how the model is split over GPUs, the GPU, the parameters the preset sweeps, and how many of its configurations could be timed when this text was generated. On the interactive page, a deployment shows its cost tree and times a batch you give it (\`POST ${links.apiPath}/predict\`; one batch is also a link, \`GET ${links.apiPath}/predict\`, whose form each deployment's Markdown page gives). \`GET ${links.apiPath}/attention\` sizes one request's KV cache at a context length; each deployment's Markdown page has a ready link.`,
   ];
   for (const checkpoint of models.checkpoints) {
     lines.push(
